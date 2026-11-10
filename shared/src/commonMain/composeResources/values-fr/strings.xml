@@ -1,0 +1,5 @@
+<resources>
+    <string name="nav_stock">Stock</string>
+    <string name="nav_scan">Scanner</string>
+    <string name="nav_settings">Paramètres</string>
+</resources>

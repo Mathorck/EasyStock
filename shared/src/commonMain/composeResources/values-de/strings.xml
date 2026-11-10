@@ -1,0 +1,5 @@
+<resources>
+    <string name="nav_stock">Lager</string>
+    <string name="nav_scan">Scannen</string>
+    <string name="nav_settings">Einstellungen</string>
+</resources>
