@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.composables
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -43,4 +45,12 @@ private fun Page.label(): StringResource = when (this) {
     Page.Stock -> Res.string.nav_stock
     Page.Scan -> Res.string.nav_scan
     Page.Settings -> Res.string.nav_settings
+}
+
+@Preview
+@Composable
+private fun NavBarComposablePreview() {
+    MaterialTheme {
+        NavBarComposable(currentPage = Page.Scan, onPageSelected = {})
+    }
 }

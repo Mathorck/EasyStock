@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables
 
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -35,5 +36,13 @@ fun MainComposable() {
                 Page.Settings -> SettingsPage()
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun MainComposablePreview() {
+    MaterialTheme {
+        MainComposable()
     }
 }
