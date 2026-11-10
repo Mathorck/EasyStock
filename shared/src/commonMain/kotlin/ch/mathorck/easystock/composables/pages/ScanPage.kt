@@ -1,8 +1,185 @@
 package ch.mathorck.easystock.composables.pages
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
+import ch.mathorck.easystock.enums.ScanState
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_scan
+import easystock.shared.generated.resources.scan_state_error
+import easystock.shared.generated.resources.scan_state_nfc_disabled
+import easystock.shared.generated.resources.scan_state_nfc_unavailable
+import easystock.shared.generated.resources.scan_state_not_found
+import easystock.shared.generated.resources.scan_state_reading
+import easystock.shared.generated.resources.scan_state_ready
+import easystock.shared.generated.resources.scan_state_success
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun ScanPage(){
-    
+fun ScanPage(state: ScanState = ScanState.Ready) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        ScanCircle(state = state, modifier = Modifier.size(min(min(maxWidth, maxHeight) * 0.7f, 360.dp)))
+    }
+}
+
+@Composable
+private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
+    val color by animateColorAsState(state.color())
+    val active = state == ScanState.Ready || state == ScanState.Reading
+
+    val transition = rememberInfiniteTransition()
+    val rotation by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            tween(if (state == ScanState.Reading) 2500 else 10000, easing = LinearEasing),
+        ),
+    )
+    val pulse by transition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(1400, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse,
+        ),
+    )
+
+    Box(modifier = modifier.scale(if (active) pulse else 1f), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 4.dp.toPx()
+            val radius = (size.minDimension - strokeWidth) / 2
+            drawCircle(color = color.copy(alpha = 0.12f), radius = radius)
+            // Dashed ring, rotates only while waiting for or reading a tag
+            rotate(if (active) rotation else 0f) {
+                drawCircle(
+                    color = color,
+                    radius = radius,
+                    style = Stroke(
+                        width = strokeWidth,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(18.dp.toPx(), 10.dp.toPx())),
+                    ),
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_scan),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(48.dp),
+            )
+            AnimatedContent(
+                targetState = state,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+            ) { target ->
+                Text(
+                    text = stringResource(target.label()),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanState.color(): Color = when (this) {
+    ScanState.Ready, ScanState.Reading -> MaterialTheme.colorScheme.primary
+    ScanState.Success -> MaterialTheme.colorScheme.tertiary
+    ScanState.NotFound -> MaterialTheme.colorScheme.secondary
+    ScanState.Error -> MaterialTheme.colorScheme.error
+    ScanState.NfcDisabled, ScanState.NfcUnavailable -> MaterialTheme.colorScheme.outline
+}
+
+private fun ScanState.label(): StringResource = when (this) {
+    ScanState.Ready -> Res.string.scan_state_ready
+    ScanState.Reading -> Res.string.scan_state_reading
+    ScanState.Success -> Res.string.scan_state_success
+    ScanState.NotFound -> Res.string.scan_state_not_found
+    ScanState.Error -> Res.string.scan_state_error
+    ScanState.NfcDisabled -> Res.string.scan_state_nfc_disabled
+    ScanState.NfcUnavailable -> Res.string.scan_state_nfc_unavailable
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPagePreview() {
+    MaterialTheme {
+        ScanPage()
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPageReadingPreview() {
+    MaterialTheme {
+        ScanPage(ScanState.Reading)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPageSuccessPreview() {
+    MaterialTheme {
+        ScanPage(ScanState.Success)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPageErrorPreview() {
+    MaterialTheme {
+        ScanPage(ScanState.Error)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPageNfcDisabledPreview() {
+    MaterialTheme {
+        ScanPage(ScanState.NfcDisabled)
+    }
 }

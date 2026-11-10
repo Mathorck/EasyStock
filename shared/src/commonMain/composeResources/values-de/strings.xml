@@ -2,4 +2,11 @@
     <string name="nav_stock">Lager</string>
     <string name="nav_scan">Scannen</string>
     <string name="nav_settings">Einstellungen</string>
+    <string name="scan_state_ready">Halten Sie einen Tag an Ihr Telefon</string>
+    <string name="scan_state_reading">Tag wird gelesen…</string>
+    <string name="scan_state_success">Artikel gefunden</string>
+    <string name="scan_state_not_found">Unbekannter Tag</string>
+    <string name="scan_state_error">Tag konnte nicht gelesen werden, bitte erneut versuchen</string>
+    <string name="scan_state_nfc_disabled">NFC ist ausgeschaltet. Aktivieren Sie es in den Einstellungen</string>
+    <string name="scan_state_nfc_unavailable">Dieses Gerät unterstützt kein NFC</string>
 </resources>

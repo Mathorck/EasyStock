@@ -2,4 +2,11 @@
     <string name="nav_stock">Stock</string>
     <string name="nav_scan">Scanner</string>
     <string name="nav_settings">Paramètres</string>
+    <string name="scan_state_ready">Approchez un tag de votre téléphone</string>
+    <string name="scan_state_reading">Lecture du tag…</string>
+    <string name="scan_state_success">Article trouvé</string>
+    <string name="scan_state_not_found">Tag inconnu</string>
+    <string name="scan_state_error">Impossible de lire le tag, réessayez</string>
+    <string name="scan_state_nfc_disabled">Le NFC est désactivé. Activez-le dans vos paramètres</string>
+    <string name="scan_state_nfc_unavailable">Cet appareil ne prend pas en charge le NFC</string>
 </resources>
