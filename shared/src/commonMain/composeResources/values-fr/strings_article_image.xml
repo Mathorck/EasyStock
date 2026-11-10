@@ -18,4 +18,5 @@
     <string name="article_image_crop_cancel">Annuler</string>
     <string name="article_image_crop_saving">Enregistrement de la photo…</string>
     <string name="article_image_crop_area">Zone de recadrage : faites glisser les coins, les bords ou l’intérieur</string>
+    <string name="article_image_camera_denied">L’accès à l’appareil photo a été refusé. Autorisez-le dans les réglages de l’app pour prendre une photo.</string>
 </resources>

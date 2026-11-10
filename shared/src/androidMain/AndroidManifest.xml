@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Backup transfer over the local Wi-Fi network only (sockets to local addresses, see backup/LanTransfer.kt) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Finds the Wi-Fi address of this phone for the transfer -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Scans the backup QR code. Asked at runtime, only on the backup screen and before taking a photo -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+</manifest>

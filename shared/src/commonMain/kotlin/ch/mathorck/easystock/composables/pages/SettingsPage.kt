@@ -32,10 +32,12 @@ import androidx.compose.ui.unit.dp
 import ch.mathorck.easystock.applyAppLanguage
 import ch.mathorck.easystock.currentAppLanguage
 import ch.mathorck.easystock.composables.settings.AttributesScreen
+import ch.mathorck.easystock.composables.settings.BackupScreen
 import ch.mathorck.easystock.composables.settings.CategoriesScreen
 import ch.mathorck.easystock.composables.settings.LocationsScreen
 import ch.mathorck.easystock.enums.AppLanguage
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_backup
 import easystock.shared.generated.resources.ic_category
 import easystock.shared.generated.resources.ic_chevron_right
 import easystock.shared.generated.resources.ic_label
@@ -44,6 +46,9 @@ import easystock.shared.generated.resources.settings_locations
 import easystock.shared.generated.resources.settings_locations_summary
 import easystock.shared.generated.resources.ic_language
 import easystock.shared.generated.resources.settings_attributes
+import easystock.shared.generated.resources.settings_backup
+import easystock.shared.generated.resources.settings_backup_summary
+import easystock.shared.generated.resources.settings_section_data
 import easystock.shared.generated.resources.settings_attributes_summary
 import easystock.shared.generated.resources.settings_categories
 import easystock.shared.generated.resources.settings_categories_summary
@@ -61,7 +66,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Full-screen subpages opened from the settings list. */
-enum class SettingsSubpageId { Attributes, Categories, Locations }
+enum class SettingsSubpageId { Attributes, Categories, Locations, Backup }
 
 @Composable
 fun SettingsPage() {
@@ -72,6 +77,7 @@ fun SettingsPage() {
         SettingsSubpageId.Attributes -> AttributesScreen(onBack = { subpage = null })
         SettingsSubpageId.Categories -> CategoriesScreen(onBack = { subpage = null })
         SettingsSubpageId.Locations -> LocationsScreen(onBack = { subpage = null })
+        SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
         null -> SettingsContent(
             language = language,
             onLanguageSelected = {
@@ -121,6 +127,14 @@ fun SettingsContent(
             summary = stringResource(Res.string.settings_locations_summary),
             icon = Res.drawable.ic_location,
             onClick = { onOpen(SettingsSubpageId.Locations) },
+        )
+
+        SectionHeader(stringResource(Res.string.settings_section_data))
+        SubpageItem(
+            title = stringResource(Res.string.settings_backup),
+            summary = stringResource(Res.string.settings_backup_summary),
+            icon = Res.drawable.ic_backup,
+            onClick = { onOpen(SettingsSubpageId.Backup) },
         )
     }
 

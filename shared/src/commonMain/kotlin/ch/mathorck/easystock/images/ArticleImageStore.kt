@@ -62,6 +62,9 @@ enum class ImageError {
 
     /** No camera app on the device. */
     NO_CAMERA,
+
+    /** The camera permission was refused. */
+    CAMERA_DENIED,
 }
 
 /** Takes a photo or picks one from the gallery, then copies it into temporary storage for the crop screen. */

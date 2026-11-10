@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Sauvegarde et transfert</string>
+    <string name="backup_privacy">Vos données restent sur ce téléphone. Elles ne le quittent que si vous les envoyez ou les enregistrez vous-même.</string>
+    <string name="backup_send_title">Envoyer ou enregistrer</string>
+    <string name="backup_send_summary">Une sauvegarde de toutes les données : articles, unités, stock, historique, emplacements et photos.</string>
+    <string name="backup_send_button">Créer une sauvegarde</string>
+    <string name="backup_receive_title">Recevoir ou restaurer</string>
+    <string name="backup_receive_summary">Importer une sauvegarde depuis un autre téléphone ou un fichier.</string>
+    <string name="backup_scan_button">Scanner un code QR</string>
+    <string name="backup_open_button">Ouvrir un fichier</string>
+    <string name="backup_back">Retour</string>
+    <string name="backup_cancel">Annuler</string>
+    <string name="backup_ok">OK</string>
+    <string name="backup_finish">Terminé</string>
+    <string name="backup_working">Veuillez patienter…</string>
+
+    <string name="backup_password_title">Protéger par un mot de passe ?</string>
+    <string name="backup_password_message">Facultatif. Sans mot de passe, toute personne qui obtient la sauvegarde peut lire vos données.</string>
+    <string name="backup_password_warning">Un mot de passe oublié ne peut pas être récupéré : la sauvegarde ne pourra alors plus être ouverte.</string>
+    <string name="backup_password">Mot de passe</string>
+    <string name="backup_password_confirm">Répéter le mot de passe</string>
+    <string name="backup_password_mismatch">Les mots de passe ne correspondent pas.</string>
+    <string name="backup_create">Créer</string>
+    <string name="backup_exporting">Création de la sauvegarde…</string>
+
+    <string name="backup_ready_title">Sauvegarde prête</string>
+    <string name="backup_ready_size">Taille : %1$s · Photos : %2$d</string>
+    <string name="backup_ready_encrypted">Protégée par un mot de passe</string>
+    <string name="backup_ready_plain">Non protégée par un mot de passe</string>
+    <string name="backup_via_qr">Code QR</string>
+    <string name="backup_via_qr_summary">L’autre téléphone le scanne. Uniquement pour les petites sauvegardes sans photos.</string>
+    <string name="backup_qr_too_large">Trop grande pour un code QR, ou elle contient des photos. Utilisez le Wi-Fi ou un fichier.</string>
+    <string name="backup_via_wifi">Wi-Fi</string>
+    <string name="backup_via_wifi_summary">Vers un téléphone sur le même réseau Wi-Fi, chiffré.</string>
+    <string name="backup_save">Enregistrer dans un fichier</string>
+    <string name="backup_save_summary">Choisissez un dossier sur ce téléphone ou un stockage que vous utilisez.</string>
+    <string name="backup_share">Partager</string>
+    <string name="backup_share_summary">Envoyer le fichier par e-mail, messagerie ou cloud.</string>
+    <string name="backup_share_title">Envoyer la sauvegarde</string>
+    <string name="backup_saved">Sauvegarde enregistrée.</string>
+
+    <string name="backup_qr_title">Scannez ce code</string>
+    <string name="backup_qr_message">Sur l’autre téléphone : Paramètres › Sauvegarde et transfert › Scanner un code QR.</string>
+    <string name="backup_qr_password_hint">L’autre téléphone demandera le mot de passe.</string>
+    <string name="backup_qr_description">Code QR de la sauvegarde</string>
+
+    <string name="backup_wifi_title">Envoyer par Wi-Fi</string>
+    <string name="backup_wifi_waiting">Les deux téléphones doivent être sur le même réseau Wi-Fi. Sur l’autre téléphone, scannez ce code. Il est valable 5 minutes et pour un seul téléchargement.</string>
+    <string name="backup_wifi_sending">Envoi… %1$s sur %2$s</string>
+    <string name="backup_wifi_done">Sauvegarde envoyée.</string>
+    <string name="backup_wifi_expired">Le code a expiré.</string>
+    <string name="backup_wifi_blocked">Arrêté après plusieurs tentatives erronées.</string>
+    <string name="backup_wifi_stop">Arrêter</string>
+    <string name="backup_wifi_restart">Nouveau code</string>
+    <string name="backup_wifi_qr_description">Code QR du transfert Wi-Fi</string>
+
+    <string name="backup_scan_title">Scanner un code QR</string>
+    <string name="backup_scan_hint">Pointez la caméra vers le code affiché sur l’autre téléphone.</string>
+    <string name="backup_camera_denied">L’accès à la caméra est nécessaire pour scanner le code. Vous pouvez aussi ouvrir un fichier.</string>
+    <string name="backup_camera_allow">Autoriser la caméra</string>
+    <string name="backup_camera_settings">Ouvrir les paramètres de l’app</string>
+    <string name="backup_downloading">Réception… %1$s</string>
+
+    <string name="backup_unlock_title">Mot de passe requis</string>
+    <string name="backup_unlock_message">Cette sauvegarde est protégée. Saisissez son mot de passe.</string>
+    <string name="backup_unlock_wrong">Mot de passe incorrect.</string>
+    <string name="backup_unlock">Ouvrir</string>
+
+    <string name="backup_preview_title">Contenu de la sauvegarde</string>
+    <string name="backup_preview_created">Créée le %1$s (UTC)</string>
+    <string name="backup_preview_empty">Cette sauvegarde ne contient aucune donnée.</string>
+    <string name="backup_merge">Fusionner</string>
+    <string name="backup_merge_summary">Ajoute la sauvegarde aux données de ce téléphone. Si un enregistrement est sur les deux téléphones, le plus récemment modifié est conservé.</string>
+    <string name="backup_replace">Remplacer</string>
+    <string name="backup_replace_summary">Supprime toutes les données de ce téléphone, puis restaure la sauvegarde.</string>
+    <string name="backup_replace_confirm_title">Remplacer toutes les données ?</string>
+    <string name="backup_replace_confirm_message">Tous les articles, unités, stocks, historiques, emplacements et photos de ce téléphone seront supprimés et remplacés par la sauvegarde. Cette action est irréversible.</string>
+    <string name="backup_replace_confirm">Remplacer</string>
+
+    <string name="backup_table_category">Catégories</string>
+    <string name="backup_table_attribute_definition">Attributs</string>
+    <string name="backup_table_category_attribute">Attributs des catégories</string>
+    <string name="backup_table_location">Emplacements</string>
+    <string name="backup_table_article">Articles</string>
+    <string name="backup_table_item">Unités</string>
+    <string name="backup_table_stock_movement">Mouvements</string>
+    <string name="backup_table_photos">Photos</string>
+    <string name="backup_count">%1$s : %2$d</string>
+
+    <string name="backup_done_title">Importation terminée</string>
+    <string name="backup_done_replaced">Les données de ce téléphone ont été remplacées par la sauvegarde.</string>
+    <string name="backup_done_merged">La sauvegarde a été fusionnée avec les données de ce téléphone.</string>
+    <string name="backup_done_added">Ajoutés</string>
+    <string name="backup_done_updated">Mis à jour</string>
+    <string name="backup_done_nothing">Aucun changement : ce téléphone avait déjà tout.</string>
+    <string name="backup_done_photos">Photos copiées : %1$d</string>
+    <string name="backup_done_conflicts">Conflits résolus</string>
+
+    <string name="backup_conflict_category_renamed">La catégorie « %1$s » existe déjà : importée sous « %2$s ».</string>
+    <string name="backup_conflict_sku_renamed">Le SKU « %1$s » est déjà utilisé : importé sous « %2$s ».</string>
+    <string name="backup_conflict_barcode_cleared">Le tag NFC « %1$s » est déjà sur un autre article : retiré de l’article importé.</string>
+    <string name="backup_conflict_serial_renamed">Le numéro de série « %1$s » est déjà utilisé : importé sous « %2$s ».</string>
+    <string name="backup_conflict_attribute_merged">L’attribut « %1$s » existe déjà : les deux ont été combinés.</string>
+    <string name="backup_conflict_attribute_key_kept">La clé d’attribut « %1$s » ne peut pas changer : « %2$s » a été conservée.</string>
+    <string name="backup_conflict_category_attribute_skipped">Un attribut était déjà dans sa catégorie : le lien importé a été ignoré.</string>
+    <string name="backup_conflict_location_parent_kept">Un emplacement se serait retrouvé dans lui-même : son parent actuel a été conservé.</string>
+    <string name="backup_conflict_movement_kept">Un mouvement diffère de celui de ce téléphone : les mouvements ne changent jamais, celui-ci a été conservé.</string>
+
+    <string name="backup_error_title">Sauvegarde</string>
+    <string name="backup_error_not_a_backup">Ce n’est pas une sauvegarde EasyStock.</string>
+    <string name="backup_error_newer_version">Cette sauvegarde provient d’une version plus récente d’EasyStock. Mettez l’app à jour, puis réessayez.</string>
+    <string name="backup_error_damaged">La sauvegarde est endommagée ou incomplète.</string>
+    <string name="backup_error_password_required">Cette sauvegarde est protégée par un mot de passe.</string>
+    <string name="backup_error_wrong_password">Mot de passe incorrect.</string>
+    <string name="backup_error_too_large">La sauvegarde est trop grande pour ce téléphone.</string>
+    <string name="backup_error_not_on_wifi">Ce téléphone n’est pas connecté à un réseau Wi-Fi. Connectez les deux téléphones au même Wi-Fi, ou utilisez un fichier.</string>
+    <string name="backup_error_unreachable">L’autre téléphone est injoignable. Vérifiez que les deux téléphones sont sur le même Wi-Fi et que le code est encore affiché.</string>
+    <string name="backup_error_timeout">L’autre téléphone ne répond plus. Réessayez.</string>
+    <string name="backup_error_failed">Le fichier n’a pas pu être lu ou écrit. Vérifiez l’espace libre et réessayez.</string>
+</resources>

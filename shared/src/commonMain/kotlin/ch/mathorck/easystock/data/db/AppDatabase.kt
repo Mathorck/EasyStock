@@ -19,6 +19,9 @@ import kotlinx.coroutines.IO
 
 const val DATABASE_NAME = "easystock.db"
 
+/** Current schema version. Also written in backups (see backup/BackupManifest). */
+const val DB_VERSION = 3
+
 @Database(
     entities = [
         Category::class,
@@ -29,7 +32,7 @@ const val DATABASE_NAME = "easystock.db"
         Item::class,
         StockMovement::class,
     ],
-    version = 3,
+    version = DB_VERSION,
     autoMigrations = [
         // sku becomes nullable
         AutoMigration(from = 1, to = 2),
@@ -49,6 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun articleDetailDao(): ArticleDetailDao
     abstract fun stockActionDao(): StockActionDao
     abstract fun attributeDao(): AttributeDao
+    abstract fun backupDao(): BackupDao
 }
 
 // Implemented by the Room compiler on each platform

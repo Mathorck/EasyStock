@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only the camera temp folder is shared. The stored photos (files/images) are never exposed. -->
+<!-- Only temp folders are shared: the camera capture and the backup being shared by the user.
+     The stored photos (files/images) and the database are never exposed. -->
 <paths>
     <cache-path name="camera" path="camera/" />
+    <cache-path name="backup" path="backup/share/" />
 </paths>

@@ -1,6 +1,9 @@
 package ch.mathorck.easystock.images
 
+import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,8 +21,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 
-// Camera: TakePicture writes to a FileProvider URI, no CAMERA permission needed as long as the
-// manifest doesn't declare it. Gallery: the system photo picker, no storage permission needed.
+// Camera: TakePicture writes to a FileProvider URI. The manifest declares CAMERA (backup QR scan), so
+// the camera app can only be started once it is granted: asked first. Gallery: the system photo
+// picker, no storage permission needed.
 
 @Composable
 actual fun rememberImagePicker(onPicked: (CropSource) -> Unit, onError: (ImageError) -> Unit): ImagePicker {
@@ -55,21 +59,31 @@ actual fun rememberImagePicker(onPicked: (CropSource) -> Unit, onError: (ImageEr
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
         if (saved) pending(open = null) else store.captureFile().delete()
     }
+    fun launchCamera(launcher: androidx.activity.result.ActivityResultLauncher<android.net.Uri>) {
+        try {
+            // The capture file is fixed: nothing to remember if the activity is recreated meanwhile
+            launcher.launch(store.captureUri(store.captureFile()))
+        } catch (e: ActivityNotFoundException) {
+            failed(ImageError.NO_CAMERA)
+        }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchCamera(camera) else failed(ImageError.CAMERA_DENIED)
+    }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) pending(open = { context.contentResolver.openInputStream(uri) })
     }
 
-    return remember(camera, gallery, store) {
+    return remember(camera, permission, gallery, store) {
         object : ImagePicker {
             override val busy: Boolean get() = busy.value
 
             override fun takePhoto() {
                 if (busy.value) return
-                try {
-                    // The capture file is fixed: nothing to remember if the activity is recreated meanwhile
-                    camera.launch(store.captureUri(store.captureFile()))
-                } catch (e: ActivityNotFoundException) {
-                    failed(ImageError.NO_CAMERA)
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    launchCamera(camera)
+                } else {
+                    permission.launch(Manifest.permission.CAMERA)
                 }
             }
 

@@ -49,6 +49,7 @@ import easystock.shared.generated.resources.article_image_description
 import easystock.shared.generated.resources.article_image_error
 import easystock.shared.generated.resources.article_image_loading
 import easystock.shared.generated.resources.article_image_no_camera
+import easystock.shared.generated.resources.article_image_camera_denied
 import easystock.shared.generated.resources.article_image_none
 import easystock.shared.generated.resources.article_image_pick
 import easystock.shared.generated.resources.article_image_remove
@@ -208,7 +209,13 @@ fun ArticleImageEditor(
         }
         error?.let {
             Text(
-                stringResource(if (it == ImageError.NO_CAMERA) Res.string.article_image_no_camera else Res.string.article_image_error),
+                stringResource(
+                    when (it) {
+                        ImageError.NO_CAMERA -> Res.string.article_image_no_camera
+                        ImageError.CAMERA_DENIED -> Res.string.article_image_camera_denied
+                        ImageError.FAILED -> Res.string.article_image_error
+                    },
+                ),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )

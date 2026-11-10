@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Backup and transfer</string>
+    <string name="backup_privacy">Your data stays on this phone. It only leaves it when you send or save it yourself.</string>
+    <string name="backup_send_title">Send or save</string>
+    <string name="backup_send_summary">A backup of all data: articles, units, stock, history, locations and photos.</string>
+    <string name="backup_send_button">Create a backup</string>
+    <string name="backup_receive_title">Receive or restore</string>
+    <string name="backup_receive_summary">Import a backup from another phone or from a file.</string>
+    <string name="backup_scan_button">Scan a QR code</string>
+    <string name="backup_open_button">Open a file</string>
+    <string name="backup_back">Back</string>
+    <string name="backup_cancel">Cancel</string>
+    <string name="backup_ok">OK</string>
+    <string name="backup_finish">Done</string>
+    <string name="backup_working">Please wait…</string>
+
+    <string name="backup_password_title">Protect with a password?</string>
+    <string name="backup_password_message">Optional. Without a password, anyone who gets the backup can read your data.</string>
+    <string name="backup_password_warning">A forgotten password can’t be recovered: the backup can then no longer be opened.</string>
+    <string name="backup_password">Password</string>
+    <string name="backup_password_confirm">Repeat the password</string>
+    <string name="backup_password_mismatch">The passwords don’t match.</string>
+    <string name="backup_create">Create</string>
+    <string name="backup_exporting">Creating the backup…</string>
+
+    <string name="backup_ready_title">Backup ready</string>
+    <string name="backup_ready_size">Size: %1$s · Photos: %2$d</string>
+    <string name="backup_ready_encrypted">Protected by a password</string>
+    <string name="backup_ready_plain">Not protected by a password</string>
+    <string name="backup_via_qr">QR code</string>
+    <string name="backup_via_qr_summary">The other phone scans it. Small backups without photos only.</string>
+    <string name="backup_qr_too_large">Too large for a QR code, or it contains photos. Use Wi-Fi or a file.</string>
+    <string name="backup_via_wifi">Wi-Fi</string>
+    <string name="backup_via_wifi_summary">To a phone on the same Wi-Fi network, encrypted.</string>
+    <string name="backup_save">Save to a file</string>
+    <string name="backup_save_summary">Choose a folder on this phone or a storage you use.</string>
+    <string name="backup_share">Share</string>
+    <string name="backup_share_summary">Send the file by mail, messenger or cloud.</string>
+    <string name="backup_share_title">Send the backup</string>
+    <string name="backup_saved">Backup saved.</string>
+
+    <string name="backup_qr_title">Scan this code</string>
+    <string name="backup_qr_message">On the other phone: Settings › Backup and transfer › Scan a QR code.</string>
+    <string name="backup_qr_password_hint">The other phone will ask for the password.</string>
+    <string name="backup_qr_description">QR code of the backup</string>
+
+    <string name="backup_wifi_title">Send over Wi-Fi</string>
+    <string name="backup_wifi_waiting">Both phones must be on the same Wi-Fi network. On the other phone, scan this code. It is valid for 5 minutes and for one download.</string>
+    <string name="backup_wifi_sending">Sending… %1$s of %2$s</string>
+    <string name="backup_wifi_done">Backup sent.</string>
+    <string name="backup_wifi_expired">The code has expired.</string>
+    <string name="backup_wifi_blocked">Stopped after several wrong attempts.</string>
+    <string name="backup_wifi_stop">Stop</string>
+    <string name="backup_wifi_restart">New code</string>
+    <string name="backup_wifi_qr_description">QR code of the Wi-Fi transfer</string>
+
+    <string name="backup_scan_title">Scan a QR code</string>
+    <string name="backup_scan_hint">Point the camera at the code shown on the other phone.</string>
+    <string name="backup_camera_denied">Camera access is needed to scan the code. You can also open a file instead.</string>
+    <string name="backup_camera_allow">Allow the camera</string>
+    <string name="backup_camera_settings">Open the app settings</string>
+    <string name="backup_downloading">Receiving… %1$s</string>
+
+    <string name="backup_unlock_title">Password needed</string>
+    <string name="backup_unlock_message">This backup is protected. Enter its password.</string>
+    <string name="backup_unlock_wrong">Wrong password.</string>
+    <string name="backup_unlock">Open</string>
+
+    <string name="backup_preview_title">Backup content</string>
+    <string name="backup_preview_created">Created on %1$s (UTC)</string>
+    <string name="backup_preview_empty">This backup contains no data.</string>
+    <string name="backup_merge">Merge</string>
+    <string name="backup_merge_summary">Adds the backup to the data of this phone. When a record is on both phones, the most recently changed one is kept.</string>
+    <string name="backup_replace">Replace</string>
+    <string name="backup_replace_summary">Deletes all data of this phone, then restores the backup.</string>
+    <string name="backup_replace_confirm_title">Replace all data?</string>
+    <string name="backup_replace_confirm_message">All articles, units, stock, history, locations and photos of this phone will be deleted and replaced by the backup. This can’t be undone.</string>
+    <string name="backup_replace_confirm">Replace</string>
+
+    <string name="backup_table_category">Categories</string>
+    <string name="backup_table_attribute_definition">Attributes</string>
+    <string name="backup_table_category_attribute">Category attributes</string>
+    <string name="backup_table_location">Locations</string>
+    <string name="backup_table_article">Articles</string>
+    <string name="backup_table_item">Units</string>
+    <string name="backup_table_stock_movement">Movements</string>
+    <string name="backup_table_photos">Photos</string>
+    <string name="backup_count">%1$s: %2$d</string>
+
+    <string name="backup_done_title">Import finished</string>
+    <string name="backup_done_replaced">The data of this phone was replaced by the backup.</string>
+    <string name="backup_done_merged">The backup was merged with the data of this phone.</string>
+    <string name="backup_done_added">Added</string>
+    <string name="backup_done_updated">Updated</string>
+    <string name="backup_done_nothing">Nothing changed: this phone already had everything.</string>
+    <string name="backup_done_photos">Photos copied: %1$d</string>
+    <string name="backup_done_conflicts">Conflicts resolved</string>
+
+    <string name="backup_conflict_category_renamed">Category “%1$s” already exists: imported as “%2$s”.</string>
+    <string name="backup_conflict_sku_renamed">SKU “%1$s” already used: imported as “%2$s”.</string>
+    <string name="backup_conflict_barcode_cleared">NFC tag “%1$s” already on another article: removed from the imported one.</string>
+    <string name="backup_conflict_serial_renamed">Serial number “%1$s” already used: imported as “%2$s”.</string>
+    <string name="backup_conflict_attribute_merged">Attribute “%1$s” already exists: both were combined.</string>
+    <string name="backup_conflict_attribute_key_kept">Attribute key “%1$s” can’t change: “%2$s” was kept.</string>
+    <string name="backup_conflict_category_attribute_skipped">An attribute was already in its category: the imported link was skipped.</string>
+    <string name="backup_conflict_location_parent_kept">A location would have been inside itself: its parent here was kept.</string>
+    <string name="backup_conflict_movement_kept">A movement differs from the one here: movements never change, the one here was kept.</string>
+
+    <string name="backup_error_title">Backup</string>
+    <string name="backup_error_not_a_backup">This is not an EasyStock backup.</string>
+    <string name="backup_error_newer_version">This backup comes from a newer version of EasyStock. Update the app, then try again.</string>
+    <string name="backup_error_damaged">The backup is damaged or incomplete.</string>
+    <string name="backup_error_password_required">This backup is protected by a password.</string>
+    <string name="backup_error_wrong_password">Wrong password.</string>
+    <string name="backup_error_too_large">The backup is too large for this phone.</string>
+    <string name="backup_error_not_on_wifi">This phone is not connected to a Wi-Fi network. Connect both phones to the same Wi-Fi, or use a file.</string>
+    <string name="backup_error_unreachable">The other phone can’t be reached. Check that both phones are on the same Wi-Fi and that the code is still shown.</string>
+    <string name="backup_error_timeout">The other phone stopped answering. Try again.</string>
+    <string name="backup_error_failed">The file could not be read or written. Check the free storage and try again.</string>
+</resources>

@@ -18,4 +18,5 @@
     <string name="article_image_crop_cancel">Abbrechen</string>
     <string name="article_image_crop_saving">Foto wird gespeichert…</string>
     <string name="article_image_crop_area">Zuschneidebereich: Ecken, Kanten oder das Innere ziehen</string>
+    <string name="article_image_camera_denied">Der Kamerazugriff wurde verweigert. Erlaube ihn in den App-Einstellungen, um ein Foto aufzunehmen.</string>
 </resources>

@@ -5,6 +5,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 @Entity(
@@ -17,14 +19,15 @@ import kotlinx.serialization.json.JsonObject
         Index(value = ["updated_at"]),
     ],
 )
+@Serializable
 data class Location(
     @PrimaryKey val id: String,
     val name: String,
     /** Hierarchy: room > shelf > bin. */
-    @ColumnInfo(name = "parent_id") val parentId: String? = null,
-    @ColumnInfo(name = "created_at") val createdAt: Long,
-    @ColumnInfo(name = "updated_at") val updatedAt: Long,
-    @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
+    @SerialName("parent_id") @ColumnInfo(name = "parent_id") val parentId: String? = null,
+    @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
+    @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
 )
 
 /** Individual unit, only for articles with [Tracking.SERIAL]. */
@@ -41,19 +44,20 @@ data class Location(
         Index(value = ["updated_at"]),
     ],
 )
+@Serializable
 data class Item(
     @PrimaryKey val id: String,
-    @ColumnInfo(name = "article_id") val articleId: String,
-    @ColumnInfo(name = "serial_number") val serialNumber: String? = null,
+    @SerialName("article_id") @ColumnInfo(name = "article_id") val articleId: String,
+    @SerialName("serial_number") @ColumnInfo(name = "serial_number") val serialNumber: String? = null,
     @ColumnInfo(defaultValue = "available") val status: ItemStatus = ItemStatus.AVAILABLE,
     /** Current location. Cache only, the movements are the source of truth. */
-    @ColumnInfo(name = "location_id") val locationId: String? = null,
+    @SerialName("location_id") @ColumnInfo(name = "location_id") val locationId: String? = null,
     /** Unit-specific values, same keys as [Article.attributes]. */
     val attributes: JsonObject? = null,
     @ColumnInfo(defaultValue = "0") val archived: Boolean = false,
-    @ColumnInfo(name = "created_at") val createdAt: Long,
-    @ColumnInfo(name = "updated_at") val updatedAt: Long,
-    @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
+    @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
+    @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
 )
 
 /**
@@ -74,18 +78,19 @@ data class Item(
         Index(value = ["created_at"]),
     ],
 )
+@Serializable
 data class StockMovement(
     @PrimaryKey val id: String,
-    @ColumnInfo(name = "article_id") val articleId: String,
+    @SerialName("article_id") @ColumnInfo(name = "article_id") val articleId: String,
     /** Set when the article uses [Tracking.SERIAL]. */
-    @ColumnInfo(name = "item_id") val itemId: String? = null,
-    @ColumnInfo(name = "location_id") val locationId: String,
+    @SerialName("item_id") @ColumnInfo(name = "item_id") val itemId: String? = null,
+    @SerialName("location_id") @ColumnInfo(name = "location_id") val locationId: String,
     /** + in / - out, in thousandths of the article unit (1.5 kg = 1500). */
-    @ColumnInfo(name = "quantity") val quantityMilli: Long,
+    @SerialName("quantity") @ColumnInfo(name = "quantity") val quantityMilli: Long,
     val reason: MovementReason,
     val comment: String? = null,
     /** When it happened (may be offline). */
-    @ColumnInfo(name = "occurred_at") val occurredAt: Long,
+    @SerialName("occurred_at") @ColumnInfo(name = "occurred_at") val occurredAt: Long,
     /** When it was recorded. */
-    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
 )

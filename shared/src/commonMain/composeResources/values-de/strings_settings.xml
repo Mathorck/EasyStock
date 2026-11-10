@@ -12,4 +12,7 @@
     <string name="settings_attributes_summary">Eigene Felder zur Beschreibung von Artikeln</string>
     <string name="settings_categories">Kategorien</string>
     <string name="settings_categories_summary">Artikel gruppieren und ihre Attribute wählen</string>
+    <string name="settings_section_data">Daten</string>
+    <string name="settings_backup">Sicherung und Übertragung</string>
+    <string name="settings_backup_summary">Daten sichern oder auf ein anderes Telefon übertragen</string>
 </resources>

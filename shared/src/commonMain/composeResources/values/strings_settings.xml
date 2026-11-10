@@ -12,4 +12,7 @@
     <string name="settings_attributes_summary">Custom fields to describe articles</string>
     <string name="settings_categories">Categories</string>
     <string name="settings_categories_summary">Group articles and choose their attributes</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_backup">Backup and transfer</string>
+    <string name="settings_backup_summary">Save your data or move it to another phone</string>
 </resources>

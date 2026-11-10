@@ -12,4 +12,7 @@
     <string name="settings_attributes_summary">Champs personnalisés pour décrire les articles</string>
     <string name="settings_categories">Catégories</string>
     <string name="settings_categories_summary">Regrouper les articles et choisir leurs attributs</string>
+    <string name="settings_section_data">Données</string>
+    <string name="settings_backup">Sauvegarde et transfert</string>
+    <string name="settings_backup_summary">Enregistrer vos données ou les déplacer vers un autre téléphone</string>
 </resources>
