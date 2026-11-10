@@ -5,6 +5,10 @@
 //   - Timestamps set by the app, always UTC
 //   - Soft delete via deleted_at (needed to sync deletions)
 //   - Enum-like columns are varchar + app validation (SQLite has no enums)
+// SQLite storage (Room, shared/src/commonMain/.../data):
+//   - uuid -> TEXT, timestamp -> INTEGER epoch milliseconds UTC
+//   - decimal(12,3) -> INTEGER thousandths (1.5 kg = 1500), no floating point
+//   - enum-like values stored lowercase, unknown values are rejected
 
 Project inventory {
   database_type: 'PostgreSQL'
@@ -66,7 +70,7 @@ Table article [headercolor: #175e7a] {
   category_id uuid [ref: > category.id]
   tracking varchar(10) [not null, default: 'quantity', note: 'quantity | serial']
   unit varchar(20) [not null, default: 'pce', note: 'pce, kg, m, l...']
-  barcode varchar(64) [unique]
+  barcode varchar(64) [unique, note: 'NFC tag ID, scanned to open the article. Set to NULL on soft delete so the tag can be reused']
   threshold decimal(12,3) [note: 'Reorder alert level']
   image_path text
   attributes json [note: 'Values keyed by attribute_definition.key, e.g. {"color":"red","length":20}']

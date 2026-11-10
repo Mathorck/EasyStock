@@ -22,6 +22,9 @@ Read `README.md` first: purpose, scope, setup, data model.
 - `item.location_id` is a cache. The movements are the source of truth.
 - Enum-like columns are `varchar` validated in the app (SQLite has no enums).
 - `attribute_definition.key` is immutable once created.
+- `article.barcode` holds the NFC tag ID. A scan looks up the article by `barcode`. Always soft-delete with `Article.softDeleted(now)`: it clears `barcode` so the tag can be reused.
+- Room entities: `data/model`, database + converters: `data/db`. Quantities are `Long` thousandths, never `Double`.
+- Any entity change = bump `AppDatabase.version` + migration. Commit the exported schema in `shared/schemas`.
 
 ## UI
 - Pages: `enums/Page.kt` (Stock, Scan, Settings). Navbar in `composables/NavBarComposable.kt`.
