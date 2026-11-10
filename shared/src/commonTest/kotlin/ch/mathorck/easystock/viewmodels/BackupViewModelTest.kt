@@ -29,10 +29,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.time.Duration.Companion.minutes
 
 private class FakeSender : WifiSender {
     override val ticket = WifiTicket(host = "192.168.1.2", port = 8080, token = "t", key = "k")
-    override val state: StateFlow<WifiState> = MutableStateFlow(WifiState.Waiting)
+    override val timeout = 5.minutes
+    val flow = MutableStateFlow<WifiState>(WifiState.Waiting)
+    override val state: StateFlow<WifiState> = flow
     var stopped = false
 
     override fun stop() {
@@ -128,15 +132,79 @@ class BackupViewModelTest {
     }
 
     @Test
-    fun leavingWhileSharingOverWifiStopsTheShare() {
+    fun leavingWhileSharingOverWifiKeepsTheShare() {
         viewModel.export("")
         viewModel.startWifi()
+
+        viewModel.leave()
+
         assertIs<BackupStep.SendingWifi>(viewModel.state.value.step)
+        assertFalse(service.sender.stopped)
+        assertEquals(0, service.discards)
+
+        viewModel.enter()
+        assertIs<BackupStep.SendingWifi>(viewModel.state.value.step)
+    }
+
+    @Test
+    fun aShareThatEndsWhileAwayShowsTheStartOnTheNextVisit() {
+        viewModel.export("")
+        viewModel.startWifi()
+        viewModel.leave()
+
+        service.sender.flow.value = WifiState.Expired
+
+        assertEquals(BackupUiState(), viewModel.state.value)
+        assertEquals(1, service.discards)
+        viewModel.enter()
+        assertEquals(BackupUiState(), viewModel.state.value)
+    }
+
+    @Test
+    fun aShareThatEndsWhileOnScreenShowsItsResult() {
+        viewModel.export("")
+        viewModel.startWifi()
+
+        service.sender.flow.value = WifiState.Done
+
+        val step = viewModel.state.value.step
+        assertIs<BackupStep.SendingWifi>(step)
+        assertEquals(WifiState.Done, step.state)
+    }
+
+    @Test
+    fun aShareThatEndedOnScreenIsResetWhenLeaving() {
+        viewModel.export("")
+        viewModel.startWifi()
+        service.sender.flow.value = WifiState.Done
 
         viewModel.leave()
 
         assertEquals(BackupUiState(), viewModel.state.value)
+    }
+
+    @Test
+    fun comingBackBeforeTheEndShowsTheShareThenItEndsNormally() {
+        viewModel.export("")
+        viewModel.startWifi()
+        viewModel.leave()
+        viewModel.enter()
+
+        service.sender.flow.value = WifiState.Expired
+
+        assertEquals(WifiState.Expired, (viewModel.state.value.step as BackupStep.SendingWifi).state)
+    }
+
+    @Test
+    fun stoppingAShareKeptWhileAwayStopsIt() {
+        viewModel.export("")
+        viewModel.startWifi()
+        viewModel.leave()
+
+        viewModel.reset()
+
         assertTrue(service.sender.stopped)
+        assertEquals(BackupUiState(), viewModel.state.value)
     }
 
     @Test

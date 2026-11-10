@@ -20,6 +20,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +30,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import ch.mathorck.easystock.applyAppLanguage
+import ch.mathorck.easystock.backup.WifiState
+import ch.mathorck.easystock.backup.rememberBackupService
+import ch.mathorck.easystock.viewmodels.BackupStep
+import ch.mathorck.easystock.viewmodels.BackupViewModel
+import kotlinx.coroutines.delay
+import kotlin.time.ComparableTimeMark
+import kotlin.time.Duration.Companion.seconds
 import ch.mathorck.easystock.currentAppLanguage
 import ch.mathorck.easystock.composables.settings.AttributesScreen
 import ch.mathorck.easystock.composables.settings.BackupScreen
@@ -37,6 +47,9 @@ import ch.mathorck.easystock.composables.settings.CategoriesScreen
 import ch.mathorck.easystock.composables.settings.LocationsScreen
 import ch.mathorck.easystock.enums.AppLanguage
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.backup_wifi_active
+import easystock.shared.generated.resources.backup_wifi_stop
+import easystock.shared.generated.resources.ic_wifi
 import easystock.shared.generated.resources.ic_backup
 import easystock.shared.generated.resources.ic_category
 import easystock.shared.generated.resources.ic_chevron_right
@@ -70,8 +83,13 @@ enum class SettingsSubpageId { Attributes, Categories, Locations, Backup }
 
 @Composable
 fun SettingsPage() {
+    val service = rememberBackupService()
     var language by remember { mutableStateOf(currentAppLanguage()) }
     var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
+    // Same view model as the backup screen: a Wi-Fi share goes on when that screen is closed
+    val backup = viewModel(key = "settings-backup") { BackupViewModel(service) }
+    val backupState by backup.state.collectAsStateWithLifecycle()
+    val share = (backupState.step as? BackupStep.SendingWifi)?.takeIf { it.state.isActive() }?.deadline
     // Each subpage composes its own back handler, only while it is open
     when (subpage) {
         SettingsSubpageId.Attributes -> AttributesScreen(onBack = { subpage = null })
@@ -85,6 +103,8 @@ fun SettingsPage() {
                 applyAppLanguage(it)
             },
             onOpen = { subpage = it },
+            wifiShareDeadline = share,
+            onStopWifiShare = backup::reset,
         )
     }
 }
@@ -95,11 +115,21 @@ fun SettingsContent(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
     onOpen: (SettingsSubpageId) -> Unit = {},
+    /** Set while a Wi-Fi backup share runs: shows a row to get back to it. */
+    wifiShareDeadline: ComparableTimeMark? = null,
+    onStopWifiShare: () -> Unit = {},
 ) {
     // Not saveable: the activity recreates on a language change, the dialog must not reopen
     var showLanguageDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        if (wifiShareDeadline != null) {
+            WifiShareBanner(
+                deadline = wifiShareDeadline,
+                onOpen = { onOpen(SettingsSubpageId.Backup) },
+                onStop = onStopWifiShare,
+            )
+        }
         SectionHeader(stringResource(Res.string.settings_section_general))
         ListItem(
             headlineContent = { Text(stringResource(Res.string.settings_language)) },
@@ -148,6 +178,26 @@ fun SettingsContent(
             onDismiss = { showLanguageDialog = false },
         )
     }
+}
+
+@Composable
+private fun WifiShareBanner(deadline: ComparableTimeMark, onOpen: () -> Unit, onStop: () -> Unit) {
+    var left by remember(deadline) { mutableStateOf(-deadline.elapsedNow()) }
+    LaunchedEffect(deadline) {
+        while (true) {
+            left = -deadline.elapsedNow()
+            delay(1.seconds)
+        }
+    }
+    val seconds = left.inWholeSeconds.coerceAtLeast(0)
+    val time = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
+    ListItem(
+        headlineContent = { Text(stringResource(Res.string.backup_wifi_active, time)) },
+        leadingContent = { Icon(painterResource(Res.drawable.ic_wifi), contentDescription = null) },
+        trailingContent = { TextButton(onClick = onStop) { Text(stringResource(Res.string.backup_wifi_stop)) } },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier.clickable(onClick = onOpen),
+    )
 }
 
 @Composable
@@ -229,3 +279,5 @@ private fun SettingsPageDarkPreview() {
         }
     }
 }
+
+private fun WifiState.isActive() = this is WifiState.Waiting || this is WifiState.Sending

@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.ComparableTimeMark
+import kotlin.time.TimeSource
 
 /** Where the backup screen is. */
 sealed interface BackupStep {
@@ -35,7 +37,13 @@ sealed interface BackupStep {
 
     data class ShowingQr(val export: ExportedBackup, val text: String) : BackupStep
 
-    data class SendingWifi(val export: ExportedBackup, val qrText: String, val state: WifiState) : BackupStep
+    data class SendingWifi(
+        val export: ExportedBackup,
+        val qrText: String,
+        val state: WifiState,
+        /** When the code stops being valid. */
+        val deadline: ComparableTimeMark,
+    ) : BackupStep
 
     data object Scanning : BackupStep
 
@@ -78,6 +86,9 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
 
     /** The screen was left while the import was being written: its result is not shown later. */
     private var left = false
+
+    /** The screen was left while a Wi-Fi share runs: when it ends, the next visit shows the start. */
+    private var awayDuringWifi = false
 
     private fun go(step: BackupStep) = _state.update { it.copy(step = step) }
 
@@ -135,7 +146,15 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
             val sender = service.startWifi(built)
             wifi = sender
             val text = QrTransfer.wifiQrText(sender.ticket)
-            sender.state.collect { state -> go(BackupStep.SendingWifi(built, text, state)) }
+            val deadline = TimeSource.Monotonic.markNow() + sender.timeout
+            sender.state.collect { state ->
+                if (awayDuringWifi && !state.isActive()) {
+                    // Ended while nobody looks: the next visit shows the start, not a stale result
+                    reset()
+                } else {
+                    go(BackupStep.SendingWifi(built, text, state, deadline))
+                }
+            }
         }
     }
 
@@ -145,7 +164,10 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
         export?.let { go(BackupStep.Exported(it)) } ?: go(BackupStep.Home)
     }
 
+    private fun WifiState.isActive() = this is WifiState.Waiting || this is WifiState.Sending
+
     private fun stopWifi() {
+        awayDuringWifi = false
         wifi?.stop()
         wifi = null
         job?.cancel()
@@ -247,15 +269,26 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
         input = null
     }
 
+    /** The screen is shown (again): a Wi-Fi share that kept running is shown as it is. */
+    fun enter() {
+        awayDuringWifi = false
+    }
+
     /**
      * The screen is gone (back, other page, leaving Settings): a result or error must not wait for
-     * the user's return. Everything resets, including a Wi-Fi share (nothing could stop it once the
-     * screen is gone) and a download. Only an import being written continues, and when it ends the
-     * screen is back at its start instead of showing the result.
+     * the user's return. Everything resets, including a download. Two things continue: an import
+     * being written (it cannot be stopped; when it ends the screen is back at its start instead of
+     * showing the result), and a Wi-Fi share (it runs in the sender's own scope and ends by itself,
+     * after its timeout, one download or [reset]; when it ends while away, the start is shown).
      */
     fun leave() {
         if (writing) {
             left = true
+            return
+        }
+        val step = _state.value.step
+        if (step is BackupStep.SendingWifi && step.state.isActive()) {
+            awayDuringWifi = true
             return
         }
         reset()
