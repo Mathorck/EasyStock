@@ -52,6 +52,7 @@
     <string name="backup_wifi_expired">Der Code ist abgelaufen.</string>
     <string name="backup_wifi_blocked">Nach mehreren falschen Versuchen gestoppt.</string>
     <string name="backup_wifi_stop">Stoppen</string>
+    <string name="backup_wifi_active">WLAN-Freigabe aktiv, noch %1$s</string>
     <string name="backup_wifi_restart">Neuer Code</string>
     <string name="backup_wifi_qr_description">QR-Code der WLAN-Übertragung</string>
 

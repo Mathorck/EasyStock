@@ -53,7 +53,7 @@ private val tokenCodec = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
 class LanSender(
     private val file: File,
     address: InetAddress,
-    private val timeout: Duration = WIFI_TRANSFER_TIMEOUT,
+    override val timeout: Duration = WIFI_TRANSFER_TIMEOUT,
 ) : WifiSender {
     private val server = ServerSocket(0, 1, address)
     private val token = BackupCrypto.randomBytes(WifiTicket.TOKEN_BYTES)

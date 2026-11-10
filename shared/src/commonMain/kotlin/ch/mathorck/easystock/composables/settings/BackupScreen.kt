@@ -210,6 +210,7 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     // The view model outlives the screen (it belongs to the activity): leaving must not keep a result
     val isChangingConfigurations = rememberIsChangingConfigurations()
     DisposableEffect(viewModel) {
+        viewModel.enter()
         onDispose { if (!isChangingConfigurations()) viewModel.leave() }
     }
     val back: () -> Unit = {

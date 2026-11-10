@@ -2,6 +2,7 @@ package ch.mathorck.easystock.backup
 
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.time.Duration
 
 enum class ImportMode {
     /** Wipes this phone and restores the backup. */
@@ -99,6 +100,9 @@ sealed interface WifiState {
 interface WifiSender {
     val ticket: WifiTicket
     val state: StateFlow<WifiState>
+
+    /** How long the code stays valid, from the start of the share. */
+    val timeout: Duration
 
     fun stop()
 }

@@ -52,6 +52,7 @@
     <string name="backup_wifi_expired">Le code a expiré.</string>
     <string name="backup_wifi_blocked">Arrêté après plusieurs tentatives erronées.</string>
     <string name="backup_wifi_stop">Arrêter</string>
+    <string name="backup_wifi_active">Partage Wi-Fi actif, %1$s restantes</string>
     <string name="backup_wifi_restart">Nouveau code</string>
     <string name="backup_wifi_qr_description">Code QR du transfert Wi-Fi</string>
 
