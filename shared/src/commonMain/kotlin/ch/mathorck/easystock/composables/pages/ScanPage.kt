@@ -4,8 +4,6 @@ import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -30,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -79,7 +76,7 @@ fun ScanPage(state: ScanState = ScanState.Ready) {
                 Text(
                     text = stringResource(target.hint()),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.widthIn(max = 320.dp),
                 )
@@ -96,7 +93,6 @@ private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
     val color by animateColorAsState(state.color())
     val waiting = state == ScanState.Ready
     val reading = state == ScanState.Reading
-    val active = waiting || reading
 
     val transition = rememberInfiniteTransition()
     val rotation by transition.animateFloat(
@@ -107,18 +103,10 @@ private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
     val echo by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)),
-    )
-    val pulse by transition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(1400, easing = FastOutSlowInEasing),
-            RepeatMode.Reverse,
-        ),
+        animationSpec = infiniteRepeatable(tween(4500, easing = LinearEasing)),
     )
 
-    Box(modifier = modifier.scale(if (active) pulse else 1f), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 4.dp.toPx()
             // Leave room for the echo rings around the circle
@@ -170,7 +158,7 @@ private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
                 Text(
                     text = stringResource(target.label()),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -180,8 +168,7 @@ private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
 
 @Composable
 private fun ScanState.color(): Color = when (this) {
-    ScanState.Ready, ScanState.Reading -> MaterialTheme.colorScheme.primary
-    ScanState.Success -> MaterialTheme.colorScheme.tertiary
+    ScanState.Ready, ScanState.Reading, ScanState.Success -> MaterialTheme.colorScheme.primary
     ScanState.NotFound -> MaterialTheme.colorScheme.secondary
     ScanState.Error -> MaterialTheme.colorScheme.error
     ScanState.NfcDisabled, ScanState.NfcUnavailable -> MaterialTheme.colorScheme.outline
@@ -256,7 +243,7 @@ private fun ScanPageNfcDisabledPreview() {
 @Composable
 private fun ScanPageDarkPreview() {
     EasyStockTheme(darkTheme = true) {
-        Box(Modifier.background(MaterialTheme.colorScheme.primaryContainer)) {
+        Box(Modifier.background(MaterialTheme.colorScheme.background)) {
             ScanPage()
         }
     }
