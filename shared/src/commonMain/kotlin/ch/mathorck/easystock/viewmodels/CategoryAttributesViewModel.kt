@@ -2,11 +2,19 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.NameTemplateError
+import ch.mathorck.easystock.composables.attributes.articleNameFromTemplate
+import ch.mathorck.easystock.composables.attributes.sampleAttributeValues
+import ch.mathorck.easystock.composables.attributes.validateNameTemplate
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.AttributeNotFoundException
 import ch.mathorck.easystock.data.db.CategoryAttributeInput
+import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
 import ch.mathorck.easystock.data.db.CategoryDao
+import ch.mathorck.easystock.data.db.CategoryNotFoundException
+import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.AttributeDefinition
+import ch.mathorck.easystock.data.model.Category
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,6 +48,48 @@ fun List<CategoryAttributeInput>.moved(attributeId: String, delta: Int): List<Ca
     return toMutableList().apply { add(to, removeAt(from)) }
 }
 
+// ---------- Name template (pure) ----------
+
+/** Name template input of the category screen, checked against the attributes of the draft. */
+data class NameTemplateState(
+    /** As typed, or the stored template while not edited (empty = no template). */
+    val text: String = "",
+    val error: NameTemplateError? = null,
+    /** Name built from the template for the [previewSource]; null without (valid) template. */
+    val preview: String? = null,
+    val previewSource: PreviewSource = PreviewSource.SAMPLE,
+    /** Active articles of the category with a typed name, they don't follow the template. */
+    val manualNameCount: Int = 0,
+    /** Save also makes those articles follow the template. */
+    val applyToAll: Boolean = false,
+) {
+    enum class PreviewSource { ARTICLE, SAMPLE }
+}
+
+/**
+ * The template part of the screen. [sampleArticle]: last edited article of the category with values; without it,
+ * example values ([sampleAttributeValues]) are used.
+ */
+fun nameTemplateState(
+    text: String,
+    definitions: List<AttributeDefinition>,
+    sampleArticle: Article?,
+    manualNameCount: Int,
+    applyToAll: Boolean,
+): NameTemplateState {
+    val error = validateNameTemplate(text, definitions.map { it.key })
+    val source = if (sampleArticle?.attributes != null) NameTemplateState.PreviewSource.ARTICLE else NameTemplateState.PreviewSource.SAMPLE
+    val values = sampleArticle?.attributes ?: sampleAttributeValues(definitions)
+    return NameTemplateState(
+        text = text,
+        error = error,
+        preview = if (error == null) articleNameFromTemplate(text, definitions, values, MAX_NAME_LENGTH) else null,
+        previewSource = source,
+        manualNameCount = manualNameCount,
+        applyToAll = applyToAll && text.isNotBlank(),
+    )
+}
+
 // ---------- State ----------
 
 data class CategoryAttributeRow(val definition: AttributeDefinition, val required: Boolean)
@@ -52,18 +102,35 @@ data class CategoryAttributesUiState(
     val rows: List<CategoryAttributeRow> = emptyList(),
     /** Active definitions not in [rows], by label. */
     val available: List<AttributeDefinition> = emptyList(),
+    val template: NameTemplateState = NameTemplateState(),
     /** The draft differs from what is stored. */
     val dirty: Boolean = false,
     val saving: Boolean = false,
     val saveFailed: Boolean = false,
+    /** One-shot: how many articles the last save renamed. Read it, then call [CategoryAttributesViewModel.consumeRenamed]. */
+    val renamedCount: Int? = null,
 ) {
     val isDeleted: Boolean get() = !loading && categoryName == null
-    val canSave: Boolean get() = dirty && !saving
+    val canSave: Boolean get() = dirty && !saving && template.error == null
 }
 
-private data class DraftStatus(val saving: Boolean = false, val failed: Boolean = false)
+private data class DraftStatus(val saving: Boolean = false, val failed: Boolean = false, val renamed: Int? = null)
 
-/** Settings › Categories › one category: which attributes apply, required or not, in which order. */
+/** Edited template: null while not edited (the stored one is shown). */
+private data class TemplateDraft(val text: String? = null, val applyToAll: Boolean = false)
+
+/** Stored state of the category: its links, template and articles. */
+private data class StoredCategory(
+    val category: Category?,
+    val links: List<CategoryAttributeWithDefinition>,
+    val sampleArticle: Article?,
+    val manualNameCount: Int,
+)
+
+/**
+ * Settings › Categories › one category: which attributes apply, required or not, in which order,
+ * and the name template of its articles. Everything is saved together.
+ */
 @OptIn(ExperimentalUuidApi::class)
 class CategoryAttributesViewModel(
     private val categoryId: String,
@@ -74,28 +141,44 @@ class CategoryAttributesViewModel(
 ) : ViewModel() {
     /** Null while not edited: the stored list is shown. */
     private val draft = MutableStateFlow<List<CategoryAttributeInput>?>(null)
+    private val templateDraft = MutableStateFlow(TemplateDraft())
     private val status = MutableStateFlow(DraftStatus())
 
-    val state: StateFlow<CategoryAttributesUiState> = combine(
+    private val stored = combine(
         categoryDao.observeAll(),
-        attributeDao.observeDefinitions(),
         attributeDao.observeCategoryAttributes(categoryId),
+        attributeDao.observeSampleArticle(categoryId),
+        attributeDao.observeManualNameCount(categoryId),
+    ) { categories, links, sample, manual -> StoredCategory(categories.firstOrNull { it.id == categoryId }, links, sample, manual) }
+
+    val state: StateFlow<CategoryAttributesUiState> = combine(
+        stored,
+        attributeDao.observeDefinitions(),
         draft,
+        templateDraft,
         status,
-    ) { categories, definitions, links, draft, status ->
-        val stored = links.map { CategoryAttributeInput(it.link.attributeId, it.link.required) }
+    ) { stored, definitions, draft, templateDraft, status ->
+        val storedLinks = stored.links.map { CategoryAttributeInput(it.link.attributeId, it.link.required) }
         val byId = definitions.associateBy { it.id }
         // A definition deleted meanwhile drops out of the draft
-        val current = (draft ?: stored).filter { it.attributeId in byId }
+        val current = (draft ?: storedLinks).filter { it.attributeId in byId }
         val used = current.map { it.attributeId }.toSet()
+        val rows = current.map { CategoryAttributeRow(byId.getValue(it.attributeId), it.required) }
+        val storedTemplate = stored.category?.nameTemplate.orEmpty()
+        val templateText = templateDraft.text ?: storedTemplate
+        val template = nameTemplateState(
+            templateText, rows.map { it.definition }, stored.sampleArticle, stored.manualNameCount, templateDraft.applyToAll,
+        )
         CategoryAttributesUiState(
             loading = false,
-            categoryName = categories.firstOrNull { it.id == categoryId }?.name,
-            rows = current.map { CategoryAttributeRow(byId.getValue(it.attributeId), it.required) },
+            categoryName = stored.category?.name,
+            rows = rows,
             available = definitions.filter { it.id !in used },
-            dirty = current != stored,
+            template = template,
+            dirty = current != storedLinks || templateText.trim() != storedTemplate.trim() || template.applyToAll,
             saving = status.saving,
             saveFailed = status.failed,
+            renamedCount = status.renamed,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CategoryAttributesUiState())
 
@@ -103,7 +186,7 @@ class CategoryAttributesViewModel(
         if (status.value.saving) return
         val current = state.value.rows.map { CategoryAttributeInput(it.definition.id, it.required) }
         draft.value = transform(current)
-        status.update { it.copy(failed = false) }
+        status.value = DraftStatus()
     }
 
     fun add(attributeId: String) = edit { it.withAttribute(attributeId) }
@@ -112,8 +195,24 @@ class CategoryAttributesViewModel(
     fun moveUp(attributeId: String) = edit { it.moved(attributeId, -1) }
     fun moveDown(attributeId: String) = edit { it.moved(attributeId, 1) }
 
+    fun updateTemplate(text: String) {
+        if (status.value.saving) return
+        templateDraft.update { it.copy(text = text) }
+        status.value = DraftStatus()
+    }
+
+    fun setApplyToAll(apply: Boolean) {
+        if (status.value.saving) return
+        templateDraft.update { it.copy(applyToAll = apply) }
+    }
+
+    fun consumeRenamed() {
+        status.update { it.copy(renamed = null) }
+    }
+
     fun discard() {
         draft.value = null
+        templateDraft.value = TemplateDraft()
         status.value = DraftStatus()
     }
 
@@ -124,13 +223,24 @@ class CategoryAttributesViewModel(
         status.value = DraftStatus(saving = true)
         viewModelScope.launch {
             try {
-                attributeDao.setCategoryAttributes(categoryId, wanted, clock.now().toEpochMilliseconds(), newId)
+                val renamed = attributeDao.saveCategorySettings(
+                    categoryId = categoryId,
+                    attributes = wanted,
+                    nameTemplate = current.template.text,
+                    applyToAll = current.template.applyToAll,
+                    now = clock.now().toEpochMilliseconds(),
+                    newId = newId,
+                )
                 draft.value = null
-                status.value = DraftStatus()
+                templateDraft.value = TemplateDraft()
+                status.value = DraftStatus(renamed = renamed.takeIf { it > 0 })
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AttributeNotFoundException) {
                 // Deleted meanwhile: the next state drops it from the draft, the user saves again
+                status.value = DraftStatus()
+            } catch (e: CategoryNotFoundException) {
+                // Deleted meanwhile: the screen goes back
                 status.value = DraftStatus()
             } catch (e: Exception) {
                 status.value = DraftStatus(failed = true)

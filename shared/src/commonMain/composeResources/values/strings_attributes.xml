@@ -53,7 +53,7 @@
     <string name="attributes_category_error_deleted">A deleted category already has this name</string>
     <string name="attributes_category_delete_title">Delete category?</string>
     <string name="attributes_category_delete_message">“%1$s” will be removed from the list. Articles in this category keep it until you change it.</string>
-    <string name="attributes_category_edit_attributes">Choose attributes</string>
+    <string name="attributes_category_edit_attributes">Attributes and name template</string>
     <string name="attributes_category_linked_empty">No attributes for this category yet.</string>
     <string name="attributes_category_add_attribute">Add attribute</string>
     <string name="attributes_category_no_more">All attributes are already added. Create new ones in Settings › Attributes.</string>
@@ -65,4 +65,26 @@
     <string name="attributes_unsaved_title">Discard changes?</string>
     <string name="attributes_unsaved_message">Your changes to this category are not saved.</string>
     <string name="attributes_more">More options</string>
+
+    <!-- Article name template of a category -->
+    <string name="category_template_title">Article name template</string>
+    <string name="category_template_hint">Builds the article names from the attributes: {key} is replaced by the value. Filters: {key|raw} (number without unit), |upper, |lower, |capitalize. Empty values are left out.</string>
+    <string name="category_template_label">Template</string>
+    <string name="category_template_keys">Attributes (tap to insert)</string>
+    <string name="category_template_no_keys">Add attributes to the category to use them in the name.</string>
+    <string name="category_template_preview_article">Preview (last edited article): %1$s</string>
+    <string name="category_template_preview_sample">Preview (example values): %1$s</string>
+    <string name="category_template_preview_empty">Preview: the name is empty, add text or attributes</string>
+    <string name="category_template_error_syntax">Check the braces: each { needs a } and a key inside</string>
+    <string name="category_template_error_key">No attribute of this category has the key “%1$s”</string>
+    <string name="category_template_error_filter">Unknown filter “%1$s”</string>
+    <string name="category_template_error_long">At most %1$d characters</string>
+    <plurals name="category_template_apply_all">
+        <item quantity="one">Also apply to %1$d article with a typed name</item>
+        <item quantity="other">Also apply to %1$d articles with a typed name</item>
+    </plurals>
+    <plurals name="category_template_renamed">
+        <item quantity="one">%1$d article renamed</item>
+        <item quantity="other">%1$d articles renamed</item>
+    </plurals>
 </resources>

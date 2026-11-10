@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.mathorck.easystock.data.db.ArticleDetailDao
 import ch.mathorck.easystock.data.db.ArticleNotFoundException
+import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
 import ch.mathorck.easystock.data.db.DeletedCategoryNameException
 import ch.mathorck.easystock.data.db.DuplicateSkuException
@@ -120,6 +121,7 @@ class ArticleDetailViewModel(
     private val articleId: String,
     private val dao: ArticleDetailDao,
     categoryDao: CategoryDao,
+    attributeDao: AttributeDao,
     private val images: ArticleImageStore,
     private val clock: Clock = Clock.System,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -151,25 +153,19 @@ class ArticleDetailViewModel(
     private var generation = 0
 
     val editState: StateFlow<ArticleFormUiState?> = combine(
-        form,
+        combine(form, formAttributes(form, attributeDao)) { form, attributes -> form to attributes },
         state,
         categoryDao.observeAll(),
         dao.observeSkus(),
         status,
-    ) { form, detail, categories, skus, status ->
+    ) { (form, attributes), detail, categories, skus, status ->
         val article = detail.article
         if (form == null || article == null) {
             null
         } else {
-            ArticleFormUiState(
-                mode = ArticleFormMode.EDIT,
-                form = form,
-                categories = categories,
-                currentCategoryName = detail.categoryName,
-                errors = form.validate(article, skus, categories, status.rejectedSku, status.rejectedCategoryName),
-                saving = status.saving,
-                saveFailed = status.failed,
-            )
+            articleFormState(ArticleFormMode.EDIT, form, categories, attributes, status, detail.categoryName) { shown ->
+                shown.validate(article, skus, categories, status.rejectedSku, status.rejectedCategoryName)
+            }
         }.also { latest = it }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -193,8 +189,10 @@ class ArticleDetailViewModel(
         updateEdit { it.copy(imagePath = path) }
     }
 
+    /** Same as [NewArticleViewModel.update]. */
     fun updateEdit(transform: (ArticleForm) -> ArticleForm) {
-        form.update { it?.let(transform) }
+        val templateName = latest?.templateName
+        form.update { it?.withTemplateName(templateName)?.let(transform) }
         status.update { it.copy(failed = false) }
     }
 
@@ -235,7 +233,7 @@ class ArticleDetailViewModel(
     /** Saves the form. The form closes on success. */
     fun save() {
         val current = latest ?: return
-        if (!current.canSave || status.value.saving || current.form != form.value) return
+        if (!current.canSave || status.value.saving || current.form != form.value?.withTemplateName(current.templateName)) return
         status.update { it.copy(saving = true, failed = false) }
         val startedIn = generation
         val session = staged
@@ -243,7 +241,7 @@ class ArticleDetailViewModel(
             var saved = false
             try {
                 val now = clock.now().toEpochMilliseconds()
-                val update = current.form.toUpdate(current.categories, now, newId)
+                val update = current.form.toUpdate(current.categories, now, newId, current.followsTemplate)
                 val previous = dao.updateArticle(articleId, update.changes, update.newCategory, now)
                 saved = true
                 // Same form: photos may have been added meanwhile, they are in the current set

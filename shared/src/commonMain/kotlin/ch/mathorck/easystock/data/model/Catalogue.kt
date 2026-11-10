@@ -23,6 +23,11 @@ data class Category(
     @PrimaryKey val id: String,
     val name: String,
     val description: String? = null,
+    /**
+     * Name of its articles built from attribute values, e.g. "{rope_type} rope {diameter} {length}".
+     * See [ch.mathorck.easystock.composables.attributes.parseNameTemplate]. Null: no template.
+     */
+    @ColumnInfo(name = "name_template") val nameTemplate: String? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
@@ -90,6 +95,11 @@ data class Article(
     /** Optional human-readable internal reference. Unique when set. */
     val sku: String? = null,
     val name: String,
+    /**
+     * True: [name] follows the template of the category and is rendered again when the template or the
+     * attribute values change. False: typed by hand, never renamed.
+     */
+    @ColumnInfo(name = "name_auto", defaultValue = "0") val nameAuto: Boolean = false,
     val description: String? = null,
     @ColumnInfo(name = "category_id") val categoryId: String? = null,
     @ColumnInfo(defaultValue = "quantity") val tracking: Tracking = Tracking.QUANTITY,

@@ -2,8 +2,13 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.composables.attributes.articleNameFromTemplate
+import ch.mathorck.easystock.composables.attributes.validateAttributes
 import ch.mathorck.easystock.data.db.ArticleChanges
 import ch.mathorck.easystock.data.db.ArticleFormDao
+import ch.mathorck.easystock.data.db.AttributeDao
+import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
 import ch.mathorck.easystock.data.db.CategoryDao
 import ch.mathorck.easystock.data.db.DeletedCategoryNameException
 import ch.mathorck.easystock.data.db.DuplicateSkuException
@@ -16,14 +21,21 @@ import ch.mathorck.easystock.images.StagedImages
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.util.parseQuantity
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -60,7 +72,13 @@ data class ArticleForm(
     val threshold: String = "",
     /** Photo path (see [ch.mathorck.easystock.images.newImagePath]), null without photo. */
     val imagePath: String? = null,
-    // TODO(attributes): custom attribute values go here once the attribute fields are plugged in.
+    /** Custom attribute values, keyed by attribute key (see [ch.mathorck.easystock.composables.attributes.AttributeFields]). */
+    val attributes: JsonObject? = null,
+    /**
+     * The name follows the template of the category (see [withTemplateName]). Typing a name clears it.
+     * New articles start following it, so the name fills in once a category with a template is chosen.
+     */
+    val nameAuto: Boolean = true,
 ) {
     /** The unit that is saved: fixed for serial-tracked articles. */
     val effectiveUnit: String get() = if (tracking == Tracking.SERIAL) DEFAULT_UNIT else unit.trim()
@@ -77,7 +95,26 @@ fun Article.toForm(): ArticleForm = ArticleForm(
     categoryId = categoryId,
     threshold = thresholdMilli?.let { formatQuantity(it) }.orEmpty(),
     imagePath = imagePath,
+    attributes = attributes,
+    nameAuto = nameAuto,
 )
+
+/**
+ * The form as shown and saved: when it follows the template ([ArticleForm.nameAuto]) and the category has one
+ * ([templateName] not null), the name is the rendered template.
+ */
+fun ArticleForm.withTemplateName(templateName: String?): ArticleForm =
+    if (nameAuto && templateName != null && templateName != name) copy(name = templateName) else this
+
+/** The typed [name]: the name no longer follows the template. */
+fun ArticleForm.withTypedName(name: String): ArticleForm = copy(name = name, nameAuto = false)
+
+/** Name of the article from the template of its category, null when the chosen category has no valid template. */
+fun ArticleForm.templateName(categories: List<Category>, attributes: List<CategoryAttributeWithDefinition>): String? {
+    if (categoryMode != CategoryMode.EXISTING) return null
+    val template = categories.firstOrNull { it.id == categoryId }?.nameTemplate ?: return null
+    return articleNameFromTemplate(template, attributes.map { it.definition }, this.attributes, MAX_NAME_LENGTH)
+}
 
 /** One error per field, null when the field is valid. */
 data class ArticleFormErrors(
@@ -179,17 +216,22 @@ private fun ArticleForm.thresholdMilli(): Long? =
 /** What to save on edit: the changed fields, and the category to create first (if any). */
 data class ArticleUpdate(val changes: ArticleChanges, val newCategory: Category?)
 
-/** Builds the update. Call only on a valid form. A blank SKU or description becomes null. */
-fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> String): ArticleUpdate {
+/**
+ * Builds the update. Call only on a valid form (with [withTemplateName] applied). A blank SKU or description
+ * becomes null. [followsTemplate]: the category has a template and the name follows it.
+ */
+fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> String, followsTemplate: Boolean = false): ArticleUpdate {
     val category = chooseCategory(categories, now, newId)
     val changes = ArticleChanges(
         name = name.trim(),
+        nameAuto = followsTemplate,
         sku = sku.trim().ifEmpty { null },
         description = description.trim().ifEmpty { null },
         categoryId = category.id,
         unit = effectiveUnit,
         thresholdMilli = thresholdMilli(),
         imagePath = imagePath,
+        attributes = attributes,
     )
     return ArticleUpdate(changes, category.newCategory)
 }
@@ -197,19 +239,21 @@ fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> Str
 /** What to save on create: the article, and the category to create first (if any). */
 data class NewArticle(val article: Article, val newCategory: Category?)
 
-/** Builds the new article. Call only on a valid form. A blank SKU or description becomes null. */
-fun ArticleForm.toNewArticle(categories: List<Category>, now: Long, newId: () -> String): NewArticle {
+/** Builds the new article. Same rules as [toUpdate]. */
+fun ArticleForm.toNewArticle(categories: List<Category>, now: Long, newId: () -> String, followsTemplate: Boolean = false): NewArticle {
     val category = chooseCategory(categories, now, newId)
     val article = Article(
         id = newId(),
         sku = sku.trim().ifEmpty { null },
         name = name.trim(),
+        nameAuto = followsTemplate,
         description = description.trim().ifEmpty { null },
         categoryId = category.id,
         tracking = tracking,
         unit = effectiveUnit,
         thresholdMilli = thresholdMilli(),
         imagePath = imagePath,
+        attributes = attributes,
         createdAt = now,
         updatedAt = now,
     )
@@ -218,6 +262,7 @@ fun ArticleForm.toNewArticle(categories: List<Category>, now: Long, newId: () ->
 
 data class ArticleFormUiState(
     val mode: ArticleFormMode,
+    /** The form as shown, with the template name applied ([withTemplateName]). */
     val form: ArticleForm,
     /** Active categories. */
     val categories: List<Category>,
@@ -227,8 +272,63 @@ data class ArticleFormUiState(
     val saving: Boolean = false,
     /** The last save failed for an unexpected reason. */
     val saveFailed: Boolean = false,
+    /** Attributes of the chosen category, in order. */
+    val attributes: List<CategoryAttributeWithDefinition> = emptyList(),
+    val attributeErrors: Map<String, AttributeError> = emptyMap(),
+    /** The name rendered from the category template, null when the category has none. */
+    val templateName: String? = null,
 ) {
-    val canSave: Boolean get() = errors.isValid && !saving
+    val canSave: Boolean get() = errors.isValid && attributeErrors.isEmpty() && !saving
+
+    /** The name is the rendered template. */
+    val followsTemplate: Boolean get() = templateName != null && form.nameAuto
+}
+
+/** Attributes of the category chosen in the form, with the category id they belong to. */
+data class FormAttributes(val categoryId: String?, val attributes: List<CategoryAttributeWithDefinition>)
+
+/** Attributes of the category chosen in [form], following its changes. */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun formAttributes(form: Flow<ArticleForm?>, attributeDao: AttributeDao): Flow<FormAttributes> =
+    form.map { it?.takeIf { f -> f.categoryMode == CategoryMode.EXISTING }?.categoryId }
+        .distinctUntilChanged()
+        .flatMapLatest { id ->
+            if (id == null) flowOf(FormAttributes(null, emptyList()))
+            else attributeDao.observeCategoryAttributes(id).map { FormAttributes(id, it) }
+        }
+
+/** The attributes of [loaded] when they belong to the category chosen in the form (empty while another loads). */
+fun ArticleForm.attributesOf(loaded: FormAttributes): List<CategoryAttributeWithDefinition> =
+    if (categoryMode == CategoryMode.EXISTING && loaded.categoryId == categoryId) loaded.attributes else emptyList()
+
+/**
+ * Builds the UI state of the article form from the [raw] input: the template name applied, the fields
+ * ([validate], called on the shown form) and the attributes checked.
+ */
+internal fun articleFormState(
+    mode: ArticleFormMode,
+    raw: ArticleForm,
+    categories: List<Category>,
+    loaded: FormAttributes,
+    status: FormSaveStatus,
+    currentCategoryName: String? = null,
+    validate: (ArticleForm) -> ArticleFormErrors,
+): ArticleFormUiState {
+    val attributes = raw.attributesOf(loaded)
+    val templateName = raw.templateName(categories, attributes)
+    val form = raw.withTemplateName(templateName)
+    return ArticleFormUiState(
+        mode = mode,
+        form = form,
+        categories = categories,
+        currentCategoryName = currentCategoryName,
+        errors = validate(form),
+        saving = status.saving,
+        saveFailed = status.failed,
+        attributes = attributes,
+        attributeErrors = validateAttributes(attributes, form.attributes),
+        templateName = templateName,
+    )
 }
 
 /** Save progress of the article form, and the values the database refused. */
@@ -253,6 +353,7 @@ internal fun ViewModel.deleteImages(images: ArticleImageStore, paths: Set<String
 class NewArticleViewModel(
     private val dao: ArticleFormDao,
     categoryDao: CategoryDao,
+    attributeDao: AttributeDao,
     private val images: ArticleImageStore,
     private val clock: Clock = Clock.System,
     private val newId: () -> String = { Uuid.random().toString() },
@@ -274,16 +375,12 @@ class NewArticleViewModel(
         categoryDao.observeAll(),
         dao.observeSkus(),
         status,
-    ) { form, categories, skus, status ->
+        formAttributes(form, attributeDao),
+    ) { form, categories, skus, status, attributes ->
         form?.let {
-            ArticleFormUiState(
-                mode = ArticleFormMode.CREATE,
-                form = it,
-                categories = categories,
-                errors = it.validate(null, null, skus, categories, status.rejectedSku, status.rejectedCategoryName),
-                saving = status.saving,
-                saveFailed = status.failed,
-            )
+            articleFormState(ArticleFormMode.CREATE, it, categories, attributes, status) { shown ->
+                shown.validate(null, null, skus, categories, status.rejectedSku, status.rejectedCategoryName)
+            }
         }.also { latest = it }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -306,8 +403,10 @@ class NewArticleViewModel(
         update { it.copy(imagePath = path) }
     }
 
+    /** [transform] gets the form as shown (template name applied), so the name is kept when the template goes away. */
     fun update(transform: (ArticleForm) -> ArticleForm) {
-        form.update { it?.let(transform) }
+        val templateName = latest?.templateName
+        form.update { it?.withTemplateName(templateName)?.let(transform) }
         status.update { it.copy(failed = false) }
     }
 
@@ -334,7 +433,7 @@ class NewArticleViewModel(
     /** Saves the form. On success the form closes and [created] holds the new id. */
     fun save() {
         val current = latest ?: return
-        if (!current.canSave || status.value.saving || current.form != form.value) return
+        if (!current.canSave || status.value.saving || current.form != form.value?.withTemplateName(current.templateName)) return
         status.update { it.copy(saving = true, failed = false) }
         val startedIn = generation
         val session = staged
@@ -342,7 +441,7 @@ class NewArticleViewModel(
             var saved = false
             try {
                 val now = clock.now().toEpochMilliseconds()
-                val new = current.form.toNewArticle(current.categories, now, newId)
+                val new = current.form.toNewArticle(current.categories, now, newId, current.followsTemplate)
                 val stored = dao.createArticle(new.article, new.newCategory)
                 saved = true
                 // Same form: photos may have been added meanwhile, they are in the current set

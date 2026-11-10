@@ -13,4 +13,6 @@
     <string name="article_form_type_locked">Der Typ kann nach dem Erstellen nicht mehr geändert werden.</string>
     <string name="article_form_unit_hint">z. B. pce, kg, m, l</string>
     <string name="article_form_create_hint">Nach dem Speichern können Sie auf der Artikelseite den Bestand, eine Artikelnummer, eine Beschreibung und eine Mindestbestand-Warnung hinzufügen.</string>
+    <string name="article_name_template_follows">Aus der Namensvorlage der Kategorie ausgefüllt</string>
+    <string name="article_name_template_use">Namen aus der Vorlage verwenden: %1$s</string>
 </resources>

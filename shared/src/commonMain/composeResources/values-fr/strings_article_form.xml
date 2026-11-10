@@ -13,4 +13,6 @@
     <string name="article_form_type_locked">Le type ne peut plus être modifié après la création.</string>
     <string name="article_form_unit_hint">par ex. pce, kg, m, l</string>
     <string name="article_form_create_hint">Après l’enregistrement, ajoutez le stock, une référence, une description et une alerte de stock bas sur la page de l’article.</string>
+    <string name="article_name_template_follows">Rempli selon le modèle de nom de la catégorie</string>
+    <string name="article_name_template_use">Utiliser le nom du modèle : %1$s</string>
 </resources>

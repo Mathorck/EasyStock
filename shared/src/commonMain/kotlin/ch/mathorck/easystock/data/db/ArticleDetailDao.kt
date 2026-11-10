@@ -13,6 +13,7 @@ import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.JsonObject
 
 /** An article with the name of its category (null without category). */
 data class ArticleWithCategory(
@@ -44,6 +45,8 @@ data class SkuOwner(val id: String, val sku: String?)
 /** Edited fields of an article. Everything else is kept from the stored row. */
 data class ArticleChanges(
     val name: String,
+    /** The name follows the category template. */
+    val nameAuto: Boolean,
     val sku: String?,
     val description: String?,
     val categoryId: String?,
@@ -51,6 +54,8 @@ data class ArticleChanges(
     val thresholdMilli: Long?,
     /** Photo path, see [ch.mathorck.easystock.images.newImagePath]. */
     val imagePath: String?,
+    /** Custom attribute values, keyed by attribute key. Replaces the stored object. */
+    val attributes: JsonObject?,
 )
 
 /** The article was deleted (or never existed) when saving. */
@@ -191,12 +196,14 @@ abstract class ArticleDetailDao {
         updateRow(
             stored.copy(
                 name = changes.name,
+                nameAuto = changes.nameAuto,
                 sku = changes.sku,
                 description = changes.description,
                 categoryId = categoryId,
                 unit = changes.unit,
                 thresholdMilli = changes.thresholdMilli,
                 imagePath = changes.imagePath,
+                attributes = changes.attributes,
                 updatedAt = now,
             ),
         )

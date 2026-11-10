@@ -1,6 +1,9 @@
 package ch.mathorck.easystock.composables.settings
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -29,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,6 +44,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import ch.mathorck.easystock.composables.attributes.MAX_NAME_TEMPLATE_LENGTH
+import ch.mathorck.easystock.composables.attributes.NameTemplateError
+import ch.mathorck.easystock.composables.attributes.insertPlaceholder
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
@@ -44,6 +54,7 @@ import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.CategoryAttributeRow
 import ch.mathorck.easystock.viewmodels.CategoryAttributesUiState
 import ch.mathorck.easystock.viewmodels.CategoryAttributesViewModel
+import ch.mathorck.easystock.viewmodels.NameTemplateState
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.attributes_cancel
 import easystock.shared.generated.resources.attributes_category_add_attribute
@@ -59,16 +70,31 @@ import easystock.shared.generated.resources.attributes_error_save
 import easystock.shared.generated.resources.attributes_save
 import easystock.shared.generated.resources.attributes_unsaved_message
 import easystock.shared.generated.resources.attributes_unsaved_title
+import easystock.shared.generated.resources.category_template_apply_all
+import easystock.shared.generated.resources.category_template_error_filter
+import easystock.shared.generated.resources.category_template_error_key
+import easystock.shared.generated.resources.category_template_error_long
+import easystock.shared.generated.resources.category_template_error_syntax
+import easystock.shared.generated.resources.category_template_hint
+import easystock.shared.generated.resources.category_template_keys
+import easystock.shared.generated.resources.category_template_label
+import easystock.shared.generated.resources.category_template_no_keys
+import easystock.shared.generated.resources.category_template_preview_article
+import easystock.shared.generated.resources.category_template_preview_empty
+import easystock.shared.generated.resources.category_template_preview_sample
+import easystock.shared.generated.resources.category_template_renamed
+import easystock.shared.generated.resources.category_template_title
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.ic_arrow_downward
 import easystock.shared.generated.resources.ic_arrow_upward
 import easystock.shared.generated.resources.ic_close
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Attributes of one category: which apply, required or not, in which order. Changes are saved with the
- * Save button; leaving with unsaved changes asks first. Goes back when the category gets deleted.
+ * Attributes of one category: which apply, required or not, in which order, and the name template of its
+ * articles. Changes are saved with the Save button; leaving with unsaved changes asks first. Goes back when the category gets deleted.
  */
 @Composable
 fun CategoryAttributesScreen(categoryId: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -98,6 +124,9 @@ fun CategoryAttributesScreen(categoryId: String, onBack: () -> Unit, modifier: M
         onRequiredChange = viewModel::setRequired,
         onMoveUp = viewModel::moveUp,
         onMoveDown = viewModel::moveDown,
+        onTemplateChange = viewModel::updateTemplate,
+        onApplyToAllChange = viewModel::setApplyToAll,
+        onRenamedSeen = viewModel::consumeRenamed,
         modifier = modifier,
     )
 
@@ -129,6 +158,9 @@ fun CategoryAttributesContent(
     onRequiredChange: (String, Boolean) -> Unit,
     onMoveUp: (String) -> Unit,
     onMoveDown: (String) -> Unit,
+    onTemplateChange: (String) -> Unit = {},
+    onApplyToAllChange: (Boolean) -> Unit = {},
+    onRenamedSeen: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     SettingsSubpage(
@@ -147,6 +179,7 @@ fun CategoryAttributesContent(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
+        state.renamedCount?.let { RenamedArticlesMessage(it, onRenamedSeen) }
         LazyColumn {
             if (state.rows.isEmpty()) {
                 item(key = "empty") { EmptyListHint(stringResource(Res.string.attributes_category_linked_empty)) }
@@ -164,6 +197,16 @@ fun CategoryAttributesContent(
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             }
             item(key = "add") { AddAttributeButton(state, onAdd) }
+            item(key = "template") {
+                HorizontalDivider()
+                NameTemplateSection(
+                    template = state.template,
+                    keys = state.rows.map { it.definition.key },
+                    enabled = !state.saving,
+                    onTemplateChange = onTemplateChange,
+                    onApplyToAllChange = onApplyToAllChange,
+                )
+            }
         }
     }
 }
@@ -242,6 +285,118 @@ private fun AddAttributeButton(state: CategoryAttributesUiState, onAdd: (String)
     }
 }
 
+/** "N articles renamed" after a save, with a close button. */
+@Composable
+internal fun RenamedArticlesMessage(count: Int, onDismiss: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            pluralStringResource(Res.plurals.category_template_renamed, count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onDismiss) {
+            Icon(painterResource(Res.drawable.ic_close), contentDescription = stringResource(Res.string.attributes_cancel))
+        }
+    }
+}
+
+/** Name template field, its keys (tap to insert at the cursor), the error or a preview. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NameTemplateSection(
+    template: NameTemplateState,
+    keys: List<String>,
+    enabled: Boolean,
+    onTemplateChange: (String) -> Unit,
+    onApplyToAllChange: (Boolean) -> Unit,
+) {
+    // Local value for the cursor. The state comes back a frame later: follow it only when it changed from
+    // outside (load, save, discard), not when it echoes what was typed.
+    var field by remember { mutableStateOf(TextFieldValue(template.text, TextRange(template.text.length))) }
+    var lastSent by remember { mutableStateOf(template.text) }
+    LaunchedEffect(template.text) {
+        if (template.text != lastSent && template.text != field.text) {
+            field = TextFieldValue(template.text, TextRange(template.text.length))
+            lastSent = template.text
+        }
+    }
+    val send = { text: String ->
+        lastSent = text
+        onTemplateChange(text)
+    }
+
+    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(Res.string.category_template_title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(Res.string.category_template_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = field,
+            onValueChange = { v ->
+                val value = if (v.text.length > MAX_NAME_TEMPLATE_LENGTH) field else v
+                field = value
+                if (value.text != lastSent) send(value.text)
+            },
+            label = { Text(stringResource(Res.string.category_template_label)) },
+            isError = template.error != null,
+            supportingText = {
+                val error = template.error
+                when {
+                    error != null -> Text(error.message())
+                    template.text.isBlank() -> Unit
+                    template.preview.isNullOrEmpty() -> Text(stringResource(Res.string.category_template_preview_empty))
+                    template.previewSource == NameTemplateState.PreviewSource.ARTICLE ->
+                        Text(stringResource(Res.string.category_template_preview_article, template.preview))
+                    else -> Text(stringResource(Res.string.category_template_preview_sample, template.preview))
+                }
+            },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (keys.isEmpty()) {
+            EmptyHintText(stringResource(Res.string.category_template_no_keys))
+        } else {
+            Text(stringResource(Res.string.category_template_keys), style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                keys.forEach { key ->
+                    AssistChip(
+                        onClick = {
+                            val (text, cursor) = insertPlaceholder(field.text, field.selection.min, field.selection.max, key)
+                            if (text.length <= MAX_NAME_TEMPLATE_LENGTH) {
+                                field = TextFieldValue(text, TextRange(cursor))
+                                send(text)
+                            }
+                        },
+                        label = { Text("{$key}") },
+                        enabled = enabled,
+                    )
+                }
+            }
+        }
+        if (template.text.isNotBlank() && template.manualNameCount > 0) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    pluralStringResource(Res.plurals.category_template_apply_all, template.manualNameCount, template.manualNameCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = template.applyToAll, onCheckedChange = onApplyToAllChange, enabled = enabled)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NameTemplateError.message(): String = when (kind) {
+    NameTemplateError.Kind.SYNTAX -> stringResource(Res.string.category_template_error_syntax)
+    NameTemplateError.Kind.UNKNOWN_KEY -> stringResource(Res.string.category_template_error_key, detail.orEmpty())
+    NameTemplateError.Kind.UNKNOWN_FILTER -> stringResource(Res.string.category_template_error_filter, detail.orEmpty())
+    NameTemplateError.Kind.TOO_LONG -> stringResource(Res.string.category_template_error_long, MAX_NAME_TEMPLATE_LENGTH)
+}
+
 @Composable
 private fun EmptyHintText(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -263,6 +418,11 @@ private fun CategoryAttributesContentPreview() {
                         CategoryAttributeRow(definition("length", "Length", AttributeDataType.NUMBER, "m"), required = false),
                     ),
                     available = listOf(definition("dynamic", "Dynamic", AttributeDataType.BOOL)),
+                    template = NameTemplateState(
+                        text = "Rope {length} {breaking_strength}",
+                        preview = "Rope 10 m 10 N",
+                        manualNameCount = 3,
+                    ),
                     dirty = true,
                 ),
                 onBack = {}, onSave = {}, onAdd = {}, onRemove = {}, onRequiredChange = { _, _ -> }, onMoveUp = {}, onMoveDown = {},

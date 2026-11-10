@@ -99,7 +99,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     val images = rememberArticleImageStore()
     // Keyed: the ViewModel store is shared, each article needs its own instance
     val viewModel = viewModel(key = "article-detail-$articleId") {
-        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), images)
+        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), db.attributeDao(), images)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by viewModel.editState.collectAsStateWithLifecycle()

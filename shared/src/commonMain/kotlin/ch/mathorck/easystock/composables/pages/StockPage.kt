@@ -106,7 +106,7 @@ fun StockPage() {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
-    val newArticleViewModel = viewModel { NewArticleViewModel(db.articleFormDao(), db.categoryDao(), images) }
+    val newArticleViewModel = viewModel { NewArticleViewModel(db.articleFormDao(), db.categoryDao(), db.attributeDao(), images) }
     val newArticleState by newArticleViewModel.state.collectAsStateWithLifecycle()
     val createdArticleId by newArticleViewModel.created.collectAsStateWithLifecycle()
     // Article shown in the detail screen instead of the list. The search and filters stay in the ViewModel.

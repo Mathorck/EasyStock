@@ -94,6 +94,7 @@ fun AttributesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         onAdd = viewModel::startCreate,
         onEdit = viewModel::startEdit,
         onDelete = viewModel::delete,
+        onRenamedSeen = viewModel::consumeRenamed,
         modifier = modifier,
     )
     state.dialog?.let { dialog ->
@@ -113,6 +114,7 @@ fun AttributesContent(
     onAdd: () -> Unit,
     onEdit: (AttributeDefinition) -> Unit,
     onDelete: (AttributeDefinition) -> Unit,
+    onRenamedSeen: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var toDelete by remember { mutableStateOf<AttributeDefinition?>(null) }
@@ -126,6 +128,7 @@ fun AttributesContent(
             }
         },
     ) {
+        state.renamedCount?.let { RenamedArticlesMessage(it, onRenamedSeen) }
         if (!state.loading && state.definitions.isEmpty()) {
             EmptyListHint(stringResource(Res.string.attributes_empty))
         }

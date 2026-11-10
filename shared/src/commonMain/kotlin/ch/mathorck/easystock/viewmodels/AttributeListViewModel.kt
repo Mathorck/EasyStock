@@ -92,6 +92,8 @@ data class AttributeListUiState(
     val loading: Boolean = true,
     val definitions: List<AttributeDefinition> = emptyList(),
     val dialog: AttributeDialogState? = null,
+    /** One-shot: articles renamed by the last edit (their category name template uses it). */
+    val renamedCount: Int? = null,
 )
 
 private data class AttributeDialogInput(
@@ -109,9 +111,11 @@ class AttributeListViewModel(
     private val newId: () -> String = { Uuid.random().toString() },
 ) : ViewModel() {
     private val dialog = MutableStateFlow<AttributeDialogInput?>(null)
+    private val renamed = MutableStateFlow<Int?>(null)
 
-    val state: StateFlow<AttributeListUiState> = combine(dao.observeDefinitions(), dialog) { definitions, input ->
+    val state: StateFlow<AttributeListUiState> = combine(dao.observeDefinitions(), dialog, renamed) { definitions, input, renamed ->
         AttributeListUiState(
+            renamedCount = renamed,
             loading = false,
             definitions = definitions,
             dialog = input?.let {
@@ -149,6 +153,10 @@ class AttributeListViewModel(
         dialog.value = null
     }
 
+    fun consumeRenamed() {
+        renamed.value = null
+    }
+
     fun save() {
         val input = dialog.value ?: return
         val current = state.value.dialog ?: return
@@ -165,7 +173,7 @@ class AttributeListViewModel(
                 if (editing == null) {
                     dao.createDefinition(newId(), label, form.dataType, unit, options, now)
                 } else {
-                    dao.updateDefinition(editing.id, label, unit, options, now)
+                    renamed.value = dao.updateDefinition(editing.id, label, unit, options, now).takeIf { it > 0 }
                 }
                 if (dialog.value?.editing?.id == editing?.id) dialog.value = null
             } catch (e: CancellationException) {

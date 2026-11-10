@@ -53,7 +53,7 @@
     <string name="attributes_category_error_deleted">Eine gelöschte Kategorie hat bereits diesen Namen</string>
     <string name="attributes_category_delete_title">Kategorie löschen?</string>
     <string name="attributes_category_delete_message">„%1$s“ wird aus der Liste entfernt. Artikel dieser Kategorie behalten sie, bis Sie sie ändern.</string>
-    <string name="attributes_category_edit_attributes">Attribute wählen</string>
+    <string name="attributes_category_edit_attributes">Attribute und Namensvorlage</string>
     <string name="attributes_category_linked_empty">Noch keine Attribute für diese Kategorie.</string>
     <string name="attributes_category_add_attribute">Attribut hinzufügen</string>
     <string name="attributes_category_no_more">Alle Attribute sind bereits hinzugefügt. Erstellen Sie neue unter Einstellungen › Attribute.</string>
@@ -65,4 +65,26 @@
     <string name="attributes_unsaved_title">Änderungen verwerfen?</string>
     <string name="attributes_unsaved_message">Ihre Änderungen an dieser Kategorie sind nicht gespeichert.</string>
     <string name="attributes_more">Weitere Optionen</string>
+
+    <!-- Article name template of a category -->
+    <string name="category_template_title">Vorlage für Artikelnamen</string>
+    <string name="category_template_hint">Bildet die Artikelnamen aus den Attributen: {Schlüssel} wird durch den Wert ersetzt. Filter: {Schlüssel|raw} (Zahl ohne Einheit), |upper, |lower, |capitalize. Leere Werte werden weggelassen.</string>
+    <string name="category_template_label">Vorlage</string>
+    <string name="category_template_keys">Attribute (antippen zum Einfügen)</string>
+    <string name="category_template_no_keys">Fügen Sie der Kategorie Attribute hinzu, um sie im Namen zu verwenden.</string>
+    <string name="category_template_preview_article">Vorschau (zuletzt bearbeiteter Artikel): %1$s</string>
+    <string name="category_template_preview_sample">Vorschau (Beispielwerte): %1$s</string>
+    <string name="category_template_preview_empty">Vorschau: der Name ist leer, fügen Sie Text oder Attribute hinzu</string>
+    <string name="category_template_error_syntax">Klammern prüfen: jede { braucht eine } und einen Schlüssel</string>
+    <string name="category_template_error_key">Kein Attribut dieser Kategorie hat den Schlüssel «%1$s»</string>
+    <string name="category_template_error_filter">Unbekannter Filter «%1$s»</string>
+    <string name="category_template_error_long">Höchstens %1$d Zeichen</string>
+    <plurals name="category_template_apply_all">
+        <item quantity="one">Auch auf %1$d Artikel mit eigenem Namen anwenden</item>
+        <item quantity="other">Auch auf %1$d Artikel mit eigenem Namen anwenden</item>
+    </plurals>
+    <plurals name="category_template_renamed">
+        <item quantity="one">%1$d Artikel umbenannt</item>
+        <item quantity="other">%1$d Artikel umbenannt</item>
+    </plurals>
 </resources>
