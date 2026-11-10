@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_back">Back</string>
+    <string name="article_edit">Edit article</string>
+    <string name="article_sku_label">SKU</string>
+    <string name="article_category_label">Category</string>
+    <string name="article_unit_label">Unit</string>
+    <string name="article_description_label">Description</string>
+    <string name="article_total_stock">Total stock</string>
+    <string name="article_threshold_value">Low-stock alert at %1$s</string>
+    <string name="article_section_locations">Stock per location</string>
+    <string name="article_locations_empty">No stock at any location</string>
+    <string name="article_section_history">History</string>
+    <string name="article_history_empty">No movements yet</string>
+    <string name="article_reason_purchase">Purchase</string>
+    <string name="article_reason_consumption">Consumption</string>
+    <string name="article_reason_inventory">Inventory</string>
+    <string name="article_reason_transfer">Transfer</string>
+    <string name="article_reason_loan">Loan</string>
+    <string name="article_reason_return">Return</string>
+    <string name="article_reason_loss">Loss</string>
+    <string name="article_edit_title">Edit article</string>
+    <string name="article_name">Name *</string>
+    <string name="article_sku">SKU (optional)</string>
+    <string name="article_description">Description</string>
+    <string name="article_unit">Unit *</string>
+    <string name="article_category">Category</string>
+    <string name="article_category_none">None</string>
+    <string name="article_category_new">New category…</string>
+    <string name="article_category_name">Category name *</string>
+    <string name="article_threshold">Low-stock alert at</string>
+    <string name="article_threshold_hint">Optional. Warns when the stock drops to this level.</string>
+    <string name="article_stock_hint">The stock is changed with stock entries, not here.</string>
+    <string name="article_cancel">Cancel</string>
+    <string name="article_save">Save</string>
+    <string name="article_error_too_long">Too long</string>
+    <string name="article_error_sku_taken">This SKU is already used, possibly by a deleted article</string>
+    <string name="article_error_category_deleted">A deleted category already has this name</string>
+    <string name="article_error_quantity">Enter a number with up to 3 decimals</string>
+    <string name="article_error_save">Could not save the article. Try again.</string>
+</resources>

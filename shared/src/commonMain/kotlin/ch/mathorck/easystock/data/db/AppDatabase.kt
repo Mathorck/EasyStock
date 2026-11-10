@@ -43,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun stockDao(): StockDao
     abstract fun categoryDao(): CategoryDao
     abstract fun stockEntryDao(): StockEntryDao
+    abstract fun articleDetailDao(): ArticleDetailDao
 }
 
 // Implemented by the Room compiler on each platform

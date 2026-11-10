@@ -2,6 +2,7 @@ package ch.mathorck.easystock.composables.pages
 
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
+import ch.mathorck.easystock.composables.article.ArticleDetailScreen
 import ch.mathorck.easystock.composables.stock.AddStockEntrySheet
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.stock_add_entry
@@ -21,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -99,23 +102,34 @@ fun StockPage() {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    // Article shown in the detail screen instead of the list. The search and filters stay in the ViewModel.
+    var selectedArticleId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Hoisted so the list keeps its scroll position while the detail is shown
+    val listState = rememberLazyListState()
     Box(Modifier.fillMaxSize()) {
-        StockContent(
-            state = state,
-            query = query,
-            onQueryChange = viewModel::onQueryChange,
-            onLocationSelect = viewModel::onLocationSelect,
-            onCategorySelect = viewModel::onCategorySelect,
-            onLowStockChange = viewModel::onLowStockChange,
-            onClearFilters = viewModel::onClearFilters,
-            // Keeps the last row above the FAB
-            contentPadding = PaddingValues(bottom = 88.dp),
-        )
-        FloatingActionButton(
-            onClick = { showAddSheet = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        ) {
-            Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.stock_add_entry))
+        val articleId = selectedArticleId
+        if (articleId != null) {
+            ArticleDetailScreen(articleId = articleId, onBack = { selectedArticleId = null })
+        } else {
+            StockContent(
+                state = state,
+                query = query,
+                onQueryChange = viewModel::onQueryChange,
+                onLocationSelect = viewModel::onLocationSelect,
+                onCategorySelect = viewModel::onCategorySelect,
+                onLowStockChange = viewModel::onLowStockChange,
+                onClearFilters = viewModel::onClearFilters,
+                onArticleClick = { selectedArticleId = it },
+                listState = listState,
+                // Keeps the last row above the FAB
+                contentPadding = PaddingValues(bottom = 88.dp),
+            )
+            FloatingActionButton(
+                onClick = { showAddSheet = true },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            ) {
+                Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.stock_add_entry))
+            }
         }
     }
     if (showAddSheet) AddStockEntrySheet(onDismiss = { showAddSheet = false })
@@ -140,6 +154,8 @@ fun StockContent(
     onLowStockChange: (Boolean) -> Unit,
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier,
+    onArticleClick: (String) -> Unit = {},
+    listState: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(bottom = 16.dp),
 ) {
     var picker by remember { mutableStateOf<StockPicker?>(null) }
@@ -182,9 +198,9 @@ fun StockContent(
                     null
                 },
             )
-            else -> LazyColumn(contentPadding = contentPadding) {
+            else -> LazyColumn(state = listState, contentPadding = contentPadding) {
                 items(state.items, key = { it.article.id }) { item ->
-                    StockRow(item)
+                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item) }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
             }
@@ -361,7 +377,7 @@ private fun StockRow(item: ArticleStock) {
 }
 
 @Composable
-private fun LowStockBadge() {
+internal fun LowStockBadge() {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,

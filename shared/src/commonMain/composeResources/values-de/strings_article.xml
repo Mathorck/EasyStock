@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_back">Zurück</string>
+    <string name="article_edit">Artikel bearbeiten</string>
+    <string name="article_sku_label">Artikelnummer</string>
+    <string name="article_category_label">Kategorie</string>
+    <string name="article_unit_label">Einheit</string>
+    <string name="article_description_label">Beschreibung</string>
+    <string name="article_total_stock">Gesamtbestand</string>
+    <string name="article_threshold_value">Warnung bei niedrigem Bestand ab %1$s</string>
+    <string name="article_section_locations">Bestand pro Lagerort</string>
+    <string name="article_locations_empty">An keinem Lagerort Bestand</string>
+    <string name="article_section_history">Verlauf</string>
+    <string name="article_history_empty">Noch keine Bewegungen</string>
+    <string name="article_reason_purchase">Einkauf</string>
+    <string name="article_reason_consumption">Verbrauch</string>
+    <string name="article_reason_inventory">Inventur</string>
+    <string name="article_reason_transfer">Umlagerung</string>
+    <string name="article_reason_loan">Ausleihe</string>
+    <string name="article_reason_return">Rückgabe</string>
+    <string name="article_reason_loss">Verlust</string>
+    <string name="article_edit_title">Artikel bearbeiten</string>
+    <string name="article_name">Name *</string>
+    <string name="article_sku">Artikelnummer (optional)</string>
+    <string name="article_description">Beschreibung</string>
+    <string name="article_unit">Einheit *</string>
+    <string name="article_category">Kategorie</string>
+    <string name="article_category_none">Keine</string>
+    <string name="article_category_new">Neue Kategorie…</string>
+    <string name="article_category_name">Name der Kategorie *</string>
+    <string name="article_threshold">Warnung bei niedrigem Bestand ab</string>
+    <string name="article_threshold_hint">Optional. Warnt, wenn der Bestand auf diesen Wert sinkt.</string>
+    <string name="article_stock_hint">Der Bestand wird über Zugänge geändert, nicht hier.</string>
+    <string name="article_cancel">Abbrechen</string>
+    <string name="article_save">Speichern</string>
+    <string name="article_error_too_long">Zu lang</string>
+    <string name="article_error_sku_taken">Diese Artikelnummer wird bereits verwendet, eventuell von einem gelöschten Artikel</string>
+    <string name="article_error_category_deleted">Eine gelöschte Kategorie hat bereits diesen Namen</string>
+    <string name="article_error_quantity">Geben Sie eine Zahl mit höchstens 3 Dezimalstellen ein</string>
+    <string name="article_error_save">Der Artikel konnte nicht gespeichert werden. Versuchen Sie es erneut.</string>
+</resources>
