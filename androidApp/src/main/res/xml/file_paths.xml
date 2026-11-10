@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the camera temp folder is shared. The stored photos (files/images) are never exposed. -->
+<paths>
+    <cache-path name="camera" path="camera/" />
+</paths>

@@ -79,6 +79,7 @@ import easystock.shared.generated.resources.article_form_type_consumable_hint
 import easystock.shared.generated.resources.article_form_type_locked
 import easystock.shared.generated.resources.article_form_type_tool
 import easystock.shared.generated.resources.article_form_type_tool_hint
+import easystock.shared.generated.resources.article_image_section
 import easystock.shared.generated.resources.article_form_unit_hint
 import easystock.shared.generated.resources.article_name
 import easystock.shared.generated.resources.article_save
@@ -96,18 +97,20 @@ private typealias FormChange = ((ArticleForm) -> ArticleForm) -> Unit
 /**
  * Full-screen article form, for create and edit (see [ArticleFormMode]).
  * [onDismiss] closes it without saving (close icon or system back).
+ * [onImageImported]: a photo was copied for the form, see [ArticleImageEditor].
  * [attributes]: custom attribute fields, shown in edit mode only.
  */
 @Composable
 fun ArticleFormDialog(
     state: ArticleFormUiState,
     onFormChange: FormChange,
+    onImageImported: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        ArticleFormScreen(state, onFormChange, onDismiss, onSave, attributes = attributes)
+        ArticleFormScreen(state, onFormChange, onDismiss, onSave, onImageImported = onImageImported, attributes = attributes)
     }
 }
 
@@ -116,11 +119,12 @@ fun ArticleFormDialog(
 fun ArticleEditSheet(
     state: ArticleFormUiState,
     onFormChange: FormChange,
+    onImageImported: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    ArticleFormDialog(state, onFormChange, onDismiss, onSave, attributes)
+    ArticleFormDialog(state, onFormChange, onImageImported, onDismiss, onSave, attributes)
 }
 
 @Composable
@@ -130,6 +134,7 @@ fun ArticleFormScreen(
     onClose: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
+    onImageImported: (String) -> Unit = {},
     attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val title = when (state.mode) {
@@ -149,7 +154,7 @@ fun ArticleFormScreen(
                     TextButton(onClick = onSave, enabled = state.canSave) { Text(stringResource(Res.string.article_save)) }
                 },
             )
-            ArticleFormContent(state, onFormChange, attributes = attributes)
+            ArticleFormContent(state, onFormChange, onImageImported = onImageImported, attributes = attributes)
         }
     }
 }
@@ -159,6 +164,7 @@ fun ArticleFormContent(
     state: ArticleFormUiState,
     onFormChange: FormChange,
     modifier: Modifier = Modifier,
+    onImageImported: (String) -> Unit = {},
     attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val form = state.form
@@ -204,6 +210,15 @@ fun ArticleFormContent(
                 )
             }
             CategoryField(state, onFormChange)
+        }
+
+        Section(stringResource(Res.string.article_image_section)) {
+            ArticleImageEditor(
+                path = form.imagePath,
+                onImported = onImageImported,
+                onRemove = { onFormChange { it.copy(imagePath = null) } },
+                height = 180.dp,
+            )
         }
 
         // Create: a tool has no stock setting (fixed unit), so the section is left out

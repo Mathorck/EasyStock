@@ -4,6 +4,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import ch.mathorck.easystock.composables.article.ArticleDetailScreen
 import ch.mathorck.easystock.composables.article.ArticleFormDialog
+import ch.mathorck.easystock.composables.article.ArticleThumbnail
+import ch.mathorck.easystock.images.rememberArticleImageStore
 import androidx.compose.runtime.LaunchedEffect
 import ch.mathorck.easystock.viewmodels.NewArticleViewModel
 import easystock.shared.generated.resources.ic_add
@@ -103,7 +105,8 @@ fun StockPage() {
     val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
-    val newArticleViewModel = viewModel { NewArticleViewModel(db.articleFormDao(), db.categoryDao()) }
+    val images = rememberArticleImageStore()
+    val newArticleViewModel = viewModel { NewArticleViewModel(db.articleFormDao(), db.categoryDao(), images) }
     val newArticleState by newArticleViewModel.state.collectAsStateWithLifecycle()
     val createdArticleId by newArticleViewModel.created.collectAsStateWithLifecycle()
     // Article shown in the detail screen instead of the list. The search and filters stay in the ViewModel.
@@ -147,6 +150,7 @@ fun StockPage() {
         ArticleFormDialog(
             state = form,
             onFormChange = newArticleViewModel::update,
+            onImageImported = newArticleViewModel::onImageImported,
             onDismiss = newArticleViewModel::cancel,
             onSave = newArticleViewModel::save,
         )
@@ -378,6 +382,7 @@ private fun PickerSheet(
 @Composable
 private fun StockRow(item: ArticleStock) {
     ListItem(
+        leadingContent = { ArticleThumbnail(item.article.imagePath) },
         headlineContent = { Text(item.article.name) },
         supportingContent = item.article.sku?.let { sku -> { Text(sku) } },
         trailingContent = {

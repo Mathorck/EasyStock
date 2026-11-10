@@ -49,6 +49,8 @@ data class ArticleChanges(
     val categoryId: String?,
     val unit: String,
     val thresholdMilli: Long?,
+    /** Photo path, see [ch.mathorck.easystock.images.newImagePath]. */
+    val imagePath: String?,
 )
 
 /** The article was deleted (or never existed) when saving. */
@@ -150,15 +152,31 @@ abstract class ArticleDetailDao {
     @Update
     protected abstract suspend fun updateRow(article: Article)
 
+    @Query("UPDATE article SET image_path = :path, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun updateImagePathRow(id: String, path: String?, now: Long)
+
+    /**
+     * Sets (or clears, with null) the photo of the active article and returns the previous path,
+     * so the caller can delete the old file. `updated_at` only changes when the path does.
+     * Throws [ArticleNotFoundException].
+     */
+    @Transaction
+    open suspend fun setImagePath(id: String, path: String?, now: Long): String? {
+        val stored = getActiveArticle(id) ?: throw ArticleNotFoundException(id)
+        if (stored.imagePath != path) updateImagePathRow(id, path, now)
+        return stored.imagePath
+    }
+
     /**
      * Applies [changes] to the stored article and sets `updated_at` to [now], in one transaction.
      * [newCategory] is created first and replaces [ArticleChanges.categoryId], unless an active
      * category already has its name (ignoring case): that one is reused.
      * Throws [ArticleNotFoundException], [DuplicateSkuException] or [DeletedCategoryNameException];
      * nothing is saved then.
+     * Returns the photo path stored before, so the caller can delete a replaced file.
      */
     @Transaction
-    open suspend fun updateArticle(id: String, changes: ArticleChanges, newCategory: Category?, now: Long) {
+    open suspend fun updateArticle(id: String, changes: ArticleChanges, newCategory: Category?, now: Long): String? {
         val stored = getActiveArticle(id) ?: throw ArticleNotFoundException(id)
         changes.sku?.let { if (countOtherArticlesWithSku(it, id) > 0) throw DuplicateSkuException(it) }
         var categoryId = changes.categoryId
@@ -178,8 +196,10 @@ abstract class ArticleDetailDao {
                 categoryId = categoryId,
                 unit = changes.unit,
                 thresholdMilli = changes.thresholdMilli,
+                imagePath = changes.imagePath,
                 updatedAt = now,
             ),
         )
+        return stored.imagePath
     }
 }

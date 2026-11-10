@@ -45,6 +45,8 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.androidx.appcompat)
+            // Activity Result APIs (camera, photo picker)
+            implementation(libs.androidx.activity.compose)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
         }

@@ -11,6 +11,8 @@ import ch.mathorck.easystock.data.db.SkuOwner
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.images.ArticleImageStore
+import ch.mathorck.easystock.images.StagedImages
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.util.parseQuantity
 import kotlinx.coroutines.CancellationException
@@ -56,6 +58,8 @@ data class ArticleForm(
     val categoryId: String? = null,
     val categoryName: String = "",
     val threshold: String = "",
+    /** Photo path (see [ch.mathorck.easystock.images.newImagePath]), null without photo. */
+    val imagePath: String? = null,
     // TODO(attributes): custom attribute values go here once the attribute fields are plugged in.
 ) {
     /** The unit that is saved: fixed for serial-tracked articles. */
@@ -72,6 +76,7 @@ fun Article.toForm(): ArticleForm = ArticleForm(
     categoryMode = if (categoryId == null) CategoryMode.NONE else CategoryMode.EXISTING,
     categoryId = categoryId,
     threshold = thresholdMilli?.let { formatQuantity(it) }.orEmpty(),
+    imagePath = imagePath,
 )
 
 /** One error per field, null when the field is valid. */
@@ -183,6 +188,7 @@ fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> Str
         categoryId = category.id,
         unit = effectiveUnit,
         thresholdMilli = thresholdMilli(),
+        imagePath = imagePath,
     )
     return ArticleUpdate(changes, category.newCategory)
 }
@@ -202,6 +208,7 @@ fun ArticleForm.toNewArticle(categories: List<Category>, now: Long, newId: () ->
         tracking = tracking,
         unit = effectiveUnit,
         thresholdMilli = thresholdMilli(),
+        imagePath = imagePath,
         createdAt = now,
         updatedAt = now,
     )
@@ -231,11 +238,21 @@ internal data class FormSaveStatus(
     val rejectedCategoryName: String? = null,
 )
 
-/** The "New article" form. Closed while [state] is null. [created] is the id of the article just saved. */
+/** Deletes photo files in the background. */
+internal fun ViewModel.deleteImages(images: ArticleImageStore, paths: Set<String>) {
+    if (paths.isEmpty()) return
+    viewModelScope.launch { paths.forEach { images.delete(it) } }
+}
+
+/**
+ * The "New article" form. Closed while [state] is null. [created] is the id of the article just saved.
+ * A photo is copied as soon as it is taken (see [onImageImported]), the unused copies are deleted on close.
+ */
 @OptIn(ExperimentalUuidApi::class)
 class NewArticleViewModel(
     private val dao: ArticleFormDao,
     categoryDao: CategoryDao,
+    private val images: ArticleImageStore,
     private val clock: Clock = Clock.System,
     private val newId: () -> String = { Uuid.random().toString() },
 ) : ViewModel() {
@@ -243,6 +260,7 @@ class NewArticleViewModel(
     private val status = MutableStateFlow(FormSaveStatus())
     private val createdId = MutableStateFlow<String?>(null)
     private var latest: ArticleFormUiState? = null
+    private var staged = StagedImages()
 
     /** Bumped when the form opens or closes, so a late save result is ignored. */
     private var generation = 0
@@ -270,9 +288,21 @@ class NewArticleViewModel(
 
     /** Opens an empty form. */
     fun start() {
+        if (form.value != null) cancel()
         generation++
         status.value = FormSaveStatus()
+        staged = StagedImages()
         form.value = ArticleForm()
+    }
+
+    /** A photo was copied for the form. Deleted right away if the form is already closed. */
+    fun onImageImported(path: String) {
+        if (form.value == null) {
+            deleteImages(images, setOf(path))
+            return
+        }
+        staged += path
+        update { it.copy(imagePath = path) }
     }
 
     fun update(transform: (ArticleForm) -> ArticleForm) {
@@ -280,10 +310,20 @@ class NewArticleViewModel(
         status.update { it.copy(failed = false) }
     }
 
+    /**
+     * Closes without saving. The photos taken meanwhile are deleted, unless a save is still running:
+     * the save then deletes what it doesn't keep.
+     */
     fun cancel() {
+        if (!status.value.saving) deleteImages(images, staged.toDeleteOnCancel())
+        close()
+    }
+
+    private fun close() {
         generation++
         form.value = null
         status.value = FormSaveStatus()
+        staged = StagedImages()
     }
 
     fun consumeCreated() {
@@ -296,13 +336,19 @@ class NewArticleViewModel(
         if (!current.canSave || status.value.saving || current.form != form.value) return
         status.update { it.copy(saving = true, failed = false) }
         val startedIn = generation
+        val session = staged
         viewModelScope.launch {
+            var saved = false
             try {
                 val now = clock.now().toEpochMilliseconds()
                 val new = current.form.toNewArticle(current.categories, now, newId)
                 val stored = dao.createArticle(new.article, new.newCategory)
+                saved = true
+                // Same form: photos may have been added meanwhile, they are in the current set
+                val photos = if (startedIn == generation) staged else session
+                deleteImages(images, photos.toDeleteOnSave(stored.imagePath))
                 if (startedIn == generation) {
-                    cancel()
+                    close()
                     createdId.value = stored.id
                 }
             } catch (e: CancellationException) {
@@ -313,6 +359,9 @@ class NewArticleViewModel(
                 if (startedIn == generation) status.update { it.copy(saving = false, rejectedCategoryName = e.name) }
             } catch (e: Exception) {
                 if (startedIn == generation) status.update { it.copy(saving = false, failed = true) }
+            } finally {
+                // Closed while saving and nothing saved: the photos of that form are unused
+                if (!saved && startedIn != generation) deleteImages(images, session.toDeleteOnCancel())
             }
         }
     }

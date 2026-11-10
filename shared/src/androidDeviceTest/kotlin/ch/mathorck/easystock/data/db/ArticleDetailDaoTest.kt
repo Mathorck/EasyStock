@@ -79,7 +79,11 @@ class ArticleDetailDaoTest {
         sku: String? = "NEW-1",
         categoryId: String? = null,
         thresholdMilli: Long? = 0,
-    ) = ArticleChanges(name = name, sku = sku, description = "Desc", categoryId = categoryId, unit = "kg", thresholdMilli = thresholdMilli)
+        imagePath: String? = null,
+    ) = ArticleChanges(
+        name = name, sku = sku, description = "Desc", categoryId = categoryId, unit = "kg",
+        thresholdMilli = thresholdMilli, imagePath = imagePath,
+    )
 
     // ---------- Reads ----------
 
@@ -258,5 +262,64 @@ class ArticleDetailDaoTest {
         assertFailsWith<ArticleNotFoundException> {
             detail.updateArticle("a1", changes(), newCategory = null, now = 99)
         }
+    }
+
+    // ---------- Photo ----------
+
+    private val photo1 = "images/00000000-0000-4000-8000-000000000001.jpg"
+    private val photo2 = "images/00000000-0000-4000-8000-000000000002.jpg"
+
+    @Test
+    fun updateStoresThePhotoAndReturnsThePreviousOne() = runBlocking<Unit> {
+        article("a1")
+
+        assertNull(detail.updateArticle("a1", changes(imagePath = photo1), newCategory = null, now = 20))
+        assertEquals(photo1, articles.getById("a1")?.imagePath)
+
+        assertEquals(photo1, detail.updateArticle("a1", changes(imagePath = null), newCategory = null, now = 30))
+        assertNull(articles.getById("a1")?.imagePath)
+    }
+
+    @Test
+    fun setImagePathReplacesAndReturnsThePreviousOne() = runBlocking<Unit> {
+        article("a1")
+
+        assertNull(detail.setImagePath("a1", photo1, now = 20))
+        assertEquals(photo1, articles.getById("a1")?.imagePath)
+        assertEquals(20, articles.getById("a1")?.updatedAt)
+
+        assertEquals(photo1, detail.setImagePath("a1", photo2, now = 30))
+        val stored = assertNotNull(articles.getById("a1"))
+        assertEquals(photo2, stored.imagePath)
+        assertEquals(30, stored.updatedAt)
+        // The other fields are kept
+        assertEquals("a1", stored.name)
+        assertEquals("tag-a1", stored.barcode)
+    }
+
+    @Test
+    fun setImagePathToNullRemovesThePhoto() = runBlocking<Unit> {
+        article("a1")
+        detail.setImagePath("a1", photo1, now = 20)
+
+        assertEquals(photo1, detail.setImagePath("a1", null, now = 30))
+        assertNull(articles.getById("a1")?.imagePath)
+    }
+
+    @Test
+    fun samePhotoPathKeepsUpdatedAt() = runBlocking<Unit> {
+        article("a1")
+        detail.setImagePath("a1", photo1, now = 20)
+
+        assertEquals(photo1, detail.setImagePath("a1", photo1, now = 30))
+        assertEquals(20, articles.getById("a1")?.updatedAt)
+    }
+
+    @Test
+    fun deletedArticlePhotoCannotBeSet() = runBlocking<Unit> {
+        article("a1")
+        articles.softDelete("a1", now = 20)
+
+        assertFailsWith<ArticleNotFoundException> { detail.setImagePath("a1", photo1, now = 30) }
     }
 }

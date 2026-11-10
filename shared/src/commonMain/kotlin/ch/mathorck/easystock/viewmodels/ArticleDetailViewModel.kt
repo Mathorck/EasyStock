@@ -12,6 +12,8 @@ import ch.mathorck.easystock.data.db.MovementWithLocation
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.images.ArticleImageStore
+import ch.mathorck.easystock.images.StagedImages
 import ch.mathorck.easystock.util.formatQuantity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -117,6 +119,7 @@ class ArticleDetailViewModel(
     private val articleId: String,
     private val dao: ArticleDetailDao,
     categoryDao: CategoryDao,
+    private val images: ArticleImageStore,
     private val clock: Clock = Clock.System,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
     private val newId: () -> String = { Uuid.random().toString() },
@@ -141,6 +144,7 @@ class ArticleDetailViewModel(
     private val form = MutableStateFlow<ArticleForm?>(null)
     private val status = MutableStateFlow(FormSaveStatus())
     private var latest: ArticleFormUiState? = null
+    private var staged = StagedImages()
 
     /** Bumped when the form opens or closes, so a late save result is ignored. */
     private var generation = 0
@@ -171,9 +175,21 @@ class ArticleDetailViewModel(
     /** Opens the form with the stored values. The form is not updated by later changes of the article. */
     fun startEdit() {
         val article = state.value.article ?: return
+        if (form.value != null) cancelEdit()
         generation++
         status.value = FormSaveStatus()
+        staged = StagedImages(stored = article.imagePath)
         form.value = article.toForm()
+    }
+
+    /** A photo was copied for the edit form. Deleted right away if the form is already closed. */
+    fun onEditImageImported(path: String) {
+        if (form.value == null) {
+            deleteImages(images, setOf(path))
+            return
+        }
+        staged += path
+        updateEdit { it.copy(imagePath = path) }
     }
 
     fun updateEdit(transform: (ArticleForm) -> ArticleForm) {
@@ -181,10 +197,38 @@ class ArticleDetailViewModel(
         status.update { it.copy(failed = false) }
     }
 
+    /**
+     * Closes without saving. The photos taken meanwhile are deleted (the stored one stays), unless
+     * a save is still running: the save then deletes what it doesn't keep.
+     */
     fun cancelEdit() {
+        if (!status.value.saving) deleteImages(images, staged.toDeleteOnCancel())
+        closeEdit()
+    }
+
+    private fun closeEdit() {
         generation++
         form.value = null
         status.value = FormSaveStatus()
+        staged = StagedImages()
+    }
+
+    /**
+     * Sets the photo from the detail screen, saved at once (null removes it).
+     * The previous file is deleted once the new path is stored, the new one if saving fails.
+     */
+    fun setImage(path: String?) {
+        viewModelScope.launch {
+            try {
+                val previous = dao.setImagePath(articleId, path, clock.now().toEpochMilliseconds())
+                if (previous != null && previous != path) images.delete(previous)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Deleted meanwhile, or the write failed: the new file is not used
+                if (path != null) images.delete(path)
+            }
+        }
     }
 
     /** Saves the form. The form closes on success. */
@@ -193,12 +237,18 @@ class ArticleDetailViewModel(
         if (!current.canSave || status.value.saving || current.form != form.value) return
         status.update { it.copy(saving = true, failed = false) }
         val startedIn = generation
+        val session = staged
         viewModelScope.launch {
+            var saved = false
             try {
                 val now = clock.now().toEpochMilliseconds()
                 val update = current.form.toUpdate(current.categories, now, newId)
-                dao.updateArticle(articleId, update.changes, update.newCategory, now)
-                if (startedIn == generation) cancelEdit()
+                val previous = dao.updateArticle(articleId, update.changes, update.newCategory, now)
+                saved = true
+                // Same form: photos may have been added meanwhile, they are in the current set
+                val photos = if (startedIn == generation) staged else session
+                deleteImages(images, photos.toDeleteOnSave(update.changes.imagePath, previous))
+                if (startedIn == generation) closeEdit()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: DuplicateSkuException) {
@@ -210,6 +260,9 @@ class ArticleDetailViewModel(
                 if (startedIn == generation) cancelEdit()
             } catch (e: Exception) {
                 if (startedIn == generation) status.update { it.copy(saving = false, failed = true) }
+            } finally {
+                // Closed while saving and nothing saved: the photos of that form are unused
+                if (!saved && startedIn != generation) deleteImages(images, session.toDeleteOnCancel())
             }
         }
     }

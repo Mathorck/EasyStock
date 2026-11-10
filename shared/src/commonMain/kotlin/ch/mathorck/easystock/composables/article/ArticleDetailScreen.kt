@@ -46,6 +46,7 @@ import ch.mathorck.easystock.data.db.UnitAction
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.images.rememberArticleImageStore
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.ArticleDetailUiState
@@ -95,9 +96,10 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val db = rememberAppDatabase()
+    val images = rememberArticleImageStore()
     // Keyed: the ViewModel store is shared, each article needs its own instance
     val viewModel = viewModel(key = "article-detail-$articleId") {
-        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao())
+        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), images)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by viewModel.editState.collectAsStateWithLifecycle()
@@ -116,6 +118,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         state = state,
         onBack = onBack,
         onEdit = viewModel::startEdit,
+        onImageChange = viewModel::setImage,
         units = units,
         onStockAction = actions::open,
         onUnitAction = actions::openUnitAction,
@@ -138,6 +141,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         ArticleEditSheet(
             state = edit,
             onFormChange = viewModel::updateEdit,
+            onImageImported = viewModel::onEditImageImported,
             onDismiss = viewModel::cancelEdit,
             onSave = viewModel::save,
         )
@@ -150,6 +154,7 @@ fun ArticleDetailContent(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
+    onImageChange: (String?) -> Unit = {},
     units: List<UnitRow> = emptyList(),
     onStockAction: (StockActionForm) -> Unit = {},
     onUnitAction: (UnitRow, UnitAction) -> Unit = { _, _ -> },
@@ -176,6 +181,14 @@ fun ArticleDetailContent(
         )
         if (article == null) return@Column
         LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+            item(key = "image") {
+                ArticleImageEditor(
+                    path = article.imagePath,
+                    onImported = onImageChange,
+                    onRemove = { onImageChange(null) },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             item(key = "header") { Header(article, state.categoryName) }
             item(key = "total") { TotalStock(state, article.unit) }
 

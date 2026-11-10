@@ -72,7 +72,7 @@ Table article [headercolor: #175e7a] {
   unit varchar(20) [not null, default: 'pce', note: 'pce, kg, m, l...']
   barcode varchar(64) [unique, note: 'NFC tag ID, scanned to open the article. Set to NULL on soft delete so the tag can be reused']
   threshold decimal(12,3) [note: 'Reorder alert level']
-  image_path text
+  image_path text [note: 'Photo file relative to the app files dir: images/<uuid>.jpg (JPEG, max 1600px). A new file on every change; the replaced file is deleted on save. Kept on soft delete']
   attributes json [note: 'Values keyed by attribute_definition.key, e.g. {"color":"red","length":20}']
   archived boolean [not null, default: false, note: 'No longer used, kept for history']
   created_at timestamp [not null]

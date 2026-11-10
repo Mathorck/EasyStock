@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_image_section">Foto</string>
+    <string name="article_image_none">Kein Foto</string>
+    <string name="article_image_description">Foto des Artikels</string>
+    <string name="article_image_take">Foto aufnehmen</string>
+    <string name="article_image_pick">Galerie</string>
+    <string name="article_image_remove">Entfernen</string>
+    <string name="article_image_loading">Foto wird hinzugefügt…</string>
+    <string name="article_image_error">Das Foto konnte nicht hinzugefügt werden.</string>
+    <string name="article_image_no_camera">Keine Kamera-App gefunden.</string>
+</resources>
