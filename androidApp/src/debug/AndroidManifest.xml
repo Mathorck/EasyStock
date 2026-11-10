@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: inject fake NFC tags from adb (the emulator has no NFC) -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+            Usage in FakeTagReceiver.kt. DUMP is held by the adb shell, not by other apps.
+        -->
+        <receiver
+            android:name=".debug.FakeTagReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
+    </application>
+
+</manifest>

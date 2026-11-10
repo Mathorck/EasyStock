@@ -10,5 +10,12 @@
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
+    <!-- Reads the ID of the NFC tags on shelves and bins (reader mode, only while a screen waits for a tag) -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+    <!-- Short buzz when a tag is read -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
 </manifest>

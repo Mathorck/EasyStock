@@ -94,6 +94,8 @@ import easystock.shared.generated.resources.article_threshold
 import easystock.shared.generated.resources.article_threshold_hint
 import easystock.shared.generated.resources.article_unit
 import easystock.shared.generated.resources.ic_close
+import easystock.shared.generated.resources.ic_nfc
+import easystock.shared.generated.resources.nfc_new_article_tag
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -182,6 +184,8 @@ fun ArticleFormContent(
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp, bottom = 24.dp),
     ) {
+        state.tagId?.let { NfcTagNote(it) }
+
         Section(stringResource(Res.string.article_form_section_type)) {
             TypeSection(form.tracking, editable = !isEdit, onSelect = { t -> onFormChange { it.copy(tracking = t) } })
         }
@@ -296,6 +300,23 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
             modifier = Modifier.padding(top = 8.dp),
         )
         content()
+    }
+}
+
+/** The new article gets this scanned NFC tag. */
+@Composable
+private fun NfcTagNote(tagId: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    ) {
+        Icon(painterResource(Res.drawable.ic_nfc), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(
+            stringResource(Res.string.nfc_new_article_tag, tagId),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

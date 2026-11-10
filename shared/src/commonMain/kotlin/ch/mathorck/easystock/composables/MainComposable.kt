@@ -18,10 +18,13 @@ import ch.mathorck.easystock.composables.pages.StockPage
 import ch.mathorck.easystock.composables.pages.ScanPage
 import ch.mathorck.easystock.composables.pages.SettingsPage
 import ch.mathorck.easystock.enums.Page
+import ch.mathorck.easystock.nfc.NfcReaderHost
 
 @Composable
 fun MainComposable() {
     var page by rememberSaveable { mutableStateOf(Page.Scan) }
+    // Runs the NFC reader while a screen waits for a tag
+    NfcReaderHost()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

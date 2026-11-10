@@ -235,6 +235,14 @@ class ArticleFormTest {
     }
 
     @Test
+    fun newArticleGetsTheScannedTag() {
+        val form = ArticleForm(name = "Nail")
+
+        assertEquals("04A2B3", form.toNewArticle(categories, now = 7, newId = ids("a-new"), tagId = "04A2B3").article.barcode)
+        assertNull(form.toNewArticle(categories, now = 7, newId = ids("a-new")).article.barcode)
+    }
+
+    @Test
     fun newToolIsSerialTrackedInPieces() {
         val new = ArticleForm(name = "Drill", tracking = Tracking.SERIAL, unit = "kg", categoryMode = CategoryMode.EXISTING, categoryId = "c2")
             .toNewArticle(categories, now = 7, newId = ids("a-new"))

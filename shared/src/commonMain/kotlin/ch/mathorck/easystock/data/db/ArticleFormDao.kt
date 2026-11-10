@@ -35,6 +35,13 @@ abstract class ArticleFormDao {
     @Query("SELECT * FROM category WHERE name = :name COLLATE NOCASE LIMIT 1")
     protected abstract suspend fun findCategoryByName(name: String): Category?
 
+    /** Any row holding the tag, soft-deleted ones included (the unique index covers them). */
+    @Query("SELECT * FROM article WHERE barcode = :tagId LIMIT 1")
+    protected abstract suspend fun findTagHolder(tagId: String): Article?
+
+    @Query("UPDATE article SET barcode = NULL, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun clearBarcode(id: String, now: Long)
+
     @Insert
     protected abstract suspend fun insertCategory(category: Category)
 
@@ -45,11 +52,20 @@ abstract class ArticleFormDao {
      * Inserts [article] in one transaction and returns the stored row.
      * [newCategory] is created first and replaces [Article.categoryId], unless an active category
      * already has its name (ignoring case): that one is reused.
-     * Throws [DuplicateSkuException] or [DeletedCategoryNameException]; nothing is saved then.
+     * An NFC tag ([Article.barcode]) still held by a soft-deleted row is freed first.
+     * Throws [DuplicateSkuException], [DeletedCategoryNameException] or [TagAlreadyLinkedException]
+     * (an active article holds the tag); nothing is saved then.
      */
     @Transaction
     open suspend fun createArticle(article: Article, newCategory: Category?): Article {
         article.sku?.let { if (countArticlesWithSku(it) > 0) throw DuplicateSkuException(it) }
+        article.barcode?.let { tagId ->
+            val holder = findTagHolder(tagId)
+            if (holder != null) {
+                if (holder.deletedAt == null) throw TagAlreadyLinkedException(tagId)
+                clearBarcode(holder.id, article.createdAt)
+            }
+        }
         var categoryId = article.categoryId
         newCategory?.let { category ->
             val existing = findCategoryByName(category.name)

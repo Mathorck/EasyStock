@@ -239,8 +239,14 @@ fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> Str
 /** What to save on create: the article, and the category to create first (if any). */
 data class NewArticle(val article: Article, val newCategory: Category?)
 
-/** Builds the new article. Same rules as [toUpdate]. */
-fun ArticleForm.toNewArticle(categories: List<Category>, now: Long, newId: () -> String, followsTemplate: Boolean = false): NewArticle {
+/** Builds the new article. Same rules as [toUpdate]. [tagId]: NFC tag to link (see [ch.mathorck.easystock.nfc.tagIdOf]). */
+fun ArticleForm.toNewArticle(
+    categories: List<Category>,
+    now: Long,
+    newId: () -> String,
+    followsTemplate: Boolean = false,
+    tagId: String? = null,
+): NewArticle {
     val category = chooseCategory(categories, now, newId)
     val article = Article(
         id = newId(),
@@ -254,6 +260,7 @@ fun ArticleForm.toNewArticle(categories: List<Category>, now: Long, newId: () ->
         thresholdMilli = thresholdMilli(),
         imagePath = imagePath,
         attributes = attributes,
+        barcode = tagId,
         createdAt = now,
         updatedAt = now,
     )
@@ -277,6 +284,8 @@ data class ArticleFormUiState(
     val attributeErrors: Map<String, AttributeError> = emptyMap(),
     /** The name rendered from the category template, null when the category has none. */
     val templateName: String? = null,
+    /** Create only: the NFC tag the new article gets (opened from an unknown scanned tag). */
+    val tagId: String? = null,
 ) {
     val canSave: Boolean get() = errors.isValid && attributeErrors.isEmpty() && !saving
 
@@ -364,6 +373,9 @@ class NewArticleViewModel(
     private var latest: ArticleFormUiState? = null
     private var staged = StagedImages()
 
+    /** NFC tag of the new article, set by [start] before the form opens. */
+    private var tagId: String? = null
+
     /** Bumped when the form opens or closes, so a late save result is ignored. */
     private var generation = 0
 
@@ -380,16 +392,17 @@ class NewArticleViewModel(
         form?.let {
             articleFormState(ArticleFormMode.CREATE, it, categories, attributes, status) { shown ->
                 shown.validate(null, null, skus, categories, status.rejectedSku, status.rejectedCategoryName)
-            }
+            }.copy(tagId = tagId)
         }.also { latest = it }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Opens an empty form. */
-    fun start() {
+    /** Opens an empty form. The article gets the NFC tag [tagId] when set. */
+    fun start(tagId: String? = null) {
         if (form.value != null) cancel()
         generation++
         status.value = FormSaveStatus()
         staged = StagedImages()
+        this.tagId = tagId
         form.value = ArticleForm()
     }
 
@@ -424,6 +437,7 @@ class NewArticleViewModel(
         form.value = null
         status.value = FormSaveStatus()
         staged = StagedImages()
+        tagId = null
     }
 
     fun consumeCreated() {
@@ -441,7 +455,7 @@ class NewArticleViewModel(
             var saved = false
             try {
                 val now = clock.now().toEpochMilliseconds()
-                val new = current.form.toNewArticle(current.categories, now, newId, current.followsTemplate)
+                val new = current.form.toNewArticle(current.categories, now, newId, current.followsTemplate, current.tagId)
                 val stored = dao.createArticle(new.article, new.newCategory)
                 saved = true
                 // Same form: photos may have been added meanwhile, they are in the current set
