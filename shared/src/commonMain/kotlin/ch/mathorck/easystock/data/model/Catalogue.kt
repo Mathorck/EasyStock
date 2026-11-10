@@ -111,7 +111,7 @@ data class Article(
     @ColumnInfo(defaultValue = "quantity") val tracking: Tracking = Tracking.QUANTITY,
     /** pce, kg, m, l... */
     @ColumnInfo(defaultValue = "pce") val unit: String = "pce",
-    /** NFC tag ID read by the scanner. One tag per article. */
+    /** NFC tag ID read by the scanner, uppercase hex of the tag UID (see `nfc.tagIdOf`). One tag per article. */
     val barcode: String? = null,
     /** Reorder alert level, in thousandths of [unit] (1.5 kg = 1500). */
     @SerialName("threshold") @ColumnInfo(name = "threshold") val thresholdMilli: Long? = null,

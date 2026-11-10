@@ -37,6 +37,33 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import ch.mathorck.easystock.enums.ScanState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import ch.mathorck.easystock.composables.article.ArticleDetailScreen
+import ch.mathorck.easystock.composables.article.ArticleFormDialog
+import ch.mathorck.easystock.composables.nfc.TagMoveDialog
+import ch.mathorck.easystock.composables.nfc.TagPickerSheet
+import ch.mathorck.easystock.data.db.asArticleTags
+import ch.mathorck.easystock.data.db.rememberAppDatabase
+import ch.mathorck.easystock.images.rememberArticleImageStore
+import ch.mathorck.easystock.nfc.NfcTagListener
+import ch.mathorck.easystock.nfc.TagPriority
+import ch.mathorck.easystock.nfc.appNfcTags
+import ch.mathorck.easystock.nfc.rememberOpenNfcSettings
+import ch.mathorck.easystock.viewmodels.NewArticleViewModel
+import ch.mathorck.easystock.viewmodels.ScanViewModel
+import easystock.shared.generated.resources.nfc_cancel
+import easystock.shared.generated.resources.nfc_create_with_tag
+import easystock.shared.generated.resources.nfc_link_existing
+import easystock.shared.generated.resources.nfc_open_settings
+import easystock.shared.generated.resources.nfc_tag_id
+import easystock.shared.generated.resources.nfc_try_again
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_scan
 import easystock.shared.generated.resources.ic_scan_off
@@ -59,14 +86,92 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * Waits for an NFC tag. A known tag opens its article; an unknown one can be linked to an article
+ * without tag, or used for a new article.
+ */
 @Composable
-fun ScanPage(state: ScanState = ScanState.Ready) {
+fun ScanPage() {
+    val db = rememberAppDatabase()
+    val viewModel = viewModel { ScanViewModel(db.articleDao().asArticleTags(), appNfcTags.availability) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val images = rememberArticleImageStore()
+    // Keyed: not the instance of the Stock page
+    val newArticleViewModel = viewModel(key = "scan-new-article") {
+        NewArticleViewModel(db.articleFormDao(), db.categoryDao(), db.attributeDao(), images)
+    }
+    val newArticleState by newArticleViewModel.state.collectAsStateWithLifecycle()
+    val createdArticleId by newArticleViewModel.created.collectAsStateWithLifecycle()
+    // The article created with the tag opens its detail
+    LaunchedEffect(createdArticleId) {
+        createdArticleId?.let {
+            viewModel.openArticle(it)
+            newArticleViewModel.consumeCreated()
+        }
+    }
+    NfcTagListener(TagPriority.Lookup, enabled = state.acceptsTags && newArticleState == null, onEvent = viewModel::onTag)
+
+    val openArticleId = state.openArticleId
+    if (openArticleId != null) {
+        ArticleDetailScreen(articleId = openArticleId, onBack = viewModel::reset)
+    } else {
+        ScanContent(
+            state = state.scanState,
+            tagId = state.unknownTagId,
+            onOpenSettings = rememberOpenNfcSettings(),
+            onTryAgain = viewModel::reset,
+            onLinkExisting = viewModel::openPicker,
+            onCreateWithTag = { state.unknownTagId?.let(newArticleViewModel::start) },
+            onCancel = viewModel::reset,
+        )
+    }
+    state.picker?.let { picker ->
+        TagPickerSheet(
+            state = picker,
+            onQueryChange = viewModel::onPickerQuery,
+            onPick = viewModel::linkTo,
+            onDismiss = viewModel::closePicker,
+        )
+    }
+    state.moveRequest?.let { request ->
+        TagMoveDialog(request.owner.name, onConfirm = viewModel::confirmMove, onDismiss = viewModel::cancelMove)
+    }
+    newArticleState?.let { form ->
+        ArticleFormDialog(
+            state = form,
+            onFormChange = newArticleViewModel::update,
+            onImageImported = newArticleViewModel::onImageImported,
+            onDismiss = newArticleViewModel::cancel,
+            onSave = newArticleViewModel::save,
+        )
+    }
+}
+
+/**
+ * The scan circle and the actions of [state]. [tagId] is the unknown tag while [ScanState.NotFound].
+ */
+@Composable
+fun ScanContent(
+    state: ScanState,
+    tagId: String? = null,
+    onOpenSettings: () -> Unit = {},
+    onTryAgain: () -> Unit = {},
+    onLinkExisting: () -> Unit = {},
+    onCreateWithTag: () -> Unit = {},
+    onCancel: () -> Unit = {},
+) {
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        val circleSize = min(min(maxWidth, maxHeight * 0.75f), 460.dp)
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val withActions = state == ScanState.NotFound || state == ScanState.Error || state == ScanState.NfcDisabled
+        // Smaller circle when buttons are shown under it
+        val circleSize = min(min(maxWidth, maxHeight * if (withActions) 0.5f else 0.75f), 460.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+        ) {
             ScanCircle(state = state, modifier = Modifier.size(circleSize))
             // More detail about the state, under the circle
             AnimatedContent(
@@ -80,6 +185,27 @@ fun ScanPage(state: ScanState = ScanState.Ready) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier.widthIn(max = 320.dp),
                 )
+            }
+            when (state) {
+                ScanState.NfcDisabled -> Button(onClick = onOpenSettings) { Text(stringResource(Res.string.nfc_open_settings)) }
+                ScanState.Error -> Button(onClick = onTryAgain) { Text(stringResource(Res.string.nfc_try_again)) }
+                ScanState.NotFound -> {
+                    tagId?.let {
+                        Text(
+                            stringResource(Res.string.nfc_tag_id, it),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(onClick = onLinkExisting, modifier = Modifier.widthIn(min = 280.dp)) {
+                        Text(stringResource(Res.string.nfc_link_existing))
+                    }
+                    OutlinedButton(onClick = onCreateWithTag, modifier = Modifier.widthIn(min = 280.dp)) {
+                        Text(stringResource(Res.string.nfc_create_with_tag))
+                    }
+                    TextButton(onClick = onCancel) { Text(stringResource(Res.string.nfc_cancel)) }
+                }
+                else -> Unit
             }
         }
     }
@@ -203,7 +329,7 @@ private fun ScanState.label(): StringResource = when (this) {
 @Composable
 private fun ScanPagePreview() {
     EasyStockTheme {
-        ScanPage()
+        ScanContent(ScanState.Ready)
     }
 }
 
@@ -211,7 +337,7 @@ private fun ScanPagePreview() {
 @Composable
 private fun ScanPageReadingPreview() {
     EasyStockTheme {
-        ScanPage(ScanState.Reading)
+        ScanContent(ScanState.Reading)
     }
 }
 
@@ -219,7 +345,7 @@ private fun ScanPageReadingPreview() {
 @Composable
 private fun ScanPageSuccessPreview() {
     EasyStockTheme {
-        ScanPage(ScanState.Success)
+        ScanContent(ScanState.Success)
     }
 }
 
@@ -227,7 +353,7 @@ private fun ScanPageSuccessPreview() {
 @Composable
 private fun ScanPageErrorPreview() {
     EasyStockTheme {
-        ScanPage(ScanState.Error)
+        ScanContent(ScanState.Error)
     }
 }
 
@@ -235,7 +361,15 @@ private fun ScanPageErrorPreview() {
 @Composable
 private fun ScanPageNfcDisabledPreview() {
     EasyStockTheme {
-        ScanPage(ScanState.NfcDisabled)
+        ScanContent(ScanState.NfcDisabled)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPageNotFoundPreview() {
+    EasyStockTheme {
+        ScanContent(ScanState.NotFound, tagId = "04A2B3C4D5E680")
     }
 }
 
@@ -244,7 +378,7 @@ private fun ScanPageNfcDisabledPreview() {
 private fun ScanPageDarkPreview() {
     EasyStockTheme(darkTheme = true) {
         Box(Modifier.background(MaterialTheme.colorScheme.background)) {
-            ScanPage()
+            ScanContent(ScanState.Ready)
         }
     }
 }

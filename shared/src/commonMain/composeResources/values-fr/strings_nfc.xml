@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nfc_open_settings">Ouvrir les paramètres NFC</string>
+    <string name="nfc_try_again">Réessayer</string>
+    <string name="nfc_cancel">Annuler</string>
+    <string name="nfc_close">Fermer</string>
+    <string name="nfc_tag_id">Tag %1$s</string>
+    <string name="nfc_link_existing">Lier à un article existant</string>
+    <string name="nfc_create_with_tag">Créer un article avec ce tag</string>
+    <string name="nfc_picker_title">Lier le tag à un article</string>
+    <string name="nfc_picker_hint">Seuls les articles sans tag sont listés.</string>
+    <string name="nfc_picker_search">Rechercher un article</string>
+    <string name="nfc_picker_empty">Tous les articles ont déjà un tag. Créez plutôt un nouvel article pour ce tag.</string>
+    <string name="nfc_picker_no_results">Aucun article sans tag ne correspond à « %1$s »</string>
+    <string name="nfc_error_save">Impossible d’enregistrer le tag. Réessayez.</string>
+    <string name="nfc_move_title">Tag déjà lié</string>
+    <string name="nfc_move_message">Ce tag est lié à « %1$s ». Le déplacer sur cet article ? « %1$s » n’aura plus de tag.</string>
+    <string name="nfc_move_confirm">Déplacer le tag</string>
+    <string name="nfc_tag_label">Tag NFC</string>
+    <string name="nfc_tag_none">Aucun tag lié</string>
+    <string name="nfc_link_tag">Lier un tag</string>
+    <string name="nfc_replace_tag">Remplacer le tag</string>
+    <string name="nfc_remove_tag">Retirer le tag</string>
+    <string name="nfc_remove_title">Retirer le tag ?</string>
+    <string name="nfc_remove_message">Scanner ce tag n’ouvrira plus l’article. Vous pourrez le lier à nouveau plus tard.</string>
+    <string name="nfc_remove_confirm">Retirer</string>
+    <string name="nfc_remove_failed">Impossible de retirer le tag. Réessayez.</string>
+    <string name="nfc_sheet_link_title">Lier un tag</string>
+    <string name="nfc_sheet_replace_title">Remplacer le tag</string>
+    <string name="nfc_sheet_hint">Approchez le tag du dos du téléphone.</string>
+    <string name="nfc_sheet_replace_hint">Le nouveau tag remplace %1$s, qui n’ouvrira plus cet article.</string>
+    <string name="nfc_sheet_read_failed">Impossible de lire le tag. Tenez-le immobile et réessayez.</string>
+    <string name="nfc_sheet_disabled">Le NFC est désactivé. Activez-le pour lire le tag.</string>
+    <string name="nfc_sheet_unavailable">Cet appareil ne prend pas en charge le NFC.</string>
+    <string name="nfc_new_article_tag">Le nouvel article reçoit le tag NFC %1$s</string>
+</resources>

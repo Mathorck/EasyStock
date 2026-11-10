@@ -74,6 +74,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            // ViewModel tests: Dispatchers.setMain and virtual time
+            implementation(libs.kotlinx.coroutines.test)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)

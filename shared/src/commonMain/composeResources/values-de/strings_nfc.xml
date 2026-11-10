@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nfc_open_settings">NFC-Einstellungen öffnen</string>
+    <string name="nfc_try_again">Erneut versuchen</string>
+    <string name="nfc_cancel">Abbrechen</string>
+    <string name="nfc_close">Schliessen</string>
+    <string name="nfc_tag_id">Tag %1$s</string>
+    <string name="nfc_link_existing">Einem bestehenden Artikel zuordnen</string>
+    <string name="nfc_create_with_tag">Neuen Artikel mit diesem Tag erstellen</string>
+    <string name="nfc_picker_title">Tag einem Artikel zuordnen</string>
+    <string name="nfc_picker_hint">Nur Artikel ohne Tag werden angezeigt.</string>
+    <string name="nfc_picker_search">Artikel suchen</string>
+    <string name="nfc_picker_empty">Alle Artikel haben bereits einen Tag. Erstellen Sie stattdessen einen neuen Artikel für diesen Tag.</string>
+    <string name="nfc_picker_no_results">Kein Artikel ohne Tag passt zu „%1$s“</string>
+    <string name="nfc_error_save">Der Tag konnte nicht gespeichert werden. Bitte erneut versuchen.</string>
+    <string name="nfc_move_title">Tag bereits zugeordnet</string>
+    <string name="nfc_move_message">Dieser Tag ist „%1$s“ zugeordnet. Zu diesem Artikel verschieben? „%1$s“ hat danach keinen Tag mehr.</string>
+    <string name="nfc_move_confirm">Tag verschieben</string>
+    <string name="nfc_tag_label">NFC-Tag</string>
+    <string name="nfc_tag_none">Kein Tag zugeordnet</string>
+    <string name="nfc_link_tag">Tag zuordnen</string>
+    <string name="nfc_replace_tag">Tag ersetzen</string>
+    <string name="nfc_remove_tag">Tag entfernen</string>
+    <string name="nfc_remove_title">Tag entfernen?</string>
+    <string name="nfc_remove_message">Das Scannen dieses Tags öffnet den Artikel nicht mehr. Sie können ihn später wieder zuordnen.</string>
+    <string name="nfc_remove_confirm">Entfernen</string>
+    <string name="nfc_remove_failed">Der Tag konnte nicht entfernt werden. Bitte erneut versuchen.</string>
+    <string name="nfc_sheet_link_title">Tag zuordnen</string>
+    <string name="nfc_sheet_replace_title">Tag ersetzen</string>
+    <string name="nfc_sheet_hint">Halten Sie den Tag an die Rückseite des Telefons.</string>
+    <string name="nfc_sheet_replace_hint">Der neue Tag ersetzt %1$s, der diesen Artikel danach nicht mehr öffnet.</string>
+    <string name="nfc_sheet_read_failed">Der Tag konnte nicht gelesen werden. Halten Sie ihn still und versuchen Sie es erneut.</string>
+    <string name="nfc_sheet_disabled">NFC ist ausgeschaltet. Aktivieren Sie es, um den Tag zu lesen.</string>
+    <string name="nfc_sheet_unavailable">Dieses Gerät unterstützt kein NFC.</string>
+    <string name="nfc_new_article_tag">Der neue Artikel erhält den NFC-Tag %1$s</string>
+</resources>

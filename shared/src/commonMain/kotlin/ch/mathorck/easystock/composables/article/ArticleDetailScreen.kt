@@ -38,6 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
+import ch.mathorck.easystock.composables.nfc.ArticleTagSection
+import ch.mathorck.easystock.composables.nfc.TagLinkSheet
+import ch.mathorck.easystock.data.db.asArticleTags
+import ch.mathorck.easystock.viewmodels.TagLinkViewModel
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.pages.LowStockBadge
@@ -108,6 +112,8 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     }
     val units by actions.units.collectAsStateWithLifecycle()
     val actionState by actions.sheet.collectAsStateWithLifecycle()
+    val tagLink = viewModel(key = "tag-link-$articleId") { TagLinkViewModel(articleId, db.articleDao().asArticleTags()) }
+    val tagState by tagLink.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) onBack()
@@ -123,8 +129,22 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         onStockAction = actions::open,
         onUnitAction = actions::openUnitAction,
         onEditUnit = actions::openEditUnit,
+        tagRemoveFailed = tagState.removeFailed,
+        onLinkTag = tagLink::start,
+        onRemoveTag = tagLink::removeTag,
         modifier = modifier,
     )
+
+    if (tagState.waiting) {
+        TagLinkSheet(
+            state = tagState,
+            currentTagId = state.article?.barcode,
+            onTag = tagLink::onTag,
+            onConfirmMove = tagLink::confirmMove,
+            onCancelMove = tagLink::cancelMove,
+            onDismiss = tagLink::cancel,
+        )
+    }
 
     val unit = state.article?.unit
     val sheet = actionState
@@ -160,6 +180,9 @@ fun ArticleDetailContent(
     onStockAction: (StockActionForm) -> Unit = {},
     onUnitAction: (UnitRow, UnitAction) -> Unit = { _, _ -> },
     onEditUnit: (UnitRow) -> Unit = {},
+    tagRemoveFailed: Boolean = false,
+    onLinkTag: () -> Unit = {},
+    onRemoveTag: () -> Unit = {},
 ) {
     val article = state.article
     Column(modifier.fillMaxSize()) {
@@ -193,6 +216,14 @@ fun ArticleDetailContent(
             }
             item(key = "header") { Header(article, state.categoryName) }
             item(key = "total") { TotalStock(state, article.unit) }
+            item(key = "tag") {
+                ArticleTagSection(
+                    tagId = article.barcode,
+                    removeFailed = tagRemoveFailed,
+                    onLink = onLinkTag,
+                    onRemove = onRemoveTag,
+                )
+            }
 
             if (article.tracking == Tracking.SERIAL) {
                 item(key = "units-title") { SectionTitle(stringResource(Res.string.stock_action_section_units)) }
