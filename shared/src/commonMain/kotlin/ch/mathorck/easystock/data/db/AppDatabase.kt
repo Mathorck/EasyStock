@@ -33,7 +33,9 @@ const val DATABASE_NAME = "easystock.db"
 )
 @TypeConverters(Converters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
-abstract class AppDatabase : RoomDatabase()
+abstract class AppDatabase : RoomDatabase() {
+    abstract fun articleDao(): ArticleDao
+}
 
 // Implemented by the Room compiler on each platform
 @Suppress("KotlinNoActualForExpect")
