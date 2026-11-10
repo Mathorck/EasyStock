@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -51,6 +52,7 @@ import easystock.shared.generated.resources.attributes_field_required
 import easystock.shared.generated.resources.attributes_none
 import easystock.shared.generated.resources.attributes_ok
 import easystock.shared.generated.resources.attributes_pick_date
+import easystock.shared.generated.resources.attributes_value_unit
 import easystock.shared.generated.resources.ic_calendar
 import easystock.shared.generated.resources.ic_close
 import kotlinx.datetime.LocalDate
@@ -76,7 +78,8 @@ private const val MILLIS_PER_DAY = 86_400_000L
  *   (e.g. before the first save attempt).
  *
  * Input per type: text field (text), decimal field with the unit as suffix (number, "," or "."),
- * switch (bool, unset = off), date picker (date, ISO), dropdown (enum).
+ * switch (bool, unset = off), date picker (date, ISO), dropdown (enum), decimal field with a unit dropdown
+ * (measure, the definition's default unit preselected).
  * A number that does not parse yet is kept as a string in [values]: [validateAttributes] reports it.
  *
  * [inherited]: values of the article, for fields that override them (a unit): shown as the placeholder of an
@@ -106,7 +109,11 @@ fun AttributeFields(
             val onValueChange: (JsonElement?) -> Unit = { onValuesChange(values.withAttributeValue(key, it)) }
             val errorText = errors[key]?.message()
             val inheritedValue = inherited.attributeValue(key)
-            val placeholder = inheritedValue?.let { attributeInputText(it) }?.takeIf { it.isNotEmpty() }
+            val placeholder = if (definition.dataType == AttributeDataType.MEASURE) {
+                readMeasure(definition, inheritedValue)?.text
+            } else {
+                inheritedValue?.let { attributeInputText(it) }?.takeIf { it.isNotEmpty() }
+            }
             when (definition.dataType) {
                 AttributeDataType.TEXT -> TextAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
                 AttributeDataType.NUMBER -> NumberAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
@@ -118,6 +125,7 @@ fun AttributeFields(
                     }
                 AttributeDataType.DATE -> DateAttributeField(label, value, onValueChange, errorText, enabled, placeholder)
                 AttributeDataType.ENUM -> EnumAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
+                AttributeDataType.MEASURE -> MeasureAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
             }
         }
     }
@@ -188,6 +196,77 @@ private fun NumberAttributeField(
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MeasureAttributeField(
+    label: String,
+    definition: AttributeDefinition,
+    value: JsonElement?,
+    onValueChange: (JsonElement?) -> Unit,
+    errorText: String?,
+    enabled: Boolean,
+    placeholder: String? = null,
+) {
+    val defaultUnit = definition.measureUnit
+    val units = defaultUnit?.let { MeasureUnits.of(it.family) }.orEmpty()
+    // Number as typed and unit chosen: the unit stays while the number is empty
+    var text by rememberSaveable(definition.key) { mutableStateOf(measureInputText(value)) }
+    var unit by rememberSaveable(definition.key) { mutableStateOf(measureInputUnit(value, defaultUnit?.symbol.orEmpty())) }
+    if (measureValueFromInput(text, unit) != value) {
+        // Changed from outside (reset, other article): show the stored value. A plain number (saved before the
+        // attribute was a measure) lands here on every pass, harmlessly: same text, default unit.
+        text = measureInputText(value)
+        unit = measureInputUnit(value, defaultUnit?.symbol.orEmpty())
+    }
+    var expanded by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = {
+                text = it
+                onValueChange(measureValueFromInput(it, unit))
+            },
+            label = { Text(label) },
+            placeholder = placeholder?.let { { Text(it) } },
+            isError = errorText != null,
+            supportingText = errorText?.let { { Text(it) } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            enabled = enabled,
+            modifier = Modifier.weight(1f),
+        )
+        ExposedDropdownMenuBox(
+            expanded = expanded && enabled,
+            onExpandedChange = { if (enabled) expanded = it },
+            modifier = Modifier.width(112.dp),
+        ) {
+            OutlinedTextField(
+                value = unit,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(Res.string.attributes_value_unit)) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                singleLine = true,
+                enabled = enabled,
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            )
+            ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+                units.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.symbol) },
+                        onClick = {
+                            expanded = false
+                            unit = option.symbol
+                            onValueChange(measureValueFromInput(text, option.symbol))
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -368,7 +447,7 @@ private fun previewAttribute(
 
 private val previewRopeAttributes = listOf(
     previewAttribute("breaking_strength", "Breaking strength", AttributeDataType.NUMBER, unit = "N", required = true, order = 0),
-    previewAttribute("length", "Length", AttributeDataType.NUMBER, unit = "m", order = 1),
+    previewAttribute("length", "Length", AttributeDataType.MEASURE, unit = "m", order = 1),
     previewAttribute("color", "Color", AttributeDataType.ENUM, options = listOf("Red", "Blue", "Green"), order = 2),
     previewAttribute("dynamic", "Dynamic", AttributeDataType.BOOL, order = 3),
     previewAttribute("inspected_on", "Inspected on", AttributeDataType.DATE, order = 4),

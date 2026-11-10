@@ -18,6 +18,7 @@ import kotlinx.serialization.json.booleanOrNull
 //   bool   -> JSON true / false
 //   date   -> JSON string, ISO "yyyy-MM-dd"
 //   enum   -> JSON string, one of AttributeDefinition.options
+//   measure -> JSON object {"value": 50, "unit": "m"} (see Measure.kt); a plain number is read in the default unit
 // An empty field has no key. Keys of other attributes (other category, deleted definition) are kept.
 
 /** Max length of a text value. */
@@ -61,11 +62,12 @@ fun JsonObject?.withAttributeValue(key: String, value: JsonElement?): JsonObject
  */
 @OptIn(ExperimentalSerializationApi::class)
 fun parseAttributeNumber(text: String): JsonPrimitive? {
-    val literal = normalizeNumber(text.trim()) ?: return null
+    val literal = normalizeAttributeNumber(text.trim()) ?: return null
     return JsonUnquotedLiteral(literal)
 }
 
-private fun normalizeNumber(text: String): String? {
+/** Normalized text of a typed number ("01,50" -> "1.5"), null when not a number. See [parseAttributeNumber]. */
+internal fun normalizeAttributeNumber(text: String): String? {
     val negative = text.startsWith('-')
     val unsigned = if (negative) text.substring(1) else text
     val separator = unsigned.indexOfFirst { it == '.' || it == ',' }
@@ -80,8 +82,13 @@ private fun normalizeNumber(text: String): String? {
     return if (negative && body != "0") "-$body" else body
 }
 
-/** Text shown in an input for [value]: the string, or the number as stored. Empty when unset. */
-fun attributeInputText(value: JsonElement?): String = (value as? JsonPrimitive)?.content.orEmpty()
+/** Text shown in an input for [value]: the string, the number as stored, or a measure with its unit ("50 m"). Empty when unset. */
+fun attributeInputText(value: JsonElement?): String = when (value) {
+    is JsonPrimitive -> value.content
+    is JsonObject -> listOf(measureInputText(value), ((value[MEASURE_UNIT_KEY] as? JsonPrimitive)?.content).orEmpty())
+        .filter { it.isNotEmpty() }.joinToString(" ")
+    else -> ""
+}
 
 /**
  * Value to store for typed [text] in a field of [dataType] (text, number, date or enum).
@@ -132,7 +139,7 @@ private fun checkValue(definition: AttributeDefinition, value: JsonElement): Att
             else -> null
         }
         AttributeDataType.NUMBER ->
-            if (primitive != null && !primitive.isString && normalizeNumber(primitive.content) != null) null
+            if (primitive != null && !primitive.isString && normalizeAttributeNumber(primitive.content) != null) null
             else AttributeError.INVALID_NUMBER
         AttributeDataType.BOOL ->
             if (primitive != null && !primitive.isString && primitive.booleanOrNull != null) null
@@ -141,5 +148,6 @@ private fun checkValue(definition: AttributeDefinition, value: JsonElement): Att
         AttributeDataType.ENUM ->
             if (primitive != null && primitive.isString && primitive.content in definition.options.orEmpty()) null
             else AttributeError.INVALID_OPTION
+        AttributeDataType.MEASURE -> checkMeasure(definition, value)
     }
 }

@@ -97,7 +97,7 @@ class AttributeSummaryTest {
         assertEquals("50", formatAttributeNumber("50"))
         assertEquals("100", formatAttributeNumber("100"))
         assertEquals("0", formatAttributeNumber("0.00"))
-        assertEquals(AttributeText("50", "50 m"), formatAttributeValue(length, num("50")))
+        assertEquals(AttributeText("50", "50 m"), formatAttributeValue(length, num("50"))?.copy(measure = null))
         assertEquals(AttributeText("3", "3"), formatAttributeValue(def("n", AttributeDataType.NUMBER), num("3")))
     }
 

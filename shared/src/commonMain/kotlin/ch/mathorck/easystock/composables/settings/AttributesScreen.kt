@@ -37,6 +37,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import ch.mathorck.easystock.composables.attributes.MeasureFamily
+import ch.mathorck.easystock.composables.attributes.MeasureUnits
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
@@ -45,10 +47,23 @@ import ch.mathorck.easystock.viewmodels.AttributeDialogState
 import ch.mathorck.easystock.viewmodels.AttributeForm
 import ch.mathorck.easystock.viewmodels.AttributeListUiState
 import ch.mathorck.easystock.viewmodels.AttributeListViewModel
+import ch.mathorck.easystock.viewmodels.allowedTypes
+import ch.mathorck.easystock.viewmodels.measureUnitLocked
 import ch.mathorck.easystock.viewmodels.validate
+import ch.mathorck.easystock.viewmodels.withType
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.attributes_add
 import easystock.shared.generated.resources.attributes_cancel
+import easystock.shared.generated.resources.attributes_convert_hint
+import easystock.shared.generated.resources.attributes_convert_unavailable
+import easystock.shared.generated.resources.attributes_default_unit
+import easystock.shared.generated.resources.attributes_family
+import easystock.shared.generated.resources.attributes_family_force
+import easystock.shared.generated.resources.attributes_family_length
+import easystock.shared.generated.resources.attributes_family_mass
+import easystock.shared.generated.resources.attributes_family_volume
+import easystock.shared.generated.resources.attributes_measure_hint
+import easystock.shared.generated.resources.attributes_measure_locked
 import easystock.shared.generated.resources.attributes_delete
 import easystock.shared.generated.resources.attributes_delete_message
 import easystock.shared.generated.resources.attributes_delete_title
@@ -66,6 +81,7 @@ import easystock.shared.generated.resources.attributes_type_bool
 import easystock.shared.generated.resources.attributes_type_date
 import easystock.shared.generated.resources.attributes_type_enum
 import easystock.shared.generated.resources.attributes_type_locked
+import easystock.shared.generated.resources.attributes_type_measure
 import easystock.shared.generated.resources.attributes_type_number
 import easystock.shared.generated.resources.attributes_type_text
 import easystock.shared.generated.resources.attributes_unit
@@ -178,6 +194,14 @@ internal fun AttributeDataType.label(): StringResource = when (this) {
     AttributeDataType.BOOL -> Res.string.attributes_type_bool
     AttributeDataType.DATE -> Res.string.attributes_type_date
     AttributeDataType.ENUM -> Res.string.attributes_type_enum
+    AttributeDataType.MEASURE -> Res.string.attributes_type_measure
+}
+
+internal fun MeasureFamily.label(): StringResource = when (this) {
+    MeasureFamily.LENGTH -> Res.string.attributes_family_length
+    MeasureFamily.MASS -> Res.string.attributes_family_mass
+    MeasureFamily.VOLUME -> Res.string.attributes_family_volume
+    MeasureFamily.FORCE -> Res.string.attributes_family_force
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -208,11 +232,46 @@ private fun AttributeDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                TypeDropdown(
+                val types = allowedTypes(state.editing)
+                val typeHint = when {
+                    isNew -> null
+                    types.size > 1 -> stringResource(Res.string.attributes_convert_hint)
+                    state.editing?.dataType == AttributeDataType.NUMBER ->
+                        stringResource(Res.string.attributes_convert_unavailable, MeasureUnits.all.joinToString(", ") { it.symbol })
+                    else -> stringResource(Res.string.attributes_type_locked)
+                }
+                Dropdown(
+                    label = stringResource(Res.string.attributes_type),
                     selected = form.dataType,
-                    enabled = isNew,
-                    onSelected = { type -> onFormChange { it.copy(dataType = type) } },
+                    options = types,
+                    optionLabel = { type -> type?.let { stringResource(it.label()) }.orEmpty() },
+                    enabled = types.size > 1,
+                    supportingText = typeHint,
+                    onSelected = { type -> onFormChange { it.withType(type) } },
                 )
+                if (form.dataType == AttributeDataType.MEASURE) {
+                    val unit = MeasureUnits.find(form.unit)
+                    val locked = measureUnitLocked(state.editing)
+                    Dropdown(
+                        label = stringResource(Res.string.attributes_family),
+                        selected = unit?.family,
+                        options = MeasureFamily.entries,
+                        optionLabel = { family -> family?.let { stringResource(it.label()) }.orEmpty() },
+                        enabled = !locked,
+                        onSelected = { family -> onFormChange { it.copy(unit = family.defaultUnit) } },
+                    )
+                    Dropdown(
+                        label = stringResource(Res.string.attributes_default_unit),
+                        selected = unit,
+                        options = unit?.let { MeasureUnits.of(it.family) }.orEmpty(),
+                        optionLabel = { it?.symbol.orEmpty() },
+                        enabled = !locked,
+                        supportingText = stringResource(
+                            if (locked) Res.string.attributes_measure_locked else Res.string.attributes_measure_hint,
+                        ),
+                        onSelected = { u -> onFormChange { it.copy(unit = u.symbol) } },
+                    )
+                }
                 if (form.dataType == AttributeDataType.TEXT || form.dataType == AttributeDataType.NUMBER) {
                     val unitError = state.errors.unit?.message()
                     OutlinedTextField(
@@ -255,30 +314,38 @@ private fun AttributeDialog(
     )
 }
 
+/** Read-only dropdown. [options] shows nothing to choose when it has one entry and [enabled] is false. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TypeDropdown(selected: AttributeDataType, enabled: Boolean, onSelected: (AttributeDataType) -> Unit) {
+private fun <T> Dropdown(
+    label: String,
+    selected: T?,
+    options: List<T>,
+    optionLabel: @Composable (T?) -> String,
+    enabled: Boolean,
+    onSelected: (T) -> Unit,
+    supportingText: String? = null,
+) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = { if (enabled) expanded = it }) {
         OutlinedTextField(
-            value = stringResource(selected.label()),
+            value = optionLabel(selected),
             onValueChange = {},
             readOnly = true,
             enabled = enabled,
-            label = { Text(stringResource(Res.string.attributes_type)) },
+            label = { Text(label) },
             trailingIcon = { if (enabled) ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            // Explain why the type can't be changed
-            supportingText = if (enabled) null else { { Text(stringResource(Res.string.attributes_type_locked)) } },
+            supportingText = supportingText?.let { { Text(it) } },
             singleLine = true,
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
-            AttributeDataType.entries.forEach { type ->
+            options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(type.label())) },
+                    text = { Text(optionLabel(option)) },
                     onClick = {
                         expanded = false
-                        onSelected(type)
+                        onSelected(option)
                     },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                 )
@@ -296,7 +363,7 @@ private val previewDefinitions = listOf(
     previewDefinition("breaking_strength", "Breaking strength", AttributeDataType.NUMBER, unit = "N"),
     previewDefinition("color", "Color", AttributeDataType.ENUM, options = listOf("Red", "Blue", "Green")),
     previewDefinition("dynamic", "Dynamic", AttributeDataType.BOOL),
-    previewDefinition("length", "Length", AttributeDataType.NUMBER, unit = "m"),
+    previewDefinition("length", "Length", AttributeDataType.MEASURE, unit = "m"),
 )
 
 @Preview(showBackground = true)

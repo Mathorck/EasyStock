@@ -13,7 +13,12 @@ import kotlinx.serialization.encoding.Encoder
 // Backups (JSON) use the same values, unknown values are rejected.
 
 @Serializable(with = AttributeDataTypeSerializer::class)
-enum class AttributeDataType { TEXT, NUMBER, BOOL, DATE, ENUM }
+enum class AttributeDataType {
+    TEXT, NUMBER, BOOL, DATE, ENUM,
+
+    /** Number with a unit chosen per value, see [ch.mathorck.easystock.composables.attributes.readMeasure]. */
+    MEASURE,
+}
 
 @Serializable(with = TrackingSerializer::class)
 enum class Tracking { QUANTITY, SERIAL }

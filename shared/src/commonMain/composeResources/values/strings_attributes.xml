@@ -31,6 +31,18 @@
     <string name="attributes_type_bool">Yes / No</string>
     <string name="attributes_type_date">Date</string>
     <string name="attributes_type_enum">List of choices</string>
+    <string name="attributes_type_measure">Measurement (unit per value)</string>
+    <string name="attributes_family">Measured quantity</string>
+    <string name="attributes_family_length">Length</string>
+    <string name="attributes_family_mass">Weight</string>
+    <string name="attributes_family_volume">Volume</string>
+    <string name="attributes_family_force">Force</string>
+    <string name="attributes_default_unit">Default unit</string>
+    <string name="attributes_measure_hint">Each value gets its own unit, e.g. 50 m or 9.8 mm. Search converts: 5000 cm finds 50 m.</string>
+    <string name="attributes_measure_locked">The quantity and the default unit can’t be changed: values saved without a unit are read in it.</string>
+    <string name="attributes_convert_hint">Choose “Measurement” to enter the unit with each value. Saved values are kept, read in the default unit.</string>
+    <string name="attributes_convert_unavailable">To enter the unit with each value, set the unit to one of: %1$s.</string>
+    <string name="attributes_value_unit">Unit</string>
     <string name="attributes_type_locked">The type can’t be changed after creation: saved values depend on it.</string>
     <string name="attributes_unit">Unit (optional)</string>
     <string name="attributes_unit_hint">e.g. mm, N, kg</string>
@@ -70,7 +82,7 @@
     <string name="category_template_title">Article name template</string>
     <string name="category_template_advanced">Advanced</string>
     <string name="category_template_summary">Article name template: %1$s</string>
-    <string name="category_template_hint">Builds the article names from the attributes: {key} is replaced by the value. Filters: {key|raw} (number without unit), |upper, |lower, |capitalize. Empty values are left out.</string>
+    <string name="category_template_hint">Builds the article names from the attributes: {key} is replaced by the value. Filters: {key|raw} (number without unit), |upper, |lower, |capitalize, a unit to convert a measurement ({key|mm}). Empty values are left out.</string>
     <string name="category_template_label">Template</string>
     <string name="category_template_keys">Attributes (tap to insert)</string>
     <string name="category_template_no_keys">Add attributes to the category to use them in the name.</string>

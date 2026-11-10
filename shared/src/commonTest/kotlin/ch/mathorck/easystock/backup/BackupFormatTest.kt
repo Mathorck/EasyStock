@@ -109,6 +109,24 @@ class BackupFormatTest {
     }
 
     @Test
+    fun measureAttributesRoundTrip() {
+        val base = full()
+        val length = base.attributeDefinitions.single().copy(
+            id = "a2", key = "length", label = "Length", dataType = ch.mathorck.easystock.data.model.AttributeDataType.MEASURE, unit = "m", options = null,
+        )
+        val data = base.copy(
+            attributeDefinitions = base.attributeDefinitions + length,
+            articles = base.articles.map { article ->
+                article.copy(attributes = article.attributes?.let { JsonObject(it + ("length" to kotlinx.serialization.json.Json.parseToJsonElement("""{"value":9.8,"unit":"mm"}"""))) })
+            },
+        )
+        val tables = BackupTable.entries.associateWith { BackupCodec.encodeTable(data, it) }
+
+        assertTrue("\"data_type\":\"measure\"" in tables.getValue(BackupTable.ATTRIBUTE_DEFINITION).decodeToString())
+        assertEquals(data, BackupCodec.decodeTables { tables[it] })
+    }
+
+    @Test
     fun unknownEnumValueIsDamaged() {
         val json = BackupCodec.encodeTable(full(), BackupTable.ARTICLE).decodeToString().replace("\"serial\"", "\"weight\"")
 

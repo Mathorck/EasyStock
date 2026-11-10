@@ -31,6 +31,18 @@
     <string name="attributes_type_bool">Oui / Non</string>
     <string name="attributes_type_date">Date</string>
     <string name="attributes_type_enum">Liste de choix</string>
+    <string name="attributes_type_measure">Mesure (unité par valeur)</string>
+    <string name="attributes_family">Grandeur</string>
+    <string name="attributes_family_length">Longueur</string>
+    <string name="attributes_family_mass">Poids</string>
+    <string name="attributes_family_volume">Volume</string>
+    <string name="attributes_family_force">Force</string>
+    <string name="attributes_default_unit">Unité par défaut</string>
+    <string name="attributes_measure_hint">Chaque valeur a sa propre unité, p. ex. 50 m ou 9,8 mm. La recherche convertit : 5000 cm trouve 50 m.</string>
+    <string name="attributes_measure_locked">La grandeur et l’unité par défaut ne peuvent plus être modifiées : les valeurs enregistrées sans unité sont lues dans cette unité.</string>
+    <string name="attributes_convert_hint">Choisissez « Mesure » pour saisir l’unité avec chaque valeur. Les valeurs enregistrées sont gardées, lues dans l’unité par défaut.</string>
+    <string name="attributes_convert_unavailable">Pour saisir l’unité avec chaque valeur, choisissez une de ces unités : %1$s.</string>
+    <string name="attributes_value_unit">Unité</string>
     <string name="attributes_type_locked">Le type ne peut plus être modifié après la création : les valeurs enregistrées en dépendent.</string>
     <string name="attributes_unit">Unité (facultatif)</string>
     <string name="attributes_unit_hint">p. ex. mm, N, kg</string>
@@ -70,7 +82,7 @@
     <string name="category_template_title">Modèle de nom d’article</string>
     <string name="category_template_advanced">Avancé</string>
     <string name="category_template_summary">Modèle de nom d’article : %1$s</string>
-    <string name="category_template_hint">Construit le nom des articles à partir des attributs : {clé} est remplacé par la valeur. Filtres : {clé|raw} (nombre sans unité), |upper, |lower, |capitalize. Les valeurs vides sont omises.</string>
+    <string name="category_template_hint">Construit le nom des articles à partir des attributs : {clé} est remplacé par la valeur. Filtres : {clé|raw} (nombre sans unité), |upper, |lower, |capitalize, une unité pour convertir une mesure ({clé|mm}). Les valeurs vides sont omises.</string>
     <string name="category_template_label">Modèle</string>
     <string name="category_template_keys">Attributs (toucher pour insérer)</string>
     <string name="category_template_no_keys">Ajoutez des attributs à la catégorie pour les utiliser dans le nom.</string>

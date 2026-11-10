@@ -2,6 +2,7 @@ package ch.mathorck.easystock.backup
 
 import ch.mathorck.easystock.data.db.MAX_SERIAL_LENGTH
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -233,7 +234,11 @@ private class Merger(private val local: BackupData, private val incoming: Backup
                 if (row.key != previous.key) {
                     conflicts += MergeConflict(ConflictType.ATTRIBUTE_KEY_KEPT, BackupTable.ATTRIBUTE_DEFINITION, row.id, row.key, previous.key)
                 }
-                if (newer(row, previous, AttributeDefinition::updatedAt)) table.update(row.copy(key = previous.key, createdAt = previous.createdAt))
+                if (newer(row, previous, AttributeDefinition::updatedAt)) {
+                    table.update(keepMeasure(row.copy(key = previous.key, createdAt = previous.createdAt), previous))
+                } else if (keepMeasure(previous, row) != previous) {
+                    table.update(keepMeasure(previous, row))
+                }
                 continue
             }
             val owner = keys.takenBy(row.key, row.id)
@@ -247,13 +252,28 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             remap[row.id] = owner
             conflicts += MergeConflict(ConflictType.ATTRIBUTE_MERGED, BackupTable.ATTRIBUTE_DEFINITION, row.id, row.key, row.key)
             val existing = table.final.getValue(owner)
-            if (row.updatedAt > existing.updatedAt) {
-                val merged = row.copy(id = existing.id, key = existing.key, createdAt = existing.createdAt)
+            val merged = if (row.updatedAt > existing.updatedAt) {
+                keepMeasure(row.copy(id = existing.id, key = existing.key, createdAt = existing.createdAt), existing)
+            } else {
+                keepMeasure(existing, row)
+            }
+            if (merged != existing) {
                 if (owner in table.inserted) table.insert(merged) else table.update(merged)
             }
         }
         return table to remap
     }
+
+    /**
+     * [winner] of two versions of one attribute, still a measure when [other] is one and [winner] a number:
+     * number -> measure is one way (measure values don't read as numbers), plain numbers read in the default unit.
+     */
+    private fun keepMeasure(winner: AttributeDefinition, other: AttributeDefinition): AttributeDefinition =
+        if (winner.dataType == AttributeDataType.NUMBER && other.dataType == AttributeDataType.MEASURE) {
+            winner.copy(dataType = AttributeDataType.MEASURE, unit = other.unit, updatedAt = maxOf(winner.updatedAt, other.updatedAt))
+        } else {
+            winner
+        }
 
     private fun mergeCategoryAttributes(attributeIds: Map<String, String>): Table<CategoryAttribute> {
         val table = Table(local.categoryAttributes) { it.id }

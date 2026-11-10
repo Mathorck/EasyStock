@@ -7,6 +7,12 @@ import ch.mathorck.easystock.backup.BackupFixtures.item
 import ch.mathorck.easystock.backup.BackupFixtures.link
 import ch.mathorck.easystock.backup.BackupFixtures.location
 import ch.mathorck.easystock.backup.BackupFixtures.movement
+import ch.mathorck.easystock.composables.attributes.MeasureUnits
+import ch.mathorck.easystock.composables.attributes.MeasureValue
+import ch.mathorck.easystock.composables.attributes.readMeasure
+import ch.mathorck.easystock.data.model.AttributeDataType
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -347,5 +353,61 @@ class BackupMergeTest {
         val incoming = BackupData(articles = listOf(article("a", name = "Renamed", image = photo, at = 20)))
 
         assertTrue(planMerge(local, incoming).photosReleased.isEmpty())
+    }
+
+    private fun number(id: String, unit: String?, at: Long) = attribute(id, key = "length", label = "Length", at = at).copy(dataType = AttributeDataType.NUMBER, unit = unit)
+    private fun measure(id: String, unit: String, at: Long) = attribute(id, key = "length", label = "Length", at = at).copy(dataType = AttributeDataType.MEASURE, unit = unit)
+
+    @Test
+    fun oldBackupWithPlainNumbersKeepsTheLocalMeasure() {
+        val local = BackupData(attributeDefinitions = listOf(measure("a1", "m", at = 20)))
+        val old = article("rope").copy(attributes = buildJsonObject { put("length", JsonPrimitive(50)) })
+        val incoming = BackupData(attributeDefinitions = listOf(number("a1", "m", at = 10)), articles = listOf(old))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.updates.attributeDefinitions.isEmpty())
+        val definition = plan.result.attributeDefinitions.single()
+        assertEquals(AttributeDataType.MEASURE, definition.dataType)
+        // The plain number is read in the default unit
+        val value = plan.result.articles.single().attributes!!["length"]
+        assertEquals(MeasureValue("50", MeasureUnits.find("m")!!), readMeasure(definition, value))
+    }
+
+    @Test
+    fun newerNumberDoesNotDowngradeAMeasure() {
+        val local = BackupData(attributeDefinitions = listOf(measure("a1", "m", at = 10)))
+        val incoming = BackupData(attributeDefinitions = listOf(number("a1", "m", at = 20).copy(label = "Rope length")))
+
+        val updated = planMerge(local, incoming).updates.attributeDefinitions.single()
+
+        assertEquals("Rope length", updated.label)
+        assertEquals(AttributeDataType.MEASURE, updated.dataType)
+        assertEquals("m", updated.unit)
+    }
+
+    @Test
+    fun olderIncomingMeasureUpgradesALocalNumber() {
+        val local = BackupData(attributeDefinitions = listOf(number("a1", null, at = 20)))
+        val incoming = BackupData(attributeDefinitions = listOf(measure("a1", "mm", at = 10)))
+
+        val updated = planMerge(local, incoming).updates.attributeDefinitions.single()
+
+        assertEquals(AttributeDataType.MEASURE, updated.dataType)
+        assertEquals("mm", updated.unit)
+        assertEquals(20, updated.updatedAt)
+    }
+
+    @Test
+    fun sameKeyMeasureWinsOverNumber() {
+        val local = BackupData(attributeDefinitions = listOf(number("a-local", "cm", at = 20)))
+        val incoming = BackupData(attributeDefinitions = listOf(measure("a-remote", "cm", at = 10)))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.inserts.attributeDefinitions.isEmpty())
+        val merged = plan.updates.attributeDefinitions.single()
+        assertEquals("a-local", merged.id)
+        assertEquals(AttributeDataType.MEASURE, merged.dataType)
     }
 }

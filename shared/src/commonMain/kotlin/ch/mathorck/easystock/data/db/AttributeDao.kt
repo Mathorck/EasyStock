@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
+import ch.mathorck.easystock.composables.attributes.MeasureUnits
 import ch.mathorck.easystock.composables.attributes.NameTemplateError
 import ch.mathorck.easystock.composables.attributes.articleNameFromTemplate
 import ch.mathorck.easystock.composables.attributes.validateNameTemplate
@@ -108,7 +109,8 @@ abstract class AttributeDao {
 
     /**
      * Creates a definition. Its key is derived from [label] ([newAttributeKey]) and never changes afterwards.
-     * [options] is only kept for [AttributeDataType.ENUM]. Returns the stored row.
+     * [options] is only kept for [AttributeDataType.ENUM]. A measure needs a known [unit] ([MeasureUnits]), its default.
+     * Returns the stored row.
      */
     @Transaction
     open suspend fun createDefinition(
@@ -124,7 +126,11 @@ abstract class AttributeDao {
             key = newAttributeKey(label, allKeys()),
             label = label,
             dataType = dataType,
-            unit = unit,
+            unit = if (dataType == AttributeDataType.MEASURE) {
+                requireNotNull(MeasureUnits.find(unit)) { "Unknown measure unit: '$unit'" }.symbol
+            } else {
+                unit
+            },
             options = options.takeIf { dataType == AttributeDataType.ENUM },
             createdAt = now,
             updatedAt = now,
@@ -134,18 +140,41 @@ abstract class AttributeDao {
     }
 
     /**
-     * Changes the label, unit and options. The key and the data type are kept: stored values depend on them.
+     * Changes the label, unit and options. The key is kept. The data type is kept too (stored values depend on it),
+     * except number -> measure ([dataType] = [AttributeDataType.MEASURE]): saved numbers stay as they are and are
+     * read in the default unit, which must be a known unit ([MeasureUnits]). A number with a known unit keeps it.
+     * The unit of a measure is locked: [unit] is ignored, plain values are read in it.
      * The label (bool) and the unit (number) appear in template names: the articles that follow the template
      * of a category using this attribute are renamed in the same transaction. Returns how many were renamed.
-     * Throws [AttributeNotFoundException] if the definition is deleted.
+     * Throws [AttributeNotFoundException] if the definition is deleted, [IllegalArgumentException] for another
+     * type change or an unknown measure unit.
      */
     @Transaction
-    open suspend fun updateDefinition(id: String, label: String, unit: String?, options: List<String>?, now: Long): Int {
+    open suspend fun updateDefinition(
+        id: String,
+        label: String,
+        unit: String?,
+        options: List<String>?,
+        now: Long,
+        dataType: AttributeDataType? = null,
+    ): Int {
         val stored = getActiveDefinition(id) ?: throw AttributeNotFoundException(id)
+        val type = dataType ?: stored.dataType
+        val newUnit = when {
+            stored.dataType == AttributeDataType.MEASURE -> stored.unit
+            // A number with a known unit keeps it: its saved values keep their meaning
+            type == AttributeDataType.MEASURE && MeasureUnits.find(stored.unit) != null -> MeasureUnits.find(stored.unit)!!.symbol
+            type == AttributeDataType.MEASURE -> requireNotNull(MeasureUnits.find(unit)) { "Unknown measure unit: '$unit'" }.symbol
+            else -> unit
+        }
+        require(type == stored.dataType || (stored.dataType == AttributeDataType.NUMBER && type == AttributeDataType.MEASURE)) {
+            "Can't change ${stored.dataType} to $type"
+        }
         updateDefinitionRow(
             stored.copy(
                 label = label,
-                unit = unit,
+                dataType = type,
+                unit = newUnit,
                 options = options.takeIf { stored.dataType == AttributeDataType.ENUM },
                 updatedAt = now,
             ),

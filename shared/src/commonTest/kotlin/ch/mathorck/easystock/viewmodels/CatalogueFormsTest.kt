@@ -24,6 +24,43 @@ class CatalogueFormsTest {
     }
 
     @Test
+    fun measureFormRules() {
+        fun def(type: AttributeDataType, unit: String?) =
+            AttributeDefinition(id = "a2", key = "k", label = "K", dataType = type, unit = unit, createdAt = 0, updatedAt = 0)
+        // New attribute: any type, a measure gets a known unit
+        assertEquals(AttributeDataType.entries, allowedTypes(null))
+        assertEquals("mm", AttributeForm(label = "D", unit = "MM").withType(AttributeDataType.MEASURE).unit)
+        assertEquals("m", AttributeForm(label = "D", unit = "V").withType(AttributeDataType.MEASURE).unit)
+        assertEquals(CatalogueError.REQUIRED, AttributeForm(label = "D", dataType = AttributeDataType.MEASURE, unit = "V").validate(emptyList(), null).unit)
+        assertTrue(AttributeForm(label = "D", dataType = AttributeDataType.MEASURE, unit = "kN").validate(emptyList(), null).isValid)
+        // Number with a known unit: can become a measure in that unit, unit locked
+        val numberM = def(AttributeDataType.NUMBER, "M")
+        assertEquals(listOf(AttributeDataType.NUMBER, AttributeDataType.MEASURE), allowedTypes(numberM))
+        assertTrue(measureUnitLocked(numberM))
+        val converted = numberM.toForm().withType(AttributeDataType.MEASURE).copy(unit = "kg").lockedFor(numberM)
+        assertEquals(AttributeDataType.MEASURE, converted.dataType)
+        assertEquals("m", converted.unit)
+        // Number without unit: free choice of the unit
+        val numberBlank = def(AttributeDataType.NUMBER, null)
+        assertEquals(listOf(AttributeDataType.NUMBER, AttributeDataType.MEASURE), allowedTypes(numberBlank))
+        assertEquals(false, measureUnitLocked(numberBlank))
+        assertEquals("kg", numberBlank.toForm().withType(AttributeDataType.MEASURE).copy(unit = "kg").lockedFor(numberBlank).unit)
+        // Number with an unknown unit: stays a number
+        val numberV = def(AttributeDataType.NUMBER, "V")
+        assertEquals(listOf(AttributeDataType.NUMBER), allowedTypes(numberV))
+        assertEquals(AttributeDataType.NUMBER, numberV.toForm().withType(AttributeDataType.MEASURE).lockedFor(numberV).dataType)
+        // Stored measure: type and unit locked
+        val measure = def(AttributeDataType.MEASURE, "mm")
+        assertEquals(listOf(AttributeDataType.MEASURE), allowedTypes(measure))
+        assertTrue(measureUnitLocked(measure))
+        val edited = measure.toForm().copy(dataType = AttributeDataType.NUMBER, unit = "m").lockedFor(measure)
+        assertEquals(AttributeDataType.MEASURE, edited.dataType)
+        assertEquals("mm", edited.unit)
+        // Other types stay locked
+        assertEquals(AttributeDataType.TEXT, def(AttributeDataType.TEXT, null).toForm().withType(AttributeDataType.MEASURE).lockedFor(def(AttributeDataType.TEXT, null)).dataType)
+    }
+
+    @Test
     fun enumOptionsRules() {
         val enumForm = AttributeForm(label = "Color", dataType = AttributeDataType.ENUM)
         assertEquals(CatalogueError.NO_OPTIONS, enumForm.copy(optionsText = " \n ").validate(emptyList(), null).options)

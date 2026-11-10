@@ -13,6 +13,8 @@ import kotlinx.serialization.json.JsonPrimitive
 //   {key}          value of the attribute with this AttributeDefinition.key, formatted like the stock list
 //                  (formatAttributeValue: number with its unit, bool = its label when true, date ISO)
 //   {key|filter}   filters, applied left to right: raw (number without unit), upper, lower, capitalize
+//   {key|mm}       a unit: a measure (or a number with a known unit) converted to it ("50 m" -> "50000 mm").
+//                  Ignored for other values and other families. Combines with raw: {key|cm|raw} -> "5000"
 //   {{ and }}      literal braces
 // Spaces inside the braces are ignored ("{ diameter | raw }").
 //
@@ -41,7 +43,12 @@ enum class NameTemplateFilter(val id: String) {
 
 sealed interface NameTemplatePart {
     data class Literal(val text: String) : NameTemplatePart
-    data class Placeholder(val key: String, val filters: List<NameTemplateFilter> = emptyList()) : NameTemplatePart
+    /** [unit]: symbol of the unit filter ("mm"), null when none. */
+    data class Placeholder(
+        val key: String,
+        val filters: List<NameTemplateFilter> = emptyList(),
+        val unit: String? = null,
+    ) : NameTemplatePart
 }
 
 /** A parsed, syntactically valid template. */
@@ -87,15 +94,18 @@ fun parseNameTemplate(text: String): NameTemplateParseResult {
                 val tokens = body.split('|').map { it.trim() }
                 val key = tokens.first()
                 if (key.isEmpty()) return invalid(NameTemplateError.Kind.SYNTAX)
-                val filters = tokens.drop(1).map { id ->
-                    NameTemplateFilter.fromId(id.lowercase())
-                        ?: return invalid(NameTemplateError.Kind.UNKNOWN_FILTER, id)
+                var unit: String? = null
+                val filters = tokens.drop(1).mapNotNull { id ->
+                    NameTemplateFilter.fromId(id.lowercase()) ?: run {
+                        unit = MeasureUnits.find(id)?.symbol ?: return invalid(NameTemplateError.Kind.UNKNOWN_FILTER, id)
+                        null
+                    }
                 }
                 if (literal.isNotEmpty()) {
                     parts += NameTemplatePart.Literal(literal.toString())
                     literal.clear()
                 }
-                parts += NameTemplatePart.Placeholder(key, filters)
+                parts += NameTemplatePart.Placeholder(key, filters, unit)
                 i = end + 1
             }
             else -> { literal.append(c); i++ }
@@ -172,9 +182,10 @@ fun articleNameFromTemplate(
     val byKey = definitions.associateBy { it.key }
     return parsed.render { placeholder ->
         val definition = byKey[placeholder.key] ?: return@render null
-        formatAttributeValue(definition, values.attributeValue(placeholder.key))?.let {
-            if (NameTemplateFilter.RAW in placeholder.filters) it.raw else it.text
-        }
+        val value = values.attributeValue(placeholder.key)
+        val text = placeholder.unit?.let { convertedAttributeText(definition, value, it) }
+            ?: formatAttributeValue(definition, value)
+        text?.let { if (NameTemplateFilter.RAW in placeholder.filters) it.raw else it.text }
     }.take(maxLength).trimEnd()
 }
 
@@ -190,10 +201,28 @@ fun sampleAttributeValues(definitions: Collection<AttributeDefinition>): JsonObj
             AttributeDataType.BOOL -> JsonPrimitive(true)
             AttributeDataType.DATE -> JsonPrimitive("2026-01-31")
             AttributeDataType.ENUM -> definition.options?.firstOrNull()?.let { JsonPrimitive(it) }
+            AttributeDataType.MEASURE -> measureValueFromInput("10", definition.measureUnit?.symbol.orEmpty())
         }
         definition.key to (value ?: JsonPrimitive(definition.label))
     },
 )
+
+/**
+ * [value] of a measure (or number with a known unit) converted to the unit [symbol], null when it can't be
+ * (other type, unknown unit, other family): the placeholder then shows the value as entered.
+ */
+private fun convertedAttributeText(definition: AttributeDefinition, value: JsonElement?, symbol: String): AttributeText? {
+    val target = MeasureUnits.find(symbol) ?: return null
+    val measure = when (definition.dataType) {
+        AttributeDataType.MEASURE -> readMeasure(definition, value)
+        AttributeDataType.NUMBER -> definition.measureUnit?.let { unit ->
+            (value as? JsonPrimitive)?.takeIf { !it.isString }?.content?.let(::normalizeAttributeNumber)?.let { MeasureValue(it, unit) }
+        }
+        else -> null
+    } ?: return null
+    val number = measure.numberIn(target) ?: return null
+    return AttributeText(number, "$number ${target.symbol}")
+}
 
 /**
  * Inserts the placeholder of [key] into [text] in place of the selection [start]..[end],

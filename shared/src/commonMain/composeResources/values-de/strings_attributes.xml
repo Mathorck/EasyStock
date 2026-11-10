@@ -31,6 +31,18 @@
     <string name="attributes_type_bool">Ja / Nein</string>
     <string name="attributes_type_date">Datum</string>
     <string name="attributes_type_enum">Auswahlliste</string>
+    <string name="attributes_type_measure">Messwert (Einheit pro Wert)</string>
+    <string name="attributes_family">Größe</string>
+    <string name="attributes_family_length">Länge</string>
+    <string name="attributes_family_mass">Gewicht</string>
+    <string name="attributes_family_volume">Volumen</string>
+    <string name="attributes_family_force">Kraft</string>
+    <string name="attributes_default_unit">Standardeinheit</string>
+    <string name="attributes_measure_hint">Jeder Wert hat seine eigene Einheit, z. B. 50 m oder 9,8 mm. Die Suche rechnet um: 5000 cm findet 50 m.</string>
+    <string name="attributes_measure_locked">Größe und Standardeinheit können nicht mehr geändert werden: Ohne Einheit gespeicherte Werte werden darin gelesen.</string>
+    <string name="attributes_convert_hint">Wählen Sie „Messwert“, um die Einheit bei jedem Wert einzugeben. Gespeicherte Werte bleiben erhalten, in der Standardeinheit gelesen.</string>
+    <string name="attributes_convert_unavailable">Um die Einheit bei jedem Wert einzugeben, wählen Sie eine dieser Einheiten: %1$s.</string>
+    <string name="attributes_value_unit">Einheit</string>
     <string name="attributes_type_locked">Der Typ kann nach dem Erstellen nicht mehr geändert werden: Gespeicherte Werte hängen davon ab.</string>
     <string name="attributes_unit">Einheit (optional)</string>
     <string name="attributes_unit_hint">z. B. mm, N, kg</string>
@@ -70,7 +82,7 @@
     <string name="category_template_title">Vorlage für Artikelnamen</string>
     <string name="category_template_advanced">Erweitert</string>
     <string name="category_template_summary">Vorlage für Artikelnamen: %1$s</string>
-    <string name="category_template_hint">Bildet die Artikelnamen aus den Attributen: {Schlüssel} wird durch den Wert ersetzt. Filter: {Schlüssel|raw} (Zahl ohne Einheit), |upper, |lower, |capitalize. Leere Werte werden weggelassen.</string>
+    <string name="category_template_hint">Bildet die Artikelnamen aus den Attributen: {Schlüssel} wird durch den Wert ersetzt. Filter: {Schlüssel|raw} (Zahl ohne Einheit), |upper, |lower, |capitalize, eine Einheit zum Umrechnen eines Messwerts ({Schlüssel|mm}). Leere Werte werden weggelassen.</string>
     <string name="category_template_label">Vorlage</string>
     <string name="category_template_keys">Attribute (antippen zum Einfügen)</string>
     <string name="category_template_no_keys">Fügen Sie der Kategorie Attribute hinzu, um sie im Namen zu verwenden.</string>

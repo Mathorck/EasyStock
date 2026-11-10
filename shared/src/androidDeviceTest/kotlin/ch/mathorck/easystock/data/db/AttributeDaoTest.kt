@@ -72,6 +72,35 @@ class AttributeDaoTest {
     }
 
     @Test
+    fun numberBecomesMeasureInItsUnit() = runBlocking<Unit> {
+        attributes.updateDefinition("length", "Length", "kg", null, 5, AttributeDataType.MEASURE)
+        val stored = attributes.getActiveDefinition("length")!!
+        assertEquals(AttributeDataType.MEASURE, stored.dataType)
+        assertEquals("m", stored.unit)
+        assertEquals("length", stored.key)
+
+        // The unit of a measure is locked, the type too
+        attributes.updateDefinition("length", "Rope length", "mm", null, 6)
+        assertEquals("m", attributes.getActiveDefinition("length")!!.unit)
+        assertEquals("Rope length", attributes.getActiveDefinition("length")!!.label)
+        assertFailsWith<IllegalArgumentException> { attributes.updateDefinition("length", "x", null, null, 7, AttributeDataType.NUMBER) }
+        Unit
+    }
+
+    @Test
+    fun measureNeedsAKnownUnit() = runBlocking<Unit> {
+        assertEquals("kN", attributes.createDefinition("force", "Force", AttributeDataType.MEASURE, "KN", null, 0).unit)
+        assertFailsWith<IllegalArgumentException> { attributes.createDefinition("v", "Voltage", AttributeDataType.MEASURE, "V", null, 0) }
+        attributes.createDefinition("count", "Count", AttributeDataType.NUMBER, null, null, 0)
+        assertFailsWith<IllegalArgumentException> { attributes.updateDefinition("count", "Count", "V", null, 1, AttributeDataType.MEASURE) }
+        attributes.updateDefinition("count", "Count", "CM", null, 1, AttributeDataType.MEASURE)
+        assertEquals("cm", attributes.getActiveDefinition("count")!!.unit)
+        attributes.createDefinition("name", "Name", AttributeDataType.TEXT, null, null, 0)
+        assertFailsWith<IllegalArgumentException> { attributes.updateDefinition("name", "Name", "m", null, 1, AttributeDataType.MEASURE) }
+        Unit
+    }
+
+    @Test
     fun enumOptionsAreStored() = runBlocking<Unit> {
         attributes.createDefinition("color", "Color", AttributeDataType.ENUM, null, listOf("Red", "Blue"), 0)
         attributes.updateDefinition("color", "Color", null, listOf("Red", "Blue", "Green"), 1)

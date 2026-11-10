@@ -2,6 +2,9 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.MeasureFamily
+import ch.mathorck.easystock.composables.attributes.MeasureUnits
+import ch.mathorck.easystock.composables.attributes.canBecomeMeasure
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.AttributeNotFoundException
 import ch.mathorck.easystock.data.model.AttributeDataType
@@ -33,6 +36,45 @@ data class AttributeForm(
     val unit: String = "",
     val optionsText: String = "",
 )
+
+/** Copy with [type]. A measure gets a known unit: the typed one when known ("MM" -> mm), else the length default. */
+fun AttributeForm.withType(type: AttributeDataType): AttributeForm =
+    if (type == AttributeDataType.MEASURE) {
+        copy(dataType = type, unit = MeasureUnits.find(unit)?.symbol ?: MeasureFamily.LENGTH.defaultUnit)
+    } else {
+        copy(dataType = type)
+    }
+
+/**
+ * Applies the edit rules to this form (just changed) when [editing] is stored. A new attribute is not restricted.
+ * - The type is locked, except number -> measure when the stored unit is empty or known ([canBecomeMeasure]).
+ * - A number with a known unit becomes a measure in that unit: saved values keep their meaning.
+ * - The unit of a stored measure is locked: values without unit are read in it.
+ */
+fun AttributeForm.lockedFor(editing: AttributeDefinition?): AttributeForm = when {
+    editing == null -> this
+    editing.dataType == AttributeDataType.MEASURE -> copy(dataType = AttributeDataType.MEASURE, unit = editing.unit.orEmpty())
+    editing.dataType == AttributeDataType.NUMBER && dataType == AttributeDataType.MEASURE -> {
+        val storedUnit = MeasureUnits.find(editing.unit)
+        when {
+            storedUnit != null -> copy(unit = storedUnit.symbol)
+            editing.unit.isNullOrBlank() -> this
+            else -> copy(dataType = AttributeDataType.NUMBER, unit = editing.unit)
+        }
+    }
+    else -> copy(dataType = editing.dataType)
+}
+
+/** Types the attribute can have: all for a new one ([editing] null), number or measure for a convertible number. */
+fun allowedTypes(editing: AttributeDefinition?): List<AttributeDataType> = when {
+    editing == null -> AttributeDataType.entries
+    editing.canBecomeMeasure() -> listOf(AttributeDataType.NUMBER, AttributeDataType.MEASURE)
+    else -> listOf(editing.dataType)
+}
+
+/** True when the default unit of the measure in the form can't be chosen (stored measure, or number with a known unit). */
+fun measureUnitLocked(editing: AttributeDefinition?): Boolean =
+    editing != null && (editing.dataType == AttributeDataType.MEASURE || MeasureUnits.find(editing.unit) != null)
 
 fun AttributeDefinition.toForm(): AttributeForm = AttributeForm(
     label = label,
@@ -66,7 +108,11 @@ fun AttributeForm.validate(definitions: List<AttributeDefinition>, editingId: St
             definitions.any { it.id != editingId && it.label.trim().equals(labelValue, ignoreCase = true) } -> CatalogueError.DUPLICATE
             else -> null
         },
-        unit = if (unit.trim().length > MAX_ATTRIBUTE_UNIT_LENGTH) CatalogueError.TOO_LONG else null,
+        unit = when {
+            unit.trim().length > MAX_ATTRIBUTE_UNIT_LENGTH -> CatalogueError.TOO_LONG
+            dataType == AttributeDataType.MEASURE && MeasureUnits.find(unit) == null -> CatalogueError.REQUIRED
+            else -> null
+        },
         options = when {
             dataType != AttributeDataType.ENUM -> null
             options.isEmpty() -> CatalogueError.NO_OPTIONS
@@ -138,12 +184,11 @@ class AttributeListViewModel(
         dialog.value = AttributeDialogInput(editing = definition, form = definition.toForm())
     }
 
-    /** The data type can only change on a new attribute. */
+    /** The data type can only change on a new attribute, or from number to measure ([lockedFor]). */
     fun updateForm(transform: (AttributeForm) -> AttributeForm) {
         dialog.update { input ->
             input?.let {
-                val next = transform(it.form)
-                val form = if (it.editing != null) next.copy(dataType = it.editing.dataType) else next
+                val form = transform(it.form).lockedFor(it.editing)
                 it.copy(form = form, failed = false)
             }
         }
@@ -167,13 +212,18 @@ class AttributeListViewModel(
                 val now = clock.now().toEpochMilliseconds()
                 val form = input.form
                 val label = form.label.trim()
-                val unit = form.unit.trim().ifEmpty { null }
+                val unit = if (form.dataType == AttributeDataType.MEASURE) {
+                    MeasureUnits.find(form.unit)?.symbol
+                } else {
+                    form.unit.trim().ifEmpty { null }
+                }
                 val options = parseAttributeOptions(form.optionsText).takeIf { form.dataType == AttributeDataType.ENUM }
                 val editing = input.editing
                 if (editing == null) {
                     dao.createDefinition(newId(), label, form.dataType, unit, options, now)
                 } else {
-                    renamed.value = dao.updateDefinition(editing.id, label, unit, options, now).takeIf { it > 0 }
+                    val type = form.dataType.takeIf { it != editing.dataType }
+                    renamed.value = dao.updateDefinition(editing.id, label, unit, options, now, type).takeIf { it > 0 }
                 }
                 if (dialog.value?.editing?.id == editing?.id) dialog.value = null
             } catch (e: CancellationException) {

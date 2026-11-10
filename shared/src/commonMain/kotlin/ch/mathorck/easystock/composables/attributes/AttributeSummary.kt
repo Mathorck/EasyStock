@@ -13,15 +13,25 @@ const val ATTRIBUTE_SUMMARY_SEPARATOR = " · "
 /**
  * One attribute value of an article, ready to display and to search.
  * [raw] is the value without unit ("50"), [text] is what the row shows ("50 m").
+ * [measure]: the quantity, for a measure or a number with a known unit, so a search in another unit finds it.
  */
-data class AttributeText(val raw: String, val text: String)
+data class AttributeText(val raw: String, val text: String, val measure: MeasureMagnitude? = null)
 
 /** The summary line of an article: its values joined by [ATTRIBUTE_SUMMARY_SEPARATOR]. */
 fun List<AttributeText>.summaryLine(): String = joinToString(ATTRIBUTE_SUMMARY_SEPARATOR) { it.text }
 
-/** True when [query] is part of a value, raw or with its unit, ignoring case. */
-fun List<AttributeText>.matches(query: String): Boolean =
-    any { it.raw.contains(query, ignoreCase = true) || it.text.contains(query, ignoreCase = true) }
+/**
+ * True when [query] is part of a value, raw or with its unit, ignoring case.
+ * A query that is a number with a unit ("5000 cm", "50m") also matches an equal quantity in another unit
+ * of the same family ("50 m").
+ */
+fun List<AttributeText>.matches(query: String): Boolean {
+    val measure = parseMeasureText(query)?.magnitude
+    return any {
+        it.raw.contains(query, ignoreCase = true) || it.text.contains(query, ignoreCase = true) ||
+            (measure != null && it.measure == measure)
+    }
+}
 
 /** A number as stored without trailing zeros: "10.50" -> "10.5", "50.0" -> "50", "50" -> "50". */
 fun formatAttributeNumber(text: String): String {
@@ -32,10 +42,14 @@ fun formatAttributeNumber(text: String): String {
 /**
  * Display text of one stored [value], or null when there is nothing to show
  * (unset, blank, false bool, wrong JSON type, invalid date).
- * Number -> "10.5 mm" (unit appended), bool -> its label when true, date -> ISO "yyyy-MM-dd",
- * text and enum -> the string as is.
+ * Number -> "10.5 mm" (unit appended), measure -> "50 m" (as entered), bool -> its label when true,
+ * date -> ISO "yyyy-MM-dd", text and enum -> the string as is.
  */
 fun formatAttributeValue(definition: AttributeDefinition, value: JsonElement?): AttributeText? {
+    if (definition.dataType == AttributeDataType.MEASURE) {
+        val measure = readMeasure(definition, value) ?: return null
+        return AttributeText(formatAttributeNumber(measure.number), measure.text, measure.magnitude)
+    }
     val primitive = value as? JsonPrimitive ?: return null
     return when (definition.dataType) {
         AttributeDataType.TEXT, AttributeDataType.ENUM -> {
@@ -46,11 +60,14 @@ fun formatAttributeValue(definition: AttributeDefinition, value: JsonElement?): 
             if (primitive.isString || primitive.content.isBlank()) return null
             val number = formatAttributeNumber(primitive.content)
             val unit = definition.unit?.trim().orEmpty()
-            AttributeText(number, if (unit.isEmpty()) number else "$number $unit")
+            // A known unit makes the number searchable in other units too
+            val measure = definition.measureUnit?.let { normalizeAttributeNumber(number)?.let { n -> MeasureValue(n, it).magnitude } }
+            AttributeText(number, if (unit.isEmpty()) number else "$number $unit", measure)
         }
         AttributeDataType.BOOL ->
             if (attributeBool(primitive)) AttributeText(definition.label, definition.label) else null
         AttributeDataType.DATE -> attributeDate(primitive)?.toString()?.let { AttributeText(it, it) }
+        AttributeDataType.MEASURE -> null
     }
 }
 
