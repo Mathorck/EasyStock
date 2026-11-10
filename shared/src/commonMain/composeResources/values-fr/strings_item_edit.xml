@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="item_edit_title">Modifier l’unité</string>
+    <string name="item_edit_menu">Modifier</string>
+    <string name="item_status">Statut</string>
+    <string name="item_status_locked_hint">Les unités prêtées ou perdues modifient le stock : utilisez les actions de l’unité (prêter, rendre, perdue, retrouvée) pour changer ce statut.</string>
+    <string name="item_attributes_section">Valeurs de cette unité</string>
+    <string name="item_attributes_hint">Laissez un champ vide pour utiliser la valeur de l’article.</string>
+    <string name="item_archived">Archivée</string>
+</resources>

@@ -133,7 +133,7 @@ fun ArticleForm.validate(
                 FieldError.DELETED_NAME
             else -> null
         },
-        threshold = if (threshold.isNotBlank() && parseQuantity(threshold) == null) FieldError.INVALID_QUANTITY else null,
+        threshold = if (tracking != Tracking.SERIAL && threshold.isNotBlank() && parseQuantity(threshold) == null) FieldError.INVALID_QUANTITY else null,
     )
 }
 
@@ -172,8 +172,9 @@ private fun ArticleForm.chooseCategory(categories: List<Category>, now: Long, ne
         }
     }
 
+/** Serial-tracked articles (tools) have no low-stock alert: the threshold is cleared. */
 private fun ArticleForm.thresholdMilli(): Long? =
-    threshold.takeIf { it.isNotBlank() }?.let { requireNotNull(parseQuantity(it)) { "Invalid threshold" } }
+    if (tracking == Tracking.SERIAL) null else threshold.takeIf { it.isNotBlank() }?.let { requireNotNull(parseQuantity(it)) { "Invalid threshold" } }
 
 /** What to save on edit: the changed fields, and the category to create first (if any). */
 data class ArticleUpdate(val changes: ArticleChanges, val newCategory: Category?)

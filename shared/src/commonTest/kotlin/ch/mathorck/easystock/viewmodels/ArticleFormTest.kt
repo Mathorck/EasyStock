@@ -125,6 +125,14 @@ class ArticleFormTest {
     }
 
     @Test
+    fun serialArticleClearsTheThresholdAndIgnoresItsErrors() {
+        val tool = form.copy(tracking = Tracking.SERIAL, threshold = "abc")
+        assertNull(tool.errors().threshold)
+        assertNull(tool.copy(threshold = "5").toUpdate(categories, now = 5, newId = { "x" }).changes.thresholdMilli)
+        assertNull(tool.copy(threshold = "5").toNewArticle(categories, now = 5, newId = { "x" }).article.thresholdMilli)
+    }
+
+    @Test
     fun updateKeepsSkuAndBlankThresholdIsNull() {
         val update = form.copy(sku = " blt-9 ", threshold = " ").toUpdate(categories, now = 5, newId = { "x" })
 

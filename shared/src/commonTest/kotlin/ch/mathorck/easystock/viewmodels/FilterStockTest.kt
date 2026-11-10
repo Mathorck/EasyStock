@@ -2,6 +2,7 @@ package ch.mathorck.easystock.viewmodels
 
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.ArticleStock
+import ch.mathorck.easystock.data.model.Tracking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,6 +20,7 @@ class FilterStockTest {
         item("2", "Bolt M8", "hw", stock = 9_000, threshold = 5_000), // ok
         item("3", "Duct tape", "tape", stock = 0, threshold = 0), // low (at threshold)
         item("4", "Cable tie", null, stock = 0, threshold = null), // no threshold, never low
+        item("5", "Drill", null, stock = 0, threshold = 1_000).let { it.copy(article = it.article.copy(tracking = Tracking.SERIAL)) }, // tool: never low
     )
 
     private fun ids(query: String = "", categoryId: String? = null, lowStockOnly: Boolean = false) =
@@ -26,7 +28,7 @@ class FilterStockTest {
 
     @Test
     fun noFilterKeepsAll() {
-        assertEquals(listOf("1", "2", "3", "4"), ids())
+        assertEquals(listOf("1", "2", "3", "4", "5"), ids())
     }
 
     @Test

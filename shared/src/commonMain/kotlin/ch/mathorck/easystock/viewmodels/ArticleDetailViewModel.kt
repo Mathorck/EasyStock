@@ -11,6 +11,7 @@ import ch.mathorck.easystock.data.db.LocationStock
 import ch.mathorck.easystock.data.db.MovementWithLocation
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.data.model.isLowAt
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.images.ArticleImageStore
 import ch.mathorck.easystock.images.StagedImages
@@ -110,7 +111,7 @@ data class ArticleDetailUiState(
     val isDeleted: Boolean get() = !loading && article == null
 
     /** Same rule as [ch.mathorck.easystock.data.model.ArticleStock.isLowStock]. */
-    val isLowStock: Boolean get() = article?.thresholdMilli?.let { totalMilli <= it } ?: false
+    val isLowStock: Boolean get() = article?.isLowAt(totalMilli) ?: false
 }
 
 /** Detail of one article (stock per location, history) and its edit form. */

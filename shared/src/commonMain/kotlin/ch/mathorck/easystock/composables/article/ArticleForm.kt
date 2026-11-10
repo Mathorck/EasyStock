@@ -222,7 +222,8 @@ fun ArticleFormContent(
         }
 
         // Create: a tool has no stock setting (fixed unit), so the section is left out
-        if (isEdit || isConsumable) {
+        // Edit: a tool has no unit and no low-stock threshold either
+        if (isConsumable) {
             Section(stringResource(Res.string.article_form_section_stock)) {
                 if (isConsumable) {
                     FormField(
@@ -233,7 +234,7 @@ fun ArticleFormContent(
                         supporting = stringResource(Res.string.article_form_unit_hint),
                     )
                 }
-                if (isEdit) {
+                if (isEdit && isConsumable) {
                     FormField(
                         value = form.threshold,
                         onValueChange = { v -> onFormChange { it.copy(threshold = v) } },
