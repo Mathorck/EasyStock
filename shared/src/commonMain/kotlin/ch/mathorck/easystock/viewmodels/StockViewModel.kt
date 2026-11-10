@@ -2,7 +2,12 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.AttributeCatalog
+import ch.mathorck.easystock.composables.attributes.AttributeText
+import ch.mathorck.easystock.composables.attributes.matches
+import ch.mathorck.easystock.composables.attributes.summaryLine
 import ch.mathorck.easystock.data.db.ArticleDao
+import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
 import ch.mathorck.easystock.data.db.StockDao
 import ch.mathorck.easystock.data.model.ArticleStock
@@ -45,24 +50,42 @@ data class StockUiState(
     val categories: List<Category> = emptyList(),
     /** Active filters. Ids that no longer exist are already dropped. */
     val filters: StockFilters = StockFilters(),
+    /** Attribute summary line per article id ("static · 10.5 mm"). Articles without values are absent. */
+    val attributeLines: Map<String, String> = emptyMap(),
 ) {
     val selectedLocation: Location? get() = locations.firstOrNull { it.location.id == filters.locationId }?.location
     val selectedCategory: Category? get() = categories.firstOrNull { it.id == filters.categoryId }
 }
 
-/** Keeps the articles whose name or SKU contains [query], ignoring case. A blank query keeps all. */
-fun List<ArticleStock>.filterByQuery(query: String): List<ArticleStock> {
+/**
+ * Keeps the articles whose name, SKU or attribute value contains [query], ignoring case.
+ * Attribute values match raw ("50") or with their unit ("50 m"). A blank query keeps all.
+ * [attributes] gives the formatted attributes of an article.
+ */
+fun List<ArticleStock>.filterByQuery(
+    query: String,
+    attributes: (ArticleStock) -> List<AttributeText> = { emptyList() },
+): List<ArticleStock> {
     val q = query.trim()
     if (q.isEmpty()) return this
-    return filter { it.article.name.contains(q, ignoreCase = true) || it.article.sku?.contains(q, ignoreCase = true) == true }
+    return filter {
+        it.article.name.contains(q, ignoreCase = true) ||
+            it.article.sku?.contains(q, ignoreCase = true) == true ||
+            attributes(it).matches(q)
+    }
 }
 
 /**
  * Applies the search [query], the category and the low-stock filter (AND).
  * The location filter is applied by the SQL query, not here.
  */
-fun List<ArticleStock>.filterStock(query: String, categoryId: String?, lowStockOnly: Boolean): List<ArticleStock> =
-    filterByQuery(query).filter { item ->
+fun List<ArticleStock>.filterStock(
+    query: String,
+    categoryId: String?,
+    lowStockOnly: Boolean,
+    attributes: (ArticleStock) -> List<AttributeText> = { emptyList() },
+): List<ArticleStock> =
+    filterByQuery(query, attributes).filter { item ->
         (categoryId == null || item.article.categoryId == categoryId) && (!lowStockOnly || item.isLowStock)
     }
 
@@ -95,7 +118,12 @@ fun List<Location>.toLocationTree(): List<StockLocationNode> {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class StockViewModel(articleDao: ArticleDao, stockDao: StockDao, categoryDao: CategoryDao) : ViewModel() {
+class StockViewModel(
+    articleDao: ArticleDao,
+    stockDao: StockDao,
+    categoryDao: CategoryDao,
+    attributeDao: AttributeDao,
+) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -103,6 +131,7 @@ class StockViewModel(articleDao: ArticleDao, stockDao: StockDao, categoryDao: Ca
 
     private val locations = stockDao.observeLocations().map { it.toLocationTree() }
     private val categories = categoryDao.observeAll()
+    private val attributeCatalog = combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog)
 
     private val effectiveFilters: Flow<StockFilters> = combine(_filters, locations, categories) { filters, locs, cats ->
         filters.withoutStale(locs.mapTo(HashSet()) { it.location.id }, cats.mapTo(HashSet()) { it.id })
@@ -124,17 +153,21 @@ class StockViewModel(articleDao: ArticleDao, stockDao: StockDao, categoryDao: Ca
         source,
         _query,
         effectiveFilters,
-        combine(locations, categories, ::Pair),
-    ) { all, (sourceLocationId, items), q, filters, (locs, cats) ->
+        combine(locations, categories, attributeCatalog, ::Triple),
+    ) { all, (sourceLocationId, items), q, filters, (locs, cats, catalog) ->
         // Right after a location change, the list can still be the previous location's: never show it.
         val upToDate = sourceLocationId == filters.locationId
+        // Formatted once per emission, used by the search and by the rows.
+        val formatted = items.associate { it.article.id to catalog.format(it.article) }
+        val attributes = { item: ArticleStock -> formatted[item.article.id].orEmpty() }
         StockUiState(
             loading = !upToDate,
-            items = if (upToDate) items.filterStock(q, filters.categoryId, filters.lowStockOnly) else emptyList(),
+            items = if (upToDate) items.filterStock(q, filters.categoryId, filters.lowStockOnly, attributes) else emptyList(),
             totalCount = all.size,
             locations = locs,
             categories = cats,
             filters = filters,
+            attributeLines = if (upToDate) formatted.mapNotNull { (id, texts) -> texts.takeIf { it.isNotEmpty() }?.let { id to it.summaryLine() } }.toMap() else emptyMap(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StockUiState())
 

@@ -102,7 +102,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun StockPage() {
     val db = rememberAppDatabase()
-    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao()) }
+    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao(), db.attributeDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
@@ -222,7 +222,7 @@ fun StockContent(
             )
             else -> LazyColumn(state = listState, contentPadding = contentPadding) {
                 items(state.items, key = { it.article.id }) { item ->
-                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item) }
+                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item, state.attributeLines[item.article.id]) }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
             }
@@ -380,11 +380,18 @@ private fun PickerSheet(
 }
 
 @Composable
-private fun StockRow(item: ArticleStock) {
+private fun StockRow(item: ArticleStock, attributeLine: String?) {
     ListItem(
         leadingContent = { ArticleThumbnail(item.article.imagePath) },
         headlineContent = { Text(item.article.name) },
-        supportingContent = item.article.sku?.let { sku -> { Text(sku) } },
+        supportingContent = if (attributeLine == null && item.article.sku == null) null else {
+            {
+                Column {
+                    if (attributeLine != null) Text(attributeLine, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    item.article.sku?.let { sku -> Text(sku, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+            }
+        },
         trailingContent = {
             Column(horizontalAlignment = Alignment.End) {
                 Text(

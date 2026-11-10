@@ -171,6 +171,16 @@ abstract class AttributeDao {
     )
     abstract fun observeCategoryAttributes(categoryId: String): Flow<List<CategoryAttributeWithDefinition>>
 
+    /** Active links of all categories (deleted links and definitions left out), to format attributes in lists. */
+    @Query(
+        """
+        SELECT category_attribute.* FROM category_attribute
+        JOIN attribute_definition ON attribute_definition.id = category_attribute.attribute_id
+        WHERE category_attribute.deleted_at IS NULL AND attribute_definition.deleted_at IS NULL
+        """,
+    )
+    abstract fun observeActiveLinks(): Flow<List<CategoryAttribute>>
+
     /** All links of the category, soft-deleted ones included. */
     @Query("SELECT * FROM category_attribute WHERE category_id = :categoryId")
     protected abstract suspend fun allLinksOfCategory(categoryId: String): List<CategoryAttribute>
