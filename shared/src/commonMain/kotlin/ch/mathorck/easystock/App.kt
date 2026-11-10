@@ -1,5 +1,6 @@
 package ch.mathorck.easystock
 
+import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,7 +24,7 @@ import easystock.shared.generated.resources.compose_multiplatform
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
+    EasyStockTheme {
         MainComposable()
     }
 }

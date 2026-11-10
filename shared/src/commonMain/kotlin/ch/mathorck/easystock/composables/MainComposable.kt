@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables
 
+import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,7 +43,15 @@ fun MainComposable() {
 @Preview
 @Composable
 private fun MainComposablePreview() {
-    MaterialTheme {
+    EasyStockTheme {
+        MainComposable()
+    }
+}
+
+@Preview
+@Composable
+private fun MainComposableDarkPreview() {
+    EasyStockTheme(darkTheme = true) {
         MainComposable()
     }
 }

@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables
 
+import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Icon
@@ -50,7 +51,7 @@ private fun Page.label(): StringResource = when (this) {
 @Preview
 @Composable
 private fun NavBarComposablePreview() {
-    MaterialTheme {
+    EasyStockTheme {
         NavBarComposable(currentPage = Page.Scan, onPageSelected = {})
     }
 }
