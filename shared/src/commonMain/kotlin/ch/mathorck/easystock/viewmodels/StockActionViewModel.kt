@@ -2,7 +2,14 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.composables.attributes.validateAttributes
 import ch.mathorck.easystock.data.db.ArticleDetailDao
+import ch.mathorck.easystock.data.db.AttributeDao
+import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
+import ch.mathorck.easystock.data.db.CREATABLE_STATUSES
+import ch.mathorck.easystock.data.db.ItemChanges
+import ch.mathorck.easystock.data.db.editableStatuses
 import ch.mathorck.easystock.data.db.DuplicateSerialException
 import ch.mathorck.easystock.data.db.ItemLastLocation
 import ch.mathorck.easystock.data.db.MAX_SERIAL_LENGTH
@@ -27,9 +34,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -43,7 +54,7 @@ enum class LocationChoice { EXISTING, NEW }
 private const val LOCATION_NAME_MAX = 100
 
 /** What the action sheet does. The first three are for quantity-tracked articles, the others for serial units. */
-enum class StockActionKind { ADD, REMOVE, MOVE, ADD_UNIT, MOVE_UNIT, UNIT_STATUS }
+enum class StockActionKind { ADD, REMOVE, MOVE, ADD_UNIT, MOVE_UNIT, UNIT_STATUS, EDIT_UNIT }
 
 /** Errors of the action sheet. Separate from [FieldError] so other forms are not affected. */
 enum class StockActionError { REQUIRED, INVALID_QUANTITY, NOT_POSITIVE, EXCEEDS_STOCK, TOO_LONG, DUPLICATE_SERIAL, SAME_LOCATION }
@@ -53,7 +64,7 @@ data class StockActionForm(
     val kind: StockActionKind,
     /** Location of the row the action was started from (fixed). Null for "add to a location". */
     val sourceLocationId: String? = null,
-    /** The unit, for [StockActionKind.MOVE_UNIT] and [StockActionKind.UNIT_STATUS]. */
+    /** The unit, for [StockActionKind.MOVE_UNIT], [StockActionKind.UNIT_STATUS] and [StockActionKind.EDIT_UNIT]. */
     val itemId: String? = null,
     val unitAction: UnitAction? = null,
     val targetMode: LocationChoice = LocationChoice.EXISTING,
@@ -63,6 +74,11 @@ data class StockActionForm(
     val quantity: String = "",
     val reason: MovementReason? = defaultReason(kind),
     val serial: String = "",
+    /** Unit properties ([StockActionKind.ADD_UNIT] and [StockActionKind.EDIT_UNIT]). */
+    val itemStatus: ItemStatus = ItemStatus.AVAILABLE,
+    /** Unit-specific attribute values, overriding the article ones. Same keys as `article.attributes`. */
+    val itemAttributes: JsonObject? = null,
+    val archived: Boolean = false,
     val comment: String = "",
 ) {
     /** The user picks a destination (existing or new). */
@@ -72,7 +88,11 @@ data class StockActionForm(
             StockActionKind.REMOVE -> false
             StockActionKind.MOVE, StockActionKind.ADD_UNIT, StockActionKind.MOVE_UNIT -> true
             StockActionKind.UNIT_STATUS -> unitAction == UnitAction.RETURN || unitAction == UnitAction.FOUND
+            StockActionKind.EDIT_UNIT -> false
         }
+
+    /** The sheet edits the properties of a unit (serial, status, attributes). */
+    val hasUnitProperties: Boolean get() = kind == StockActionKind.ADD_UNIT || kind == StockActionKind.EDIT_UNIT
 
     val needsQuantity: Boolean get() = kind == StockActionKind.ADD || kind == StockActionKind.REMOVE || kind == StockActionKind.MOVE
 }
@@ -120,9 +140,20 @@ data class StockActionErrors(
     val serial: StockActionError? = null,
     /** The unit is gone or its status no longer allows the action. */
     val unit: StockActionError? = null,
+    /** Item attribute values that are not valid, keyed by attribute key. */
+    val attributes: Map<String, AttributeError> = emptyMap(),
 ) {
-    val isValid: Boolean get() = listOf(quantity, reason, location, locationName, serial, unit).all { it == null }
+    val isValid: Boolean get() = listOf(quantity, reason, location, locationName, serial, unit).all { it == null } && attributes.isEmpty()
 }
+
+// ---------- Unit properties (pure) ----------
+
+/**
+ * Attributes of the category as optional overrides on a unit: a unit never has to repeat the article value,
+ * so "required" does not apply.
+ */
+fun itemAttributeOverrides(attributes: List<CategoryAttributeWithDefinition>): List<CategoryAttributeWithDefinition> =
+    attributes.map { it.copy(link = it.link.copy(required = false)) }
 
 /** Data the form is checked against. */
 data class StockActionContext(
@@ -132,6 +163,8 @@ data class StockActionContext(
     /** All serial numbers, deleted items included. */
     val serials: List<String>,
     val items: List<Item>,
+    /** Attributes of the article category, for the unit attribute values. */
+    val itemAttributes: List<CategoryAttributeWithDefinition> = emptyList(),
 )
 
 /** [rejectedSerial]: a serial the database refused on the last save. */
@@ -162,10 +195,11 @@ fun StockActionForm.validate(context: StockActionContext, rejectedSerial: String
             newLocationName.trim().length > LOCATION_NAME_MAX -> StockActionError.TOO_LONG
             else -> null
         },
-        serial = if (kind == StockActionKind.ADD_UNIT) {
-            validateSerial(serial, context.serials + listOfNotNull(rejectedSerial))
-        } else {
-            null
+        serial = when (kind) {
+            StockActionKind.ADD_UNIT -> validateSerial(serial, context.serials + listOfNotNull(rejectedSerial))
+            // The unit may keep its own serial
+            StockActionKind.EDIT_UNIT -> validateSerial(serial, context.serials.withoutOne(item?.serialNumber) + listOfNotNull(rejectedSerial))
+            else -> null
         },
         unit = when (kind) {
             StockActionKind.MOVE_UNIT -> if (item == null || !canMoveUnit(item.status)) StockActionError.REQUIRED else null
@@ -173,9 +207,18 @@ fun StockActionForm.validate(context: StockActionContext, rejectedSerial: String
                 val action = unitAction
                 if (item == null || action == null || unitTransition(item.status, action) == null) StockActionError.REQUIRED else null
             }
+            StockActionKind.ADD_UNIT -> if (itemStatus in CREATABLE_STATUSES) null else StockActionError.REQUIRED
+            StockActionKind.EDIT_UNIT -> if (item == null || itemStatus !in editableStatuses(item.status)) StockActionError.REQUIRED else null
             else -> null
         },
+        attributes = if (hasUnitProperties) validateAttributes(itemAttributeOverrides(context.itemAttributes), itemAttributes) else emptyMap(),
     )
+}
+
+/** Copy without the first entry equal to [value] (ignoring case). */
+private fun List<String>.withoutOne(value: String?): List<String> {
+    val index = value?.let { v -> indexOfFirst { it.equals(v, ignoreCase = true) } } ?: -1
+    return if (index < 0) this else filterIndexed { i, _ -> i != index }
 }
 
 /** The new location typed in the form, or null when an existing one is picked. Call only on a valid form. */
@@ -230,6 +273,12 @@ data class StockActionUiState(
     val availableMilli: Long?,
     /** Serial of the unit, for unit actions. */
     val unitSerial: String?,
+    /** Stored status of the unit being edited (the form status may differ). */
+    val currentStatus: ItemStatus? = null,
+    /** Attributes of the article category: the fields of the unit attribute values. */
+    val itemAttributes: List<CategoryAttributeWithDefinition> = emptyList(),
+    /** Attribute values of the article, shown as placeholders for the unit ones. */
+    val inheritedAttributes: JsonObject? = null,
     val saving: Boolean = false,
     val saveFailed: Boolean = false,
 ) {
@@ -244,6 +293,8 @@ private data class ActionData(
     val all: List<Location>,
     val serials: List<String>,
     val items: List<Item>,
+    val itemAttributes: List<CategoryAttributeWithDefinition> = emptyList(),
+    val inheritedAttributes: JsonObject? = null,
 )
 
 /** Stock actions of one article (add, remove, move, serial units) and its unit list. */
@@ -253,18 +304,34 @@ class StockActionViewModel(
     private val dao: StockActionDao,
     detailDao: ArticleDetailDao,
     stockDao: StockDao,
+    attributeDao: AttributeDao,
     private val clock: Clock = Clock.System,
     private val newId: () -> String = { Uuid.random().toString() },
 ) : ViewModel() {
+    /** Category attributes of the article and its own values (what a unit can override). */
+    private val attributeSource: Flow<Pair<List<CategoryAttributeWithDefinition>, JsonObject?>> =
+        detailDao.observeArticle(articleId).flatMapLatest { found ->
+            val inherited = found?.article?.attributes
+            val categoryId = found?.article?.categoryId
+            if (categoryId == null) {
+                flowOf(emptyList<CategoryAttributeWithDefinition>() to inherited)
+            } else {
+                attributeDao.observeCategoryAttributes(categoryId).map { it to inherited }
+            }
+        }
+
     private val data: Flow<ActionData> = combine(
-        detailDao.observeStockByLocation(articleId),
-        stockDao.observeLocations(),
-        detailDao.observeAllLocations(),
-        detailDao.observeSerials(),
-        detailDao.observeItems(articleId),
-    ) { stock, active, all, serials, items ->
-        ActionData(stock.associate { it.locationId to it.stockMilli }, active, all, serials, items)
-    }
+        combine(
+            detailDao.observeStockByLocation(articleId),
+            stockDao.observeLocations(),
+            detailDao.observeAllLocations(),
+            detailDao.observeSerials(),
+            detailDao.observeItems(articleId),
+        ) { stock, active, all, serials, items ->
+            ActionData(stock.associate { it.locationId to it.stockMilli }, active, all, serials, items)
+        },
+        attributeSource,
+    ) { base, (attributes, inherited) -> base.copy(itemAttributes = attributes, inheritedAttributes = inherited) }
 
     val units: StateFlow<List<UnitRow>> = combine(
         detailDao.observeItems(articleId),
@@ -288,7 +355,7 @@ class StockActionViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private fun buildState(form: StockActionForm, data: ActionData, status: ActionStatus): StockActionUiState {
-        val context = StockActionContext(data.stock, data.active.mapTo(HashSet()) { it.id }, data.serials, data.items)
+        val context = StockActionContext(data.stock, data.active.mapTo(HashSet()) { it.id }, data.serials, data.items, data.itemAttributes)
         val paths = buildLocationOptions(data.all).associate { it.id to it.path }
         val item = form.itemId?.let { id -> data.items.firstOrNull { it.id == id } }
         val source = form.sourceLocationId ?: item?.locationId
@@ -299,6 +366,9 @@ class StockActionViewModel(
             sourcePath = source?.let { paths[it] ?: it },
             availableMilli = form.sourceLocationId?.let { data.stock[it] ?: 0 },
             unitSerial = item?.serialNumber,
+            currentStatus = item?.status,
+            itemAttributes = data.itemAttributes,
+            inheritedAttributes = data.inheritedAttributes,
             saving = status.saving,
             saveFailed = status.failed,
         )
@@ -315,6 +385,21 @@ class StockActionViewModel(
         val active = latestData?.active.orEmpty()
         val target = unit.lastLocationId?.takeIf { id -> active.any { it.id == id } }
         open(StockActionForm(kind = StockActionKind.UNIT_STATUS, itemId = unit.itemId, unitAction = action, targetLocationId = target))
+    }
+
+    /** Opens the properties of a unit (serial, status, attributes), prefilled with the stored values. */
+    fun openEditUnit(unit: UnitRow) {
+        val item = latestData?.items?.firstOrNull { it.id == unit.itemId } ?: return
+        open(
+            StockActionForm(
+                kind = StockActionKind.EDIT_UNIT,
+                itemId = item.id,
+                serial = item.serialNumber.orEmpty(),
+                itemStatus = item.status,
+                itemAttributes = item.attributes,
+                archived = item.archived,
+            ),
+        )
     }
 
     fun update(transform: (StockActionForm) -> StockActionForm) {
@@ -373,14 +458,21 @@ class StockActionViewModel(
                     id = newId(),
                     articleId = articleId,
                     serialNumber = form.serial.trim().ifEmpty { null },
-                    status = ItemStatus.AVAILABLE,
+                    status = form.itemStatus,
                     locationId = requireNotNull(target),
+                    attributes = form.itemAttributes,
                     createdAt = now,
                     updatedAt = now,
                 )
                 val movement = movement(target, UNIT_MILLI, MovementReason.PURCHASE, comment, now).copy(itemId = item.id)
                 dao.addItem(item, movement, newLocation)
             }
+            StockActionKind.EDIT_UNIT ->
+                dao.updateItemProperties(
+                    requireNotNull(form.itemId),
+                    ItemChanges(form.serial.trim().ifEmpty { null }, form.itemStatus, form.itemAttributes, form.archived),
+                    now,
+                )
             StockActionKind.MOVE_UNIT ->
                 dao.moveItem(requireNotNull(form.itemId), requireNotNull(target), newLocation, newId(), newId(), comment, now)
             StockActionKind.UNIT_STATUS ->

@@ -68,6 +68,7 @@ import easystock.shared.generated.resources.stock_action_error_not_positive
 import easystock.shared.generated.resources.stock_action_error_quantity
 import easystock.shared.generated.resources.stock_action_error_same_location
 import easystock.shared.generated.resources.stock_action_error_save
+import easystock.shared.generated.resources.item_edit_title
 import easystock.shared.generated.resources.stock_action_error_serial_taken
 import easystock.shared.generated.resources.stock_action_error_too_long
 import easystock.shared.generated.resources.stock_action_error_unit
@@ -82,11 +83,11 @@ import easystock.shared.generated.resources.stock_action_mode_existing
 import easystock.shared.generated.resources.stock_action_mode_new
 import easystock.shared.generated.resources.stock_action_no_locations
 import easystock.shared.generated.resources.stock_action_no_serial
+import easystock.shared.generated.resources.stock_action_not_in_stock
 import easystock.shared.generated.resources.stock_action_quantity
 import easystock.shared.generated.resources.stock_action_reason
 import easystock.shared.generated.resources.stock_action_repair_hint
 import easystock.shared.generated.resources.stock_action_save
-import easystock.shared.generated.resources.stock_action_serial
 import easystock.shared.generated.resources.stock_action_title_add
 import easystock.shared.generated.resources.stock_action_title_add_unit
 import easystock.shared.generated.resources.stock_action_title_end_repair
@@ -147,6 +148,7 @@ fun StockActionContent(
         if (form.kind == StockActionKind.MOVE_UNIT || form.kind == StockActionKind.UNIT_STATUS) {
             Info(stringResource(Res.string.stock_action_unit_label, state.unitSerial ?: stringResource(Res.string.stock_action_no_serial)))
         }
+        if (form.kind == StockActionKind.EDIT_UNIT && state.sourcePath == null) Info(stringResource(Res.string.stock_action_not_in_stock))
         state.sourcePath?.takeIf { form.kind != StockActionKind.ADD_UNIT }?.let { path ->
             val moving = form.kind == StockActionKind.MOVE || form.kind == StockActionKind.MOVE_UNIT
             Info(stringResource(if (moving) Res.string.stock_action_from else Res.string.stock_action_at, path))
@@ -156,14 +158,7 @@ fun StockActionContent(
         }
         form.unitAction?.hint?.let { Info(stringResource(it)) }
 
-        if (form.kind == StockActionKind.ADD_UNIT) {
-            ActionField(
-                value = form.serial,
-                onValueChange = { v -> onFormChange { it.copy(serial = v) } },
-                label = stringResource(Res.string.stock_action_serial),
-                error = state.errors.serial,
-            )
-        }
+        if (form.hasUnitProperties) ItemPropertiesFields(state, onFormChange)
         if (form.needsTarget) TargetPicker(state, onFormChange)
 
         if (form.needsQuantity) {
@@ -258,7 +253,7 @@ private fun TargetPicker(state: StockActionUiState, onFormChange: ((StockActionF
 private const val TOP_LEVEL = "#top"
 
 @Composable
-private fun Info(text: String) {
+internal fun Info(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -269,7 +264,7 @@ private fun ErrorText(text: String) {
 
 /** Text field with [error] below it. A missing required value is not shown, Save stays disabled. */
 @Composable
-private fun ActionField(
+internal fun ActionField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -296,7 +291,7 @@ private fun ActionField(
 }
 
 @Composable
-private fun errorText(error: StockActionError, arg: String?): String? = when (error) {
+internal fun errorText(error: StockActionError, arg: String?): String? = when (error) {
     StockActionError.REQUIRED -> null
     StockActionError.INVALID_QUANTITY -> stringResource(Res.string.stock_action_error_quantity)
     StockActionError.NOT_POSITIVE -> stringResource(Res.string.stock_action_error_not_positive)
@@ -307,7 +302,7 @@ private fun errorText(error: StockActionError, arg: String?): String? = when (er
 }
 
 @Composable
-private fun <T> Choice(options: List<T>, selected: T?, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+internal fun <T> Choice(options: List<T>, selected: T?, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, option ->
             SegmentedButton(
@@ -362,6 +357,7 @@ private val StockActionForm.title: StringResource
         StockActionKind.MOVE -> Res.string.stock_action_title_move
         StockActionKind.ADD_UNIT -> Res.string.stock_action_title_add_unit
         StockActionKind.MOVE_UNIT -> Res.string.stock_action_title_move_unit
+        StockActionKind.EDIT_UNIT -> Res.string.item_edit_title
         StockActionKind.UNIT_STATUS -> when (unitAction) {
             UnitAction.LEND, null -> Res.string.stock_action_title_lend
             UnitAction.RETURN -> Res.string.stock_action_title_return

@@ -11,6 +11,9 @@ import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.StockMovement
 import ch.mathorck.easystock.data.model.Tracking
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -266,4 +269,100 @@ class StockActionDaoTest {
         }
         assertEquals(0, movementCount())
     }
+
+    // ---------- Unit properties ----------
+
+    private fun changes(
+        serial: String? = "SN-1",
+        status: ItemStatus = ItemStatus.AVAILABLE,
+        attributes: JsonObject? = null,
+        archived: Boolean = false,
+    ) = ItemChanges(serial, status, attributes, archived)
+
+    @Test
+    fun updateItemPropertiesSavesThePropertiesAndKeepsTheMovementsAndTheLocation() = runBlocking {
+        addUnit("u1", "SN-1")
+        val before = movements("drill")
+        val overrides = buildJsonObject { put("color", "red") }
+
+        actions.updateItemProperties("u1", changes(serial = "SN-1b", status = ItemStatus.REPAIR, attributes = overrides, archived = true), now = 55)
+
+        val saved = item("u1")
+        assertEquals("SN-1b", saved.serialNumber)
+        assertEquals(ItemStatus.REPAIR, saved.status)
+        assertEquals(overrides, saved.attributes)
+        assertEquals(true, saved.archived)
+        assertEquals(55, saved.updatedAt)
+        assertEquals(1, saved.createdAt)
+        assertEquals("shelf", saved.locationId)
+        assertEquals(before, movements("drill"))
+    }
+
+    @Test
+    fun clearingTheSerialAndTheAttributesStoresNull() = runBlocking {
+        addUnit("u1", "SN-1")
+        actions.updateItemProperties("u1", changes(attributes = buildJsonObject { put("color", "red") }), now = 5)
+        actions.updateItemProperties("u1", changes(serial = null, attributes = null), now = 6)
+
+        assertNull(item("u1").serialNumber)
+        assertNull(item("u1").attributes)
+    }
+
+    @Test
+    fun updateItemPropertiesRejectsADuplicateSerialIgnoringCase() = runBlocking {
+        addUnit("u1", "SN-1")
+        addUnit("u2", "SN-2")
+
+        assertFailsWith<DuplicateSerialException> { actions.updateItemProperties("u2", changes(serial = "sn-1"), now = 9) }
+        assertEquals("SN-2", item("u2").serialNumber)
+        assertEquals(1, item("u2").updatedAt)
+        // Keeping its own serial (also with another case) is fine
+        actions.updateItemProperties("u2", changes(serial = "SN-2"), now = 9)
+        actions.updateItemProperties("u2", changes(serial = "sn-2"), now = 10)
+        assertEquals("sn-2", item("u2").serialNumber)
+    }
+
+    @Test
+    fun updateItemPropertiesChecksTheStatusAndTheItem() = runBlocking {
+        addUnit("u1", "SN-1")
+        // Lost and lent change the stock: only the unit actions (with movements) may set them
+        assertFailsWith<InvalidItemStatusException> { actions.updateItemProperties("u1", changes(status = ItemStatus.LOST), now = 9) }
+        assertFailsWith<InvalidItemStatusException> { actions.updateItemProperties("u1", changes(status = ItemStatus.LENT), now = 9) }
+        assertEquals(ItemStatus.AVAILABLE, item("u1").status)
+
+        actions.applyUnitAction("u1", UnitAction.LEND, null, null, id(), null, 20)
+        assertFailsWith<InvalidItemStatusException> { actions.updateItemProperties("u1", changes(status = ItemStatus.AVAILABLE), now = 21) }
+        // The other properties of a lent unit can still be edited, the location stays empty
+        val movementsBefore = movements("drill")
+        actions.updateItemProperties("u1", changes(status = ItemStatus.LENT, serial = "SN-7"), now = 22)
+        assertEquals("SN-7", item("u1").serialNumber)
+        assertEquals(ItemStatus.LENT, item("u1").status)
+        assertNull(item("u1").locationId)
+        assertEquals(movementsBefore, movements("drill"))
+
+        assertFailsWith<StockTargetNotFoundException> { actions.updateItemProperties("nope", changes(), now = 9) }
+        assertFailsWith<IllegalArgumentException> { actions.updateItemProperties("u1", changes(serial = " x "), now = 9) }
+        Unit
+    }
+
+    @Test
+    fun addUnitKeepsItsStatusAndAttributes() = runBlocking {
+        val overrides = buildJsonObject { put("color", "red") }
+        val repairing = Item(
+            id = "u1", articleId = "drill", serialNumber = null, status = ItemStatus.REPAIR, locationId = "shelf",
+            attributes = overrides, createdAt = 1, updatedAt = 1,
+        )
+        actions.addItem(repairing, movement(1_000, reason = MovementReason.PURCHASE, article = "drill", at = 1).copy(itemId = "u1"))
+
+        assertEquals(ItemStatus.REPAIR, item("u1").status)
+        assertEquals(overrides, item("u1").attributes)
+        assertFailsWith<IllegalArgumentException> {
+            actions.addItem(
+                repairing.copy(id = "u2", status = ItemStatus.LENT),
+                movement(1_000, reason = MovementReason.PURCHASE, article = "drill", at = 1).copy(itemId = "u2"),
+            )
+        }
+        Unit
+    }
 }
+

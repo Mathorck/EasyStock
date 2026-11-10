@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="item_edit_title">Einheit bearbeiten</string>
+    <string name="item_edit_menu">Bearbeiten</string>
+    <string name="item_status">Status</string>
+    <string name="item_status_locked_hint">Verliehene und verlorene Einheiten ändern den Bestand: Ändern Sie diesen Status über die Aktionen der Einheit (verleihen, zurückgeben, verloren, gefunden).</string>
+    <string name="item_attributes_section">Werte dieser Einheit</string>
+    <string name="item_attributes_hint">Ein leeres Feld verwendet den Wert des Artikels.</string>
+    <string name="item_archived">Archiviert</string>
+</resources>

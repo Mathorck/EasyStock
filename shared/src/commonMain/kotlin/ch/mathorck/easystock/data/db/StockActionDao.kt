@@ -12,6 +12,7 @@ import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.StockMovement
 import ch.mathorck.easystock.data.model.Tracking
+import kotlinx.serialization.json.JsonObject
 
 // ---------- Rules (pure, shared with the UI) ----------
 
@@ -78,8 +79,27 @@ fun unitTransition(status: ItemStatus, action: UnitAction): UnitTransition? = wh
 /** Actions offered for a unit in [status]. Move is offered on top when the unit is in stock. */
 fun unitActions(status: ItemStatus): List<UnitAction> = UnitAction.entries.filter { unitTransition(status, it) != null }
 
+/** Statuses a new unit can start with: it comes into stock, so lent and lost make no sense. */
+val CREATABLE_STATUSES = listOf(ItemStatus.AVAILABLE, ItemStatus.REPAIR)
+
+/**
+ * Statuses the edit sheet offers for a unit now in [current] status. Available and repair both keep the unit
+ * in stock, so they can be switched freely. Lent and lost change the stock: use the unit actions
+ * (they add the movements), so the status is fixed here.
+ */
+fun editableStatuses(current: ItemStatus): List<ItemStatus> =
+    if (current in CREATABLE_STATUSES) CREATABLE_STATUSES else listOf(current)
+
 /** A unit can move only while it is in stock at a location (available or in repair). */
 fun canMoveUnit(status: ItemStatus): Boolean = status == ItemStatus.AVAILABLE || status == ItemStatus.REPAIR
+
+/** New values of the editable properties of a unit. The location is not one of them (it comes from the movements). */
+data class ItemChanges(
+    val serialNumber: String?,
+    val status: ItemStatus,
+    val attributes: JsonObject?,
+    val archived: Boolean,
+)
 
 // ---------- Errors ----------
 
@@ -128,6 +148,10 @@ abstract class StockActionDao {
     /** Ignores case. Includes soft-deleted items: they keep their serial and the unique index. */
     @Query("SELECT COUNT(*) FROM item WHERE serial_number = :serial COLLATE NOCASE")
     protected abstract suspend fun countItemsWithSerial(serial: String): Int
+
+    /** Ignores case. Includes soft-deleted items (unique index). */
+    @Query("SELECT COUNT(*) FROM item WHERE serial_number = :serial COLLATE NOCASE AND id != :exceptId")
+    protected abstract suspend fun countOtherItemsWithSerial(serial: String, exceptId: String): Int
 
     @Query("SELECT COALESCE(SUM(quantity), 0) FROM stock_movement WHERE article_id = :articleId AND location_id = :locationId")
     abstract suspend fun stockAt(articleId: String, locationId: String): Long
@@ -189,7 +213,8 @@ abstract class StockActionDao {
     open suspend fun addItem(item: Item, movement: StockMovement, newLocation: Location? = null) {
         require(item.articleId == movement.articleId && movement.itemId == item.id) { "Movement does not match the item" }
         require(movement.quantityMilli == UNIT_MILLI && movement.reason == MovementReason.PURCHASE) { "A new unit is +1 purchase" }
-        require(item.status == ItemStatus.AVAILABLE && item.locationId == movement.locationId) { "A new unit is available at its location" }
+        require(item.status == ItemStatus.AVAILABLE || item.status == ItemStatus.REPAIR) { "A new unit is in stock" }
+        require(item.locationId == movement.locationId) { "A new unit is at its location" }
         val article = getActiveArticle(item.articleId) ?: throw StockTargetNotFoundException("article ${item.articleId}")
         require(article.tracking == Tracking.SERIAL) { "Article is not serial-tracked" }
         item.serialNumber?.let {
@@ -199,6 +224,34 @@ abstract class StockActionDao {
         addDestination(movement.locationId, newLocation)
         insertItem(item)
         insertMovement(movement)
+    }
+
+    /**
+     * Saves the serial number, status, attributes and archived flag of a unit and sets `updated_at` to [now].
+     * Never touches the movements or the location. The status can only switch between available and repair
+     * (both keep the unit in stock); the other changes need a unit action, which adds the movements.
+     * Throws [StockTargetNotFoundException], [DuplicateSerialException] (ignoring case, deleted units included)
+     * or [InvalidItemStatusException]; nothing is saved then.
+     */
+    @Transaction
+    open suspend fun updateItemProperties(itemId: String, changes: ItemChanges, now: Long) {
+        val item = getActiveItem(itemId) ?: throw StockTargetNotFoundException("item $itemId")
+        changes.serialNumber?.let {
+            require(it.isNotBlank() && it == it.trim() && it.length <= MAX_SERIAL_LENGTH) { "Invalid serial number" }
+            if (countOtherItemsWithSerial(it, itemId) > 0) throw DuplicateSerialException(it)
+        }
+        if (changes.status != item.status && changes.status !in editableStatuses(item.status)) {
+            throw InvalidItemStatusException(item.status)
+        }
+        updateItem(
+            item.copy(
+                serialNumber = changes.serialNumber,
+                status = changes.status,
+                attributes = changes.attributes,
+                archived = changes.archived,
+                updatedAt = now,
+            ),
+        )
     }
 
     /** Moves a unit in stock (available or repair): -1 at its location, +1 at [toLocationId], TRANSFER. */

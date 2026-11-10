@@ -78,6 +78,9 @@ private const val MILLIS_PER_DAY = 86_400_000L
  * Input per type: text field (text), decimal field with the unit as suffix (number, "," or "."),
  * switch (bool, unset = off), date picker (date, ISO), dropdown (enum).
  * A number that does not parse yet is kept as a string in [values]: [validateAttributes] reports it.
+ *
+ * [inherited]: values of the article, for fields that override them (a unit): shown as the placeholder of an
+ * empty field. [overrides] marks that mode: a bool shows the inherited state until set, with a clear button.
  */
 @Composable
 fun AttributeFields(
@@ -87,6 +90,8 @@ fun AttributeFields(
     errors: Map<String, AttributeError>,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    inherited: JsonObject? = null,
+    overrides: Boolean = false,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         attributes.forEach { attribute ->
@@ -100,12 +105,19 @@ fun AttributeFields(
             val value = values.attributeValue(key)
             val onValueChange: (JsonElement?) -> Unit = { onValuesChange(values.withAttributeValue(key, it)) }
             val errorText = errors[key]?.message()
+            val inheritedValue = inherited.attributeValue(key)
+            val placeholder = inheritedValue?.let { attributeInputText(it) }?.takeIf { it.isNotEmpty() }
             when (definition.dataType) {
-                AttributeDataType.TEXT -> TextAttributeField(label, definition, value, onValueChange, errorText, enabled)
-                AttributeDataType.NUMBER -> NumberAttributeField(label, definition, value, onValueChange, errorText, enabled)
-                AttributeDataType.BOOL -> BoolAttributeField(label, value, onValueChange, enabled)
-                AttributeDataType.DATE -> DateAttributeField(label, value, onValueChange, errorText, enabled)
-                AttributeDataType.ENUM -> EnumAttributeField(label, definition, value, onValueChange, errorText, enabled)
+                AttributeDataType.TEXT -> TextAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
+                AttributeDataType.NUMBER -> NumberAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
+                AttributeDataType.BOOL ->
+                    if (overrides) {
+                        OverrideBoolAttributeField(label, value, inheritedValue, onValueChange, enabled)
+                    } else {
+                        BoolAttributeField(label, value, onValueChange, enabled)
+                    }
+                AttributeDataType.DATE -> DateAttributeField(label, value, onValueChange, errorText, enabled, placeholder)
+                AttributeDataType.ENUM -> EnumAttributeField(label, definition, value, onValueChange, errorText, enabled, placeholder)
             }
         }
     }
@@ -129,11 +141,13 @@ private fun TextAttributeField(
     onValueChange: (JsonElement?) -> Unit,
     errorText: String?,
     enabled: Boolean,
+    placeholder: String? = null,
 ) {
     OutlinedTextField(
         value = attributeInputText(value),
         onValueChange = { onValueChange(attributeValueFromText(AttributeDataType.TEXT, it)) },
         label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
         suffix = definition.unit?.let { { Text(it) } },
         isError = errorText != null,
         supportingText = errorText?.let { { Text(it) } },
@@ -150,6 +164,7 @@ private fun NumberAttributeField(
     onValueChange: (JsonElement?) -> Unit,
     errorText: String?,
     enabled: Boolean,
+    placeholder: String? = null,
 ) {
     // Keeps the text as typed ("1,50"): the stored value is normalized (1.5)
     var text by rememberSaveable(definition.key) { mutableStateOf(attributeInputText(value)) }
@@ -164,6 +179,7 @@ private fun NumberAttributeField(
             onValueChange(attributeValueFromText(AttributeDataType.NUMBER, it))
         },
         label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
         suffix = definition.unit?.let { { Text(it) } },
         isError = errorText != null,
         supportingText = errorText?.let { { Text(it) } },
@@ -189,6 +205,38 @@ private fun BoolAttributeField(label: String, value: JsonElement?, onValueChange
     }
 }
 
+/** Bool of a unit: shows the article value until the unit has its own, the cross removes the override. */
+@Composable
+private fun OverrideBoolAttributeField(
+    label: String,
+    value: JsonElement?,
+    inherited: JsonElement?,
+    onValueChange: (JsonElement?) -> Unit,
+    enabled: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (value == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (value != null) {
+            IconButton(onClick = { onValueChange(null) }, enabled = enabled) {
+                Icon(painterResource(Res.drawable.ic_close), contentDescription = stringResource(Res.string.attributes_clear))
+            }
+        }
+        Switch(
+            checked = attributeBool(value ?: inherited),
+            onCheckedChange = { onValueChange(JsonPrimitive(it)) },
+            enabled = enabled,
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DateAttributeField(
@@ -197,6 +245,7 @@ private fun DateAttributeField(
     onValueChange: (JsonElement?) -> Unit,
     errorText: String?,
     enabled: Boolean,
+    placeholder: String? = null,
 ) {
     var showPicker by remember { mutableStateOf(false) }
     val date = attributeDate(value)
@@ -205,7 +254,7 @@ private fun DateAttributeField(
         onValueChange = {},
         readOnly = true,
         label = { Text(label) },
-        placeholder = { Text("YYYY-MM-DD") },
+        placeholder = { Text(placeholder ?: "YYYY-MM-DD") },
         trailingIcon = {
             Row {
                 if (value != null) {
@@ -255,6 +304,7 @@ private fun EnumAttributeField(
     onValueChange: (JsonElement?) -> Unit,
     errorText: String?,
     enabled: Boolean,
+    placeholder: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded && enabled, onExpandedChange = { if (enabled) expanded = it }) {
@@ -263,6 +313,7 @@ private fun EnumAttributeField(
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
+            placeholder = placeholder?.let { { Text(it) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             isError = errorText != null,
             supportingText = errorText?.let { { Text(it) } },

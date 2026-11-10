@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables.article
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import easystock.shared.generated.resources.stock_action_lend
 import easystock.shared.generated.resources.stock_action_lose
 import easystock.shared.generated.resources.stock_action_more
 import easystock.shared.generated.resources.stock_action_move
+import easystock.shared.generated.resources.item_edit_menu
 import easystock.shared.generated.resources.stock_action_no_serial
 import easystock.shared.generated.resources.stock_action_not_in_stock
 import easystock.shared.generated.resources.stock_action_remove
@@ -93,12 +95,12 @@ private fun RoundAction(icon: DrawableResource, label: StringResource, onClick: 
 
 /** One serial unit: serial number, location, status chip and an actions menu. */
 @Composable
-internal fun UnitActionRow(unit: UnitRow, onMove: () -> Unit, onAction: (UnitAction) -> Unit) {
+internal fun UnitActionRow(unit: UnitRow, onEdit: () -> Unit, onMove: () -> Unit, onAction: (UnitAction) -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val outOfStock = unit.status == ItemStatus.LOST
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -118,6 +120,13 @@ internal fun UnitActionRow(unit: UnitRow, onMove: () -> Unit, onAction: (UnitAct
                 Icon(painterResource(Res.drawable.ic_more_vert), contentDescription = stringResource(Res.string.stock_action_more))
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.item_edit_menu)) },
+                    onClick = {
+                        menu = false
+                        onEdit()
+                    },
+                )
                 if (unit.canMove) {
                     DropdownMenuItem(
                         text = { Text(stringResource(Res.string.stock_action_move)) },
@@ -177,7 +186,7 @@ private val UnitAction.label: StringResource
         UnitAction.FOUND -> Res.string.stock_action_found
     }
 
-private val ItemStatus.label: StringResource
+internal val ItemStatus.label: StringResource
     get() = when (this) {
         ItemStatus.AVAILABLE -> Res.string.stock_action_status_available
         ItemStatus.LENT -> Res.string.stock_action_status_lent

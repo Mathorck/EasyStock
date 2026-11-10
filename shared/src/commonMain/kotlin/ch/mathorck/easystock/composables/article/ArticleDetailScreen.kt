@@ -102,7 +102,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by viewModel.editState.collectAsStateWithLifecycle()
     val actions = viewModel(key = "stock-actions-$articleId") {
-        StockActionViewModel(articleId, db.stockActionDao(), db.articleDetailDao(), db.stockDao())
+        StockActionViewModel(articleId, db.stockActionDao(), db.articleDetailDao(), db.stockDao(), db.attributeDao())
     }
     val units by actions.units.collectAsStateWithLifecycle()
     val actionState by actions.sheet.collectAsStateWithLifecycle()
@@ -119,6 +119,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         units = units,
         onStockAction = actions::open,
         onUnitAction = actions::openUnitAction,
+        onEditUnit = actions::openEditUnit,
         modifier = modifier,
     )
 
@@ -153,6 +154,7 @@ fun ArticleDetailContent(
     units: List<UnitRow> = emptyList(),
     onStockAction: (StockActionForm) -> Unit = {},
     onUnitAction: (UnitRow, UnitAction) -> Unit = { _, _ -> },
+    onEditUnit: (UnitRow) -> Unit = {},
 ) {
     val article = state.article
     Column(modifier.fillMaxSize()) {
@@ -187,6 +189,7 @@ fun ArticleDetailContent(
                     items(units, key = { "unit-${it.itemId}" }) { unit ->
                         UnitActionRow(
                             unit = unit,
+                            onEdit = { onEditUnit(unit) },
                             onMove = { onStockAction(StockActionForm(kind = StockActionKind.MOVE_UNIT, itemId = unit.itemId)) },
                             onAction = { action -> onUnitAction(unit, action) },
                         )

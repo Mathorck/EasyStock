@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="item_edit_title">Edit unit</string>
+    <string name="item_edit_menu">Edit</string>
+    <string name="item_status">Status</string>
+    <string name="item_status_locked_hint">Lent and lost units change the stock: use the unit actions (lend, return, lost, found) to change this status.</string>
+    <string name="item_attributes_section">Values of this unit</string>
+    <string name="item_attributes_hint">Leave a field empty to use the value of the article.</string>
+    <string name="item_archived">Archived</string>
+</resources>

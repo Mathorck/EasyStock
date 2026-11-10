@@ -1,13 +1,22 @@
 package ch.mathorck.easystock.viewmodels
 
+import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
 import ch.mathorck.easystock.data.db.ItemLastLocation
+import ch.mathorck.easystock.data.db.editableStatuses
 import ch.mathorck.easystock.data.db.UnitAction
 import ch.mathorck.easystock.data.db.unitActions
 import ch.mathorck.easystock.data.db.unitTransition
+import ch.mathorck.easystock.data.model.AttributeDataType
+import ch.mathorck.easystock.data.model.AttributeDefinition
+import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -185,4 +194,77 @@ class StockActionFormTest {
         assertEquals("shelf", rows[1].lastLocationId)
         assertFalse(rows[1].canMove)
     }
+
+    // ---------- Unit properties ----------
+
+    private val ropeAttributes = listOf(
+        CategoryAttributeWithDefinition(
+            link = CategoryAttribute(id = "l1", categoryId = "c", attributeId = "len", required = true, createdAt = 0, updatedAt = 0),
+            definition = AttributeDefinition(id = "len", key = "len", label = "Length", dataType = AttributeDataType.NUMBER, createdAt = 0, updatedAt = 0),
+        ),
+    )
+    private val withAttributes = context.copy(itemAttributes = ropeAttributes)
+
+    @Test
+    fun editedUnitMayKeepItsOwnSerialButNotTakeAnother() {
+        val other = context.copy(serials = listOf("SN-1", "SN-2"))
+        fun edit(serial: String) = StockActionForm(kind = StockActionKind.EDIT_UNIT, itemId = "i1", serial = serial)
+        assertTrue(edit("sn-1").validate(other).isValid)
+        assertEquals(StockActionError.DUPLICATE_SERIAL, edit(" SN-2 ").validate(other).serial)
+        assertEquals(StockActionError.DUPLICATE_SERIAL, edit("SN-9").validate(other, rejectedSerial = "sn-9").serial)
+        assertNull(edit("").validate(other).serial)
+        assertEquals(StockActionError.TOO_LONG, edit("x".repeat(101)).validate(other).serial)
+    }
+
+    @Test
+    fun statusCanSwitchOnlyBetweenStatusesThatKeepTheUnitInStock() {
+        assertEquals(listOf(ItemStatus.AVAILABLE, ItemStatus.REPAIR), editableStatuses(ItemStatus.AVAILABLE))
+        assertEquals(listOf(ItemStatus.AVAILABLE, ItemStatus.REPAIR), editableStatuses(ItemStatus.REPAIR))
+        assertEquals(listOf(ItemStatus.LENT), editableStatuses(ItemStatus.LENT))
+        assertEquals(listOf(ItemStatus.LOST), editableStatuses(ItemStatus.LOST))
+
+        fun edit(id: String, status: ItemStatus) = StockActionForm(kind = StockActionKind.EDIT_UNIT, itemId = id, itemStatus = status).validate(context)
+        assertTrue(edit("i1", ItemStatus.REPAIR).isValid)
+        assertEquals(StockActionError.REQUIRED, edit("i1", ItemStatus.LOST).unit)
+        assertEquals(StockActionError.REQUIRED, edit("i1", ItemStatus.LENT).unit)
+        assertTrue(edit("i2", ItemStatus.LENT).isValid) // unchanged
+        assertEquals(StockActionError.REQUIRED, edit("i2", ItemStatus.AVAILABLE).unit)
+        assertEquals(StockActionError.REQUIRED, edit("gone", ItemStatus.AVAILABLE).unit)
+    }
+
+    @Test
+    fun newUnitStartsInStock() {
+        fun add(status: ItemStatus) = StockActionForm(kind = StockActionKind.ADD_UNIT, itemStatus = status, targetLocationId = "shelf").validate(context)
+        assertTrue(add(ItemStatus.AVAILABLE).isValid)
+        assertTrue(add(ItemStatus.REPAIR).isValid)
+        assertEquals(StockActionError.REQUIRED, add(ItemStatus.LENT).unit)
+        assertEquals(StockActionError.REQUIRED, add(ItemStatus.LOST).unit)
+    }
+
+    @Test
+    fun itemAttributeOverridesAreOptionalButValidated() {
+        // The category says "required", a unit may leave it empty (it inherits the article value)
+        assertTrue(itemAttributeOverrides(ropeAttributes).none { it.link.required })
+        val empty = StockActionForm(kind = StockActionKind.EDIT_UNIT, itemId = "i1")
+        assertTrue(empty.validate(withAttributes).isValid)
+
+        val bad = empty.copy(itemAttributes = buildJsonObject { put("len", "abc") })
+        assertEquals(mapOf("len" to AttributeError.INVALID_NUMBER), bad.validate(withAttributes).attributes)
+        assertFalse(bad.validate(withAttributes).isValid)
+
+        val good = empty.copy(itemAttributes = buildJsonObject { put("len", JsonPrimitive(12)) })
+        assertTrue(good.validate(withAttributes).isValid)
+        // The "add unit" sheet checks them too
+        val add = StockActionForm(kind = StockActionKind.ADD_UNIT, targetLocationId = "shelf", itemAttributes = bad.itemAttributes)
+        assertFalse(add.validate(withAttributes).isValid)
+    }
+
+    @Test
+    fun editNeedsNoTargetNorQuantity() {
+        val form = StockActionForm(kind = StockActionKind.EDIT_UNIT, itemId = "i1")
+        assertFalse(form.needsTarget)
+        assertFalse(form.needsQuantity)
+        assertTrue(form.hasUnitProperties)
+    }
 }
+
