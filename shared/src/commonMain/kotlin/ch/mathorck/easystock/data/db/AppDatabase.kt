@@ -35,6 +35,7 @@ const val DATABASE_NAME = "easystock.db"
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun articleDao(): ArticleDao
+    abstract fun stockDao(): StockDao
 }
 
 // Implemented by the Room compiler on each platform

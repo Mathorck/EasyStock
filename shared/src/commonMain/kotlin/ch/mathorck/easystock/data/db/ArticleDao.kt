@@ -6,6 +6,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleStock
 import kotlinx.coroutines.flow.Flow
 
 /** Reads ignore soft-deleted articles. There is no hard delete. */
@@ -28,6 +29,19 @@ abstract class ArticleDao {
 
     @Query("SELECT * FROM article WHERE deleted_at IS NULL ORDER BY name")
     abstract fun observeAll(): Flow<List<Article>>
+
+    /** Active, non-archived articles with their stock (sum of all movements, all locations). */
+    @Query(
+        """
+        SELECT article.*, COALESCE(SUM(stock_movement.quantity), 0) AS stock
+        FROM article
+        LEFT JOIN stock_movement ON stock_movement.article_id = article.id
+        WHERE article.deleted_at IS NULL AND article.archived = 0
+        GROUP BY article.id
+        ORDER BY article.name
+        """,
+    )
+    abstract fun observeStock(): Flow<List<ArticleStock>>
 
     /** Soft delete and free the NFC tag. Returns false if no active article has this id. */
     @Transaction
