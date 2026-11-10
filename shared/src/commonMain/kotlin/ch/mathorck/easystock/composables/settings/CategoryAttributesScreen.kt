@@ -1,5 +1,13 @@
 package ch.mathorck.easystock.composables.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.rotate
+import easystock.shared.generated.resources.category_template_advanced
+import easystock.shared.generated.resources.category_template_summary
+import easystock.shared.generated.resources.ic_expand_more
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -326,7 +334,28 @@ private fun NameTemplateSection(
         onTemplateChange(text)
     }
 
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f)
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.category_template_advanced), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    if (template.text.isBlank()) stringResource(Res.string.category_template_title)
+                    else stringResource(Res.string.category_template_summary, template.text),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(painterResource(Res.drawable.ic_expand_more), contentDescription = null, modifier = Modifier.rotate(chevronRotation))
+        }
+        AnimatedVisibility(visible = expanded) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(Res.string.category_template_title), style = MaterialTheme.typography.titleMedium)
         Text(
             stringResource(Res.string.category_template_hint),
@@ -385,6 +414,8 @@ private fun NameTemplateSection(
                 )
                 Switch(checked = template.applyToAll, onCheckedChange = onApplyToAllChange, enabled = enabled)
             }
+        }
+    }
         }
     }
 }
