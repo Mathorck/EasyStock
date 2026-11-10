@@ -43,6 +43,30 @@ abstract class ArticleDao {
     )
     abstract fun observeStock(): Flow<List<ArticleStock>>
 
+    /**
+     * Active, non-archived articles with their stock at [locationId] and all its descendants.
+     * Only articles with at least one movement there are listed (their stock can be 0).
+     * Descendants are included even if soft-deleted, so no stock disappears from the subtree.
+     * UNION (not UNION ALL) stops on a parent_id cycle.
+     */
+    @Query(
+        """
+        WITH RECURSIVE subtree(id) AS (
+            SELECT id FROM location WHERE id = :locationId
+            UNION
+            SELECT location.id FROM location JOIN subtree ON location.parent_id = subtree.id
+        )
+        SELECT article.*, SUM(stock_movement.quantity) AS stock
+        FROM article
+        JOIN stock_movement ON stock_movement.article_id = article.id
+        WHERE stock_movement.location_id IN (SELECT id FROM subtree)
+            AND article.deleted_at IS NULL AND article.archived = 0
+        GROUP BY article.id
+        ORDER BY article.name
+        """,
+    )
+    abstract fun observeStockAt(locationId: String): Flow<List<ArticleStock>>
+
     /** Soft delete and free the NFC tag. Returns false if no active article has this id. */
     @Transaction
     open suspend fun softDelete(id: String, now: Long): Boolean {

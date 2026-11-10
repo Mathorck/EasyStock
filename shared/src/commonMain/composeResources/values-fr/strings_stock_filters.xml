@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stock_filter_location">Emplacement</string>
+    <string name="stock_filter_category">Catégorie</string>
+    <string name="stock_filter_low_stock">Stock bas</string>
+    <string name="stock_filter_all_locations">Tous les emplacements</string>
+    <string name="stock_filter_all_categories">Toutes les catégories</string>
+    <string name="stock_filter_clear_location">Retirer le filtre d’emplacement</string>
+    <string name="stock_filter_clear_category">Retirer le filtre de catégorie</string>
+    <string name="stock_filter_clear_all">Effacer les filtres</string>
+    <string name="stock_filter_no_results">Aucun article ne correspond aux filtres</string>
+</resources>

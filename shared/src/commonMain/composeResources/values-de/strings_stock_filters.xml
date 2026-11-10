@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stock_filter_location">Lagerort</string>
+    <string name="stock_filter_category">Kategorie</string>
+    <string name="stock_filter_low_stock">Niedriger Bestand</string>
+    <string name="stock_filter_all_locations">Alle Lagerorte</string>
+    <string name="stock_filter_all_categories">Alle Kategorien</string>
+    <string name="stock_filter_clear_location">Lagerortfilter entfernen</string>
+    <string name="stock_filter_clear_category">Kategoriefilter entfernen</string>
+    <string name="stock_filter_clear_all">Filter zurücksetzen</string>
+    <string name="stock_filter_no_results">Kein Artikel passt zu den Filtern</string>
+</resources>

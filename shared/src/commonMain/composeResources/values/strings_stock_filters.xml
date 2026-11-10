@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stock_filter_location">Location</string>
+    <string name="stock_filter_category">Category</string>
+    <string name="stock_filter_low_stock">Low stock</string>
+    <string name="stock_filter_all_locations">All locations</string>
+    <string name="stock_filter_all_categories">All categories</string>
+    <string name="stock_filter_clear_location">Clear location filter</string>
+    <string name="stock_filter_clear_category">Clear category filter</string>
+    <string name="stock_filter_clear_all">Clear filters</string>
+    <string name="stock_filter_no_results">No article matches the filters</string>
+</resources>

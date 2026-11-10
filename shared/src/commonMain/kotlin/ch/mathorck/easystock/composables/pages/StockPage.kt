@@ -1,10 +1,18 @@
 package ch.mathorck.easystock.composables.pages
 
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import ch.mathorck.easystock.composables.stock.AddStockEntrySheet
+import easystock.shared.generated.resources.ic_add
+import easystock.shared.generated.resources.stock_add_entry
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,20 +22,36 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,38 +59,90 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.ArticleStock
+import ch.mathorck.easystock.data.model.Category
+import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.util.formatQuantity
+import ch.mathorck.easystock.viewmodels.StockFilters
 import ch.mathorck.easystock.viewmodels.StockUiState
 import ch.mathorck.easystock.viewmodels.StockViewModel
+import ch.mathorck.easystock.viewmodels.toLocationTree
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_arrow_drop_down
+import easystock.shared.generated.resources.ic_cancel
+import easystock.shared.generated.resources.ic_check
 import easystock.shared.generated.resources.ic_search
 import easystock.shared.generated.resources.ic_stock
 import easystock.shared.generated.resources.stock_empty_hint
 import easystock.shared.generated.resources.stock_empty_title
+import easystock.shared.generated.resources.stock_filter_all_categories
+import easystock.shared.generated.resources.stock_filter_all_locations
+import easystock.shared.generated.resources.stock_filter_category
+import easystock.shared.generated.resources.stock_filter_clear_all
+import easystock.shared.generated.resources.stock_filter_clear_category
+import easystock.shared.generated.resources.stock_filter_clear_location
+import easystock.shared.generated.resources.stock_filter_location
+import easystock.shared.generated.resources.stock_filter_low_stock
+import easystock.shared.generated.resources.stock_filter_no_results
 import easystock.shared.generated.resources.stock_low
 import easystock.shared.generated.resources.stock_no_results
 import easystock.shared.generated.resources.stock_search_hint
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** Read-only list of the articles and their current stock. */
+/** Read-only list of the articles and their current stock, with search and filters. */
 @Composable
 fun StockPage() {
     val db = rememberAppDatabase()
-    val viewModel = viewModel { StockViewModel(db.articleDao()) }
+    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
-    StockContent(state = state, query = query, onQueryChange = viewModel::onQueryChange)
+    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize()) {
+        StockContent(
+            state = state,
+            query = query,
+            onQueryChange = viewModel::onQueryChange,
+            onLocationSelect = viewModel::onLocationSelect,
+            onCategorySelect = viewModel::onCategorySelect,
+            onLowStockChange = viewModel::onLowStockChange,
+            onClearFilters = viewModel::onClearFilters,
+            // Keeps the last row above the FAB
+            contentPadding = PaddingValues(bottom = 88.dp),
+        )
+        FloatingActionButton(
+            onClick = { showAddSheet = true },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        ) {
+            Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.stock_add_entry))
+        }
+    }
+    if (showAddSheet) AddStockEntrySheet(onDismiss = { showAddSheet = false })
 }
 
+private enum class StockPicker { Location, Category }
+
+/** One entry of a picker sheet. A null [id] is the "All" entry. */
+private data class PickerOption(val id: String?, val label: String, val depth: Int = 0)
+
+/**
+ * @param contentPadding padding of the list, e.g. to keep the last row above a FAB.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StockContent(
     state: StockUiState,
     query: String,
     onQueryChange: (String) -> Unit,
+    onLocationSelect: (String?) -> Unit,
+    onCategorySelect: (String?) -> Unit,
+    onLowStockChange: (Boolean) -> Unit,
+    onClearFilters: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(bottom = 16.dp),
 ) {
+    var picker by remember { mutableStateOf<StockPicker?>(null) }
     Column(modifier.fillMaxSize()) {
         OutlinedTextField(
             value = query,
@@ -77,6 +153,16 @@ fun StockContent(
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         )
+        // Kept while loading a location change, so the chips don't flicker.
+        if (state.totalCount > 0) {
+            FilterRow(
+                state = state,
+                onOpenPicker = { picker = it },
+                onLocationSelect = onLocationSelect,
+                onCategorySelect = onCategorySelect,
+                onLowStockChange = onLowStockChange,
+            )
+        }
         when {
             state.loading -> Unit
             state.totalCount == 0 -> EmptyMessage(
@@ -84,14 +170,172 @@ fun StockContent(
                 hint = stringResource(Res.string.stock_empty_hint),
             )
             state.items.isEmpty() -> EmptyMessage(
-                title = stringResource(Res.string.stock_no_results, query.trim()),
+                title = if (query.isBlank()) {
+                    stringResource(Res.string.stock_filter_no_results)
+                } else {
+                    stringResource(Res.string.stock_no_results, query.trim())
+                },
                 hint = null,
+                action = if (state.filters.isActive) {
+                    { TextButton(onClick = onClearFilters) { Text(stringResource(Res.string.stock_filter_clear_all)) } }
+                } else {
+                    null
+                },
             )
-            else -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+            else -> LazyColumn(contentPadding = contentPadding) {
                 items(state.items, key = { it.article.id }) { item ->
                     StockRow(item)
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
+            }
+        }
+    }
+
+    when (picker) {
+        StockPicker.Location -> PickerSheet(
+            title = stringResource(Res.string.stock_filter_location),
+            options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_all_locations))) +
+                state.locations.map { PickerOption(it.location.id, it.location.name, it.depth) },
+            selectedId = state.filters.locationId,
+            onSelect = onLocationSelect,
+            onDismiss = { picker = null },
+        )
+        StockPicker.Category -> PickerSheet(
+            title = stringResource(Res.string.stock_filter_category),
+            options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_all_categories))) +
+                state.categories.map { PickerOption(it.id, it.name) },
+            selectedId = state.filters.categoryId,
+            onSelect = onCategorySelect,
+            onDismiss = { picker = null },
+        )
+        null -> Unit
+    }
+}
+
+@Composable
+private fun FilterRow(
+    state: StockUiState,
+    onOpenPicker: (StockPicker) -> Unit,
+    onLocationSelect: (String?) -> Unit,
+    onCategorySelect: (String?) -> Unit,
+    onLowStockChange: (Boolean) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+    ) {
+        if (state.locations.isNotEmpty()) {
+            PickerChip(
+                label = stringResource(Res.string.stock_filter_location),
+                selectedName = state.selectedLocation?.name,
+                clearDescription = stringResource(Res.string.stock_filter_clear_location),
+                onClick = { onOpenPicker(StockPicker.Location) },
+                onClear = { onLocationSelect(null) },
+            )
+        }
+        if (state.categories.isNotEmpty()) {
+            PickerChip(
+                label = stringResource(Res.string.stock_filter_category),
+                selectedName = state.selectedCategory?.name,
+                clearDescription = stringResource(Res.string.stock_filter_clear_category),
+                onClick = { onOpenPicker(StockPicker.Category) },
+                onClear = { onCategorySelect(null) },
+            )
+        }
+        val lowStockOnly = state.filters.lowStockOnly
+        FilterChip(
+            selected = lowStockOnly,
+            onClick = { onLowStockChange(!lowStockOnly) },
+            label = { Text(stringResource(Res.string.stock_filter_low_stock)) },
+            leadingIcon = if (lowStockOnly) {
+                { Icon(painterResource(Res.drawable.ic_check), null, Modifier.size(FilterChipDefaults.IconSize)) }
+            } else {
+                null
+            },
+        )
+    }
+}
+
+/** Chip that opens a picker. When a value is selected, it shows its name and a clear icon. */
+@Composable
+private fun PickerChip(
+    label: String,
+    selectedName: String?,
+    clearDescription: String,
+    onClick: () -> Unit,
+    onClear: () -> Unit,
+) {
+    FilterChip(
+        selected = selectedName != null,
+        onClick = onClick,
+        label = {
+            Text(
+                selectedName ?: label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 180.dp),
+            )
+        },
+        trailingIcon = {
+            if (selectedName != null) {
+                Icon(
+                    painterResource(Res.drawable.ic_cancel),
+                    contentDescription = clearDescription,
+                    modifier = Modifier
+                        .size(FilterChipDefaults.IconSize)
+                        .clickable(role = Role.Button, onClick = onClear),
+                )
+            } else {
+                Icon(painterResource(Res.drawable.ic_arrow_drop_down), null, Modifier.size(FilterChipDefaults.IconSize))
+            }
+        },
+    )
+}
+
+/** Bottom sheet with a scrollable list of options, indented by depth. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PickerSheet(
+    title: String,
+    options: List<PickerOption>,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val scope = rememberCoroutineScope()
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+            items(options, key = { it.id ?: "" }) { option ->
+                val selected = option.id == selectedId
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            option.label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = (option.depth * 24).dp),
+                        )
+                    },
+                    trailingContent = if (selected) {
+                        { Icon(painterResource(Res.drawable.ic_check), null, tint = MaterialTheme.colorScheme.primary) }
+                    } else {
+                        null
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) {
+                        onSelect(option.id)
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                )
             }
         }
     }
@@ -133,7 +377,7 @@ private fun LowStockBadge() {
 }
 
 @Composable
-private fun EmptyMessage(title: String, hint: String?) {
+private fun EmptyMessage(title: String, hint: String?, action: (@Composable () -> Unit)? = null) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -162,28 +406,70 @@ private fun EmptyMessage(title: String, hint: String?) {
                     textAlign = TextAlign.Center,
                 )
             }
+            if (action != null) {
+                Spacer(Modifier.height(8.dp))
+                action()
+            }
         }
     }
 }
 
-private fun sample(id: String, name: String, sku: String, stockMilli: Long, thresholdMilli: Long? = null, unit: String = "pce") =
-    ArticleStock(
-        Article(id = id, sku = sku, name = name, unit = unit, thresholdMilli = thresholdMilli, createdAt = 0, updatedAt = 0),
-        stockMilli,
-    )
+private fun sample(
+    id: String,
+    name: String,
+    sku: String,
+    stockMilli: Long,
+    thresholdMilli: Long? = null,
+    unit: String = "pce",
+    categoryId: String? = null,
+) = ArticleStock(
+    Article(
+        id = id, sku = sku, name = name, unit = unit, thresholdMilli = thresholdMilli,
+        categoryId = categoryId, createdAt = 0, updatedAt = 0,
+    ),
+    stockMilli,
+)
 
 private val sampleItems = listOf(
-    sample("1", "Bolt M8", "BLT-8", 120_000, thresholdMilli = 50_000),
+    sample("1", "Bolt M8", "BLT-8", 120_000, thresholdMilli = 50_000, categoryId = "hw"),
     sample("2", "Cable tie 200 mm", "CT-200", 8_000, thresholdMilli = 20_000),
     sample("3", "Duct tape", "TAPE-50", 2_500, unit = "m"),
-    sample("4", "Wood screw 4x40", "SCR-440", 0, thresholdMilli = 0),
+    sample("4", "Wood screw 4x40", "SCR-440", 0, thresholdMilli = 0, categoryId = "hw"),
+)
+
+private val sampleLocations = listOf(
+    Location(id = "room", name = "Workshop", createdAt = 0, updatedAt = 0),
+    Location(id = "shelf", name = "Shelf A", parentId = "room", createdAt = 0, updatedAt = 0),
+    Location(id = "bin", name = "Bin 3", parentId = "shelf", createdAt = 0, updatedAt = 0),
+).toLocationTree()
+
+private val sampleCategories = listOf(Category(id = "hw", name = "Hardware", createdAt = 0, updatedAt = 0))
+
+private fun sampleState(
+    items: List<ArticleStock> = sampleItems,
+    filters: StockFilters = StockFilters(),
+) = StockUiState(
+    loading = false,
+    items = items,
+    totalCount = sampleItems.size,
+    locations = sampleLocations,
+    categories = sampleCategories,
+    filters = filters,
 )
 
 @Composable
 private fun StockPreview(state: StockUiState, query: String = "", dark: Boolean = isSystemInDarkTheme()) {
     EasyStockTheme(darkTheme = dark) {
         Surface(color = MaterialTheme.colorScheme.background) {
-            StockContent(state = state, query = query, onQueryChange = {})
+            StockContent(
+                state = state,
+                query = query,
+                onQueryChange = {},
+                onLocationSelect = {},
+                onCategorySelect = {},
+                onLowStockChange = {},
+                onClearFilters = {},
+            )
         }
     }
 }
@@ -191,13 +477,37 @@ private fun StockPreview(state: StockUiState, query: String = "", dark: Boolean 
 @Preview(showBackground = true)
 @Composable
 private fun StockPagePreview() {
-    StockPreview(StockUiState(loading = false, items = sampleItems, totalCount = sampleItems.size), dark = false)
+    StockPreview(sampleState(), dark = false)
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun StockPageDarkPreview() {
-    StockPreview(StockUiState(loading = false, items = sampleItems, totalCount = sampleItems.size), dark = true)
+    StockPreview(sampleState(), dark = true)
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun StockPageFiltersPreview() {
+    StockPreview(
+        sampleState(
+            items = listOf(sample("4", "Wood screw 4x40", "SCR-440", 0, thresholdMilli = 0, categoryId = "hw")),
+            filters = StockFilters(locationId = "shelf", categoryId = "hw", lowStockOnly = true),
+        ),
+        dark = false,
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun StockPageFiltersDarkPreview() {
+    StockPreview(
+        sampleState(
+            items = listOf(sample("4", "Wood screw 4x40", "SCR-440", 0, thresholdMilli = 0, categoryId = "hw")),
+            filters = StockFilters(locationId = "shelf", lowStockOnly = true),
+        ),
+        dark = true,
+    )
 }
 
 @Preview(showBackground = true)
@@ -209,5 +519,11 @@ private fun StockPageEmptyPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun StockPageNoResultsPreview() {
-    StockPreview(StockUiState(loading = false, items = emptyList(), totalCount = 4), query = "nail", dark = false)
+    StockPreview(sampleState(items = emptyList()), query = "nail", dark = false)
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun StockPageFiltersNoResultsPreview() {
+    StockPreview(sampleState(items = emptyList(), filters = StockFilters(categoryId = "hw", lowStockOnly = true)), dark = false)
 }
