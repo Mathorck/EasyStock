@@ -71,6 +71,7 @@ kotlin {
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
+            implementation(libs.androidx.room.testing)
         }
     }
 }

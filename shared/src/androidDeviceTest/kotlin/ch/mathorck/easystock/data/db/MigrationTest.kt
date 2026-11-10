@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.data.db
 
 import androidx.room.Room
+import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import androidx.test.platform.app.InstrumentationRegistry
@@ -8,19 +9,89 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
- * Opens a database file written with the version 2 schema (shared/schemas/.../2.json) with the current
- * [AppDatabase]: Room runs the migrations and checks the result against the current entities.
+ * Migration tests.
+ * - Every exported schema (shared/schemas/.../N.json) must migrate to the next one and to the latest, checked by
+ *   Room's [MigrationTestHelper]. The versions come from the exported schemas, not from a list.
+ * - A database file written with the version 2 schema is opened with the current [AppDatabase]: Room runs the
+ *   migrations and checks the result against the current entities.
  */
 class MigrationTest {
     private lateinit var file: File
+
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private val helperFile = instrumentation.targetContext.getDatabasePath("migration-helper-test.db")
+
+    @get:Rule
+    val helper = MigrationTestHelper(
+        instrumentation = instrumentation,
+        file = helperFile,
+        driver = BundledSQLiteDriver(),
+        databaseClass = AppDatabase::class,
+    )
+
+    /** Versions of the exported schemas, read from the schema assets of the test APK. */
+    private fun schemaVersions(): List<Int> =
+        (instrumentation.context.assets.list(SCHEMA_DIR) ?: emptyArray())
+            .mapNotNull { it.removeSuffix(".json").toIntOrNull() }
+            .sorted()
+
+    private fun deleteHelperFiles() {
+        listOf("", "-wal", "-shm", "-journal").forEach { File(helperFile.path + it).delete() }
+    }
+
+    @Test
+    fun everyVersionHasAnExportedSchema() {
+        val versions = schemaVersions()
+        assertTrue(versions.isNotEmpty(), "No exported schema found in $SCHEMA_DIR")
+        assertEquals((1..versions.last()).toList(), versions, "Missing exported schema: versions must have no gap")
+    }
+
+    @Test
+    fun latestSchemaIsTheCurrentDatabaseVersion() = runBlocking<Unit> {
+        // A new database is created at AppDatabase.version
+        val db = open()
+        try {
+            db.categoryDao().observeAll().first()
+        } finally {
+            db.close()
+        }
+        val connection = BundledSQLiteDriver().open(file.path)
+        try {
+            val version = connection.prepare("PRAGMA user_version").use { it.step(); it.getLong(0).toInt() }
+            assertEquals(schemaVersions().last(), version, "AppDatabase.version and the latest exported schema differ")
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
+    fun everyVersionMigratesToTheNextOne() {
+        schemaVersions().zipWithNext().forEach { (from, to) ->
+            deleteHelperFiles()
+            helper.createDatabase(from).close()
+            helper.runMigrationsAndValidate(to).close()
+        }
+    }
+
+    @Test
+    fun everyVersionMigratesToTheLatest() {
+        val versions = schemaVersions()
+        versions.dropLast(1).forEach { from ->
+            deleteHelperFiles()
+            helper.createDatabase(from).close()
+            helper.runMigrationsAndValidate(versions.last()).close()
+        }
+    }
 
     @Before
     fun setUp() {
@@ -77,6 +148,8 @@ class MigrationTest {
     }
 
     private companion object {
+        const val SCHEMA_DIR = "ch.mathorck.easystock.data.db.AppDatabase"
+
         val VERSION_2_SCHEMA = listOf(
             """CREATE TABLE IF NOT EXISTS `category` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `description` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, PRIMARY KEY(`id`))""",
             """CREATE UNIQUE INDEX IF NOT EXISTS `index_category_name` ON `category` (`name`)""",

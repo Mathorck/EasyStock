@@ -24,7 +24,7 @@ Read `README.md` first: purpose, scope, setup, data model.
 - `attribute_definition.key` is immutable once created.
 - `article.barcode` holds the NFC tag ID. A scan looks up the article by `barcode`. Always soft-delete with `Article.softDeleted(now)`: it clears `barcode` so the tag can be reused.
 - Room entities: `data/model`, database + converters: `data/db`. Quantities are `Long` thousandths, never `Double`.
-- Any entity change = bump `AppDatabase.version` + migration. Commit the exported schema in `shared/schemas`.
+- Any entity change = a new DB version: follow `.claude/rules/database.md`.
 
 ## UI
 - Pages: `enums/Page.kt` (Stock, Scan, Settings). Navbar in `composables/NavBarComposable.kt`.
