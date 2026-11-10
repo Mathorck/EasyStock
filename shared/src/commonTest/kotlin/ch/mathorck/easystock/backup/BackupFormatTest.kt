@@ -68,6 +68,29 @@ class BackupFormatTest {
     }
 
     @Test
+    fun schema4LocationColumnsAreWritten() {
+        val data = BackupData(locations = listOf(location("l1").copy(icon = "warehouse", color = "teal")))
+        val locations = BackupCodec.encodeTable(data, BackupTable.LOCATION).decodeToString()
+
+        assertTrue("\"icon\":\"warehouse\"" in locations)
+        assertTrue("\"color\":\"teal\"" in locations)
+        assertEquals(data, BackupCodec.decodeTables { BackupCodec.encodeTable(data, it) })
+    }
+
+    /** A schema 3 backup has no icon nor color on its locations: both null (default look). */
+    @Test
+    fun schema3LocationsDecodeWithTheDefaultAppearance() {
+        val data = BackupData(locations = listOf(location("l1").copy(icon = "warehouse", color = "teal")))
+        val rows = backupJson.parseToJsonElement(BackupCodec.encodeTable(data, BackupTable.LOCATION).decodeToString()).jsonArray
+        val stripped = JsonArray(rows.map { JsonObject(it.jsonObject - "icon" - "color") }).toString().encodeToByteArray()
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 3))
+
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.LOCATION) stripped else null }
+
+        assertEquals(location("l1"), decoded.locations.single())
+    }
+
+    @Test
     fun missingTableFileIsAnEmptyTable() {
         assertEquals(BackupData(), BackupCodec.decodeTables { null })
     }
@@ -119,7 +142,7 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(3, DB_VERSION)
+        assertEquals(4, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 

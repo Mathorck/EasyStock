@@ -34,6 +34,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import ch.mathorck.easystock.composables.LocationIcon
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -160,7 +161,15 @@ fun StockPage() {
 private enum class StockPicker { Location, Category }
 
 /** One entry of a picker sheet. A null [id] is the "All" entry. */
-private data class PickerOption(val id: String?, val label: String, val depth: Int = 0)
+private data class PickerOption(
+    val id: String?,
+    val label: String,
+    val depth: Int = 0,
+    val icon: String? = null,
+    val color: String? = null,
+    /** True for location entries: show the location icon (the default one when [icon] is null). */
+    val showIcon: Boolean = false,
+)
 
 /**
  * @param contentPadding padding of the list, e.g. to keep the last row above a FAB.
@@ -233,7 +242,9 @@ fun StockContent(
         StockPicker.Location -> PickerSheet(
             title = stringResource(Res.string.stock_filter_location),
             options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_all_locations))) +
-                state.locations.map { PickerOption(it.location.id, it.location.name, it.depth) },
+                state.locations.map {
+                    PickerOption(it.location.id, it.location.name, it.depth, it.location.icon, it.location.color, showIcon = true)
+                },
             selectedId = state.filters.locationId,
             onSelect = onLocationSelect,
             onDismiss = { picker = null },
@@ -269,6 +280,7 @@ private fun FilterRow(
             PickerChip(
                 label = stringResource(Res.string.stock_filter_location),
                 selectedName = state.selectedLocation?.name,
+                leading = state.selectedLocation?.let { { LocationIcon(it.icon, it.color, size = FilterChipDefaults.IconSize) } },
                 clearDescription = stringResource(Res.string.stock_filter_clear_location),
                 onClick = { onOpenPicker(StockPicker.Location) },
                 onClear = { onLocationSelect(null) },
@@ -305,10 +317,12 @@ private fun PickerChip(
     clearDescription: String,
     onClick: () -> Unit,
     onClear: () -> Unit,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     FilterChip(
         selected = selectedName != null,
         onClick = onClick,
+        leadingIcon = leading,
         label = {
             Text(
                 selectedName ?: label,
@@ -355,6 +369,11 @@ private fun PickerSheet(
             items(options, key = { it.id ?: "" }) { option ->
                 val selected = option.id == selectedId
                 ListItem(
+                    leadingContent = if (option.showIcon) {
+                        { LocationIcon(option.icon, option.color) }
+                    } else {
+                        null
+                    },
                     headlineContent = {
                         Text(
                             option.label,

@@ -25,6 +25,10 @@ data class Location(
     val name: String,
     /** Hierarchy: room > shelf > bin. */
     @SerialName("parent_id") @ColumnInfo(name = "parent_id") val parentId: String? = null,
+    /** Key of [LocationIcons], null = default icon. Unknown keys (newer app) fall back to the default. */
+    val icon: String? = null,
+    /** Key of [LocationColors], null = default color. */
+    val color: String? = null,
     @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
     @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,

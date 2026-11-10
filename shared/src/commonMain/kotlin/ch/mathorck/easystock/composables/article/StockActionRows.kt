@@ -52,6 +52,7 @@ import easystock.shared.generated.resources.stock_action_status_available
 import easystock.shared.generated.resources.stock_action_status_lent
 import easystock.shared.generated.resources.stock_action_status_lost
 import easystock.shared.generated.resources.stock_action_status_repair
+import ch.mathorck.easystock.composables.LocationIcon
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -70,6 +71,7 @@ internal fun LocationActionRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
     ) {
+        LocationIcon(row.icon, row.color, modifier = Modifier.padding(end = 12.dp))
         Column(Modifier.weight(1f)) {
             Text(row.path, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(

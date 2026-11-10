@@ -70,6 +70,24 @@ class LocationDaoTest {
     }
 
     @Test
+    fun iconAndColorAreStoredAndUpdatedWithATimestamp() = runBlocking<Unit> {
+        val created = dao.createLocation("styled", "Styled", null, 10, icon = "warehouse", color = "teal")
+        assertEquals("warehouse", created.icon)
+        assertEquals("teal", created.color)
+
+        val restyled = dao.updateLocation("styled", "Styled", null, 20, icon = "garage", color = "amber")
+        assertEquals("garage", restyled.icon)
+        assertEquals("amber", restyled.color)
+        assertEquals(20, restyled.updatedAt)
+
+        // Back to the defaults, and unknown keys are not stored
+        val reset = dao.updateLocation("styled", "Styled", null, 30, icon = "nope", color = null)
+        assertNull(reset.icon)
+        assertNull(reset.color)
+        assertNull(active().first { it.id == "styled" }.icon)
+    }
+
+    @Test
     fun createRefusesBadNamesAndParents() = runBlocking<Unit> {
         assertEquals(LocationError.REQUIRED, refused { dao.createLocation("x", "  ", null, 2) })
         assertEquals(LocationError.TOO_LONG, refused { dao.createLocation("x", "a".repeat(101), null, 2) })

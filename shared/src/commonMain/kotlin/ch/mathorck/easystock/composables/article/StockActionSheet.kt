@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
+import ch.mathorck.easystock.composables.LocationIcon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -214,7 +215,7 @@ private fun TargetPicker(state: StockActionUiState, onFormChange: ((StockActionF
         },
         onSelect = { mode -> onFormChange { it.copy(targetMode = mode) } },
     )
-    val options = state.locations.map { PickerOption(it.location.id, it.location.name, it.depth) }
+    val options = state.locations.map { PickerOption(it.location.id, it.location.name, it.depth, it.location.icon, it.location.color, showIcon = true) }
     val paths = remember(state.locations) { buildLocationOptions(state.locations.map { it.location }).associate { it.id to it.path } }
     when (form.targetMode) {
         LocationChoice.EXISTING -> if (options.isEmpty()) {
@@ -316,7 +317,14 @@ internal fun <T> Choice(options: List<T>, selected: T?, label: @Composable (T) -
     }
 }
 
-private data class PickerOption(val key: String, val text: String, val depth: Int = 0)
+private data class PickerOption(
+    val key: String,
+    val text: String,
+    val depth: Int = 0,
+    val icon: String? = null,
+    val color: String? = null,
+    val showIcon: Boolean = false,
+)
 
 @Composable
 private fun Picker(label: String, value: String, options: List<PickerOption>, error: String?, onSelect: (String) -> Unit) {
@@ -337,6 +345,11 @@ private fun Picker(label: String, value: String, options: List<PickerOption>, er
             options.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option.text, modifier = Modifier.padding(start = (option.depth * 16).dp)) },
+                    leadingIcon = if (option.showIcon) {
+                        { LocationIcon(option.icon, option.color) }
+                    } else {
+                        null
+                    },
                     onClick = {
                         expanded = false
                         onSelect(option.key)

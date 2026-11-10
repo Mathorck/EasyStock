@@ -147,6 +147,29 @@ class MigrationTest {
         }
     }
 
+    /** Version 3 to 4 adds location.icon and location.color: existing locations keep everything, default look. */
+    @Test
+    fun version2To4KeepsLocationsWithTheDefaultAppearance() = runBlocking<Unit> {
+        writeVersion2(
+            "INSERT INTO location (id, name, parent_id, created_at, updated_at) VALUES ('l1', 'Workshop', NULL, 1, 2)",
+            "INSERT INTO location (id, name, parent_id, created_at, updated_at) VALUES ('l2', 'Shelf', 'l1', 3, 4)",
+        )
+        val db = open()
+        try {
+            val locations = db.locationDao().observeLocations().first().associateBy { it.id }
+            assertEquals(setOf("l1", "l2"), locations.keys)
+            assertEquals("Workshop", locations.getValue("l1").name)
+            assertEquals(4, locations.getValue("l2").updatedAt)
+            assertEquals("l1", locations.getValue("l2").parentId)
+            locations.values.forEach {
+                assertNull(it.icon)
+                assertNull(it.color)
+            }
+        } finally {
+            db.close()
+        }
+    }
+
     private companion object {
         const val SCHEMA_DIR = "ch.mathorck.easystock.data.db.AppDatabase"
 

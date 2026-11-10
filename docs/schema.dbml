@@ -93,6 +93,8 @@ Table location [headercolor: #2e7d32] {
   id uuid [pk]
   name varchar(100) [not null]
   parent_id uuid [ref: > location.id, note: 'Hierarchy: room > shelf > bin']
+  icon varchar(32) [note: 'Icon key from the fixed list in the app (e.g. warehouse, shelf). Null = default icon']
+  color varchar(32) [note: 'Color key from the fixed palette in the app (e.g. teal, amber). Null = default color']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp

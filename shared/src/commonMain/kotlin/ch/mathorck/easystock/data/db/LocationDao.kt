@@ -7,6 +7,8 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.data.model.LocationColors
+import ch.mathorck.easystock.data.model.LocationIcons
 import ch.mathorck.easystock.viewmodels.LocationError
 import ch.mathorck.easystock.viewmodels.childrenOf
 import ch.mathorck.easystock.viewmodels.subtreeIds
@@ -77,24 +79,46 @@ abstract class LocationDao {
 
     /** Creates a location at the top level or under [parentId]. Throws [LocationException] if refused. */
     @Transaction
-    open suspend fun createLocation(id: String, name: String, parentId: String?, now: Long): Location {
+    open suspend fun createLocation(
+        id: String,
+        name: String,
+        parentId: String?,
+        now: Long,
+        icon: String? = null,
+        color: String? = null,
+    ): Location {
         val all = activeLocations()
         if (parentId != null && all.none { it.id == parentId }) throw LocationException(LocationError.PARENT_NOT_FOUND)
         validateLocationName(name, all.childrenOf(parentId))?.let { throw LocationException(it) }
-        val location = Location(id = id, name = name.trim(), parentId = parentId, createdAt = now, updatedAt = now)
+        val location = Location(
+            id = id, name = name.trim(), parentId = parentId,
+            icon = LocationIcons.normalize(icon), color = LocationColors.normalize(color),
+            createdAt = now, updatedAt = now,
+        )
         insertRow(location)
         return location
     }
 
-    /** Renames and/or moves a location ([parentId] null = top level). Throws [LocationException] if refused. */
+    /** Renames, moves and/or restyles a location ([parentId] null = top level, null [icon]/[color] = default). Throws [LocationException] if refused. */
     @Transaction
-    open suspend fun updateLocation(id: String, name: String, parentId: String?, now: Long): Location {
+    open suspend fun updateLocation(
+        id: String,
+        name: String,
+        parentId: String?,
+        now: Long,
+        icon: String? = null,
+        color: String? = null,
+    ): Location {
         val all = activeLocations()
         val stored = all.firstOrNull { it.id == id } ?: throw LocationException(LocationError.NOT_FOUND)
         if (parentId != null && all.none { it.id == parentId }) throw LocationException(LocationError.PARENT_NOT_FOUND)
         if (all.wouldCreateCycle(id, parentId)) throw LocationException(LocationError.CYCLE)
         validateLocationName(name, all.childrenOf(parentId), editingId = id)?.let { throw LocationException(it) }
-        val updated = stored.copy(name = name.trim(), parentId = parentId, updatedAt = now)
+        val updated = stored.copy(
+            name = name.trim(), parentId = parentId,
+            icon = LocationIcons.normalize(icon), color = LocationColors.normalize(color),
+            updatedAt = now,
+        )
         if (updated != stored) updateRow(updated)
         return updated
     }

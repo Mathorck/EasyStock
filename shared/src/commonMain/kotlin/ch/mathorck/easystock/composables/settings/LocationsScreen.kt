@@ -1,6 +1,32 @@
 package ch.mathorck.easystock.composables.settings
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import ch.mathorck.easystock.composables.LocationIcon
+import ch.mathorck.easystock.composables.locationColor
+import ch.mathorck.easystock.composables.locationColorLabel
+import ch.mathorck.easystock.composables.locationIconLabel
+import ch.mathorck.easystock.composables.locationIconRes
+import ch.mathorck.easystock.data.model.LocationColors
+import ch.mathorck.easystock.data.model.LocationIcons
+import easystock.shared.generated.resources.ic_check
+import easystock.shared.generated.resources.locations_color
+import easystock.shared.generated.resources.locations_color_default
+import easystock.shared.generated.resources.locations_icon
+import easystock.shared.generated.resources.locations_icon_default
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +61,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,7 +85,6 @@ import easystock.shared.generated.resources.attributes_error_too_long
 import easystock.shared.generated.resources.attributes_save
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.ic_delete
-import easystock.shared.generated.resources.ic_location
 import easystock.shared.generated.resources.locations_add
 import easystock.shared.generated.resources.locations_add_sub
 import easystock.shared.generated.resources.locations_blocked_stock
@@ -203,7 +229,7 @@ private fun LocationRowItem(
                 },
             )
         },
-        leadingContent = { Icon(painterResource(Res.drawable.ic_location), contentDescription = null) },
+        leadingContent = { LocationIcon(location.icon, location.color) },
         trailingContent = {
             Row {
                 IconButton(onClick = { onAddSub(location) }) {
@@ -254,6 +280,11 @@ private fun LocationDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ParentDropdown(state, onSelected = { parentId -> onFormChange { it.copy(parentId = parentId) } })
+                AppearancePicker(
+                    form = form,
+                    onIcon = { key -> onFormChange { it.copy(icon = key) } },
+                    onColor = { key -> onFormChange { it.copy(color = key) } },
+                )
                 if (state.saveFailed) {
                     Text(
                         stringResource(Res.string.locations_error_save),
@@ -307,6 +338,90 @@ private fun ParentDropdown(state: LocationDialogState, onSelected: (String?) -> 
                     },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                 )
+            }
+        }
+    }
+}
+
+/** Preview, icon grid and color swatches. Null = default icon / color. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AppearancePicker(form: LocationForm, onIcon: (String?) -> Unit, onColor: (String?) -> Unit) {
+    val tint = locationColor(form.color) ?: MaterialTheme.colorScheme.onSurfaceVariant
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(tint.copy(alpha = 0.18f)),
+        ) {
+            LocationIcon(form.icon, form.color, size = 28.dp)
+        }
+        Text(
+            form.name.trim().ifEmpty { stringResource(Res.string.locations_name) },
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    Text(stringResource(Res.string.locations_icon), style = MaterialTheme.typography.labelLarge)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // The first cell is the default icon (key null)
+        (listOf<String?>(null) + LocationIcons.keys).forEach { key ->
+            val selected = LocationIcons.normalize(form.icon) == key
+            val label = stringResource(locationIconLabel(key))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (selected) tint.copy(alpha = 0.18f) else Color.Transparent)
+                    .border(
+                        if (selected) BorderStroke(2.dp, tint) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        RoundedCornerShape(12.dp),
+                    )
+                    .clickable(role = Role.RadioButton) { onIcon(key) }
+                    .semantics {
+                        contentDescription = label
+                        this.selected = selected
+                    },
+            ) {
+                Icon(
+                    painterResource(locationIconRes(key)),
+                    contentDescription = null,
+                    tint = if (selected) tint else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+    }
+    Text(stringResource(Res.string.locations_color), style = MaterialTheme.typography.labelLarge)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        (listOf<String?>(null) + LocationColors.keys).forEach { key ->
+            val selected = LocationColors.normalize(form.color) == key
+            val label = stringResource(locationColorLabel(key))
+            val swatch = locationColor(key)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(swatch ?: Color.Transparent)
+                    .border(
+                        if (selected) BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface)
+                        else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        CircleShape,
+                    )
+                    .clickable(role = Role.RadioButton) { onColor(key) }
+                    .semantics {
+                        contentDescription = label
+                        this.selected = selected
+                    },
+            ) {
+                // Default swatch: an empty circle with a slash-free check when chosen
+                if (swatch == null && selected) {
+                    Icon(painterResource(Res.drawable.ic_check), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
+                } else if (swatch == null) {
+                    Box(Modifier.size(12.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurfaceVariant))
+                }
             }
         }
     }

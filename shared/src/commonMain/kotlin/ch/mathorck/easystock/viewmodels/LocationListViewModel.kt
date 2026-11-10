@@ -21,7 +21,14 @@ import kotlin.uuid.Uuid
 data class LocationRow(val location: Location, val depth: Int, val articleCount: Int, val childCount: Int)
 
 /** Raw input of the location dialog. [parentId] null = top level. */
-data class LocationForm(val name: String = "", val parentId: String? = null)
+data class LocationForm(
+    val name: String = "",
+    val parentId: String? = null,
+    /** Key of LocationIcons, null = default. */
+    val icon: String? = null,
+    /** Key of LocationColors, null = default. */
+    val color: String? = null,
+)
 
 /** The open dialog. [editing] is null for a new location. [parents]: where it can go (never itself or below). */
 data class LocationDialogState(
@@ -104,7 +111,7 @@ class LocationListViewModel(
     }
 
     fun startEdit(location: Location) {
-        dialog.value = LocationDialogInput(editing = location, form = LocationForm(location.name, location.parentId))
+        dialog.value = LocationDialogInput(editing = location, form = LocationForm(location.name, location.parentId, location.icon, location.color))
     }
 
     fun updateForm(transform: (LocationForm) -> LocationForm) {
@@ -130,9 +137,9 @@ class LocationListViewModel(
                 val now = clock.now().toEpochMilliseconds()
                 val editing = input.editing
                 if (editing == null) {
-                    dao.createLocation(newId(), input.form.name, input.form.parentId, now)
+                    dao.createLocation(newId(), input.form.name, input.form.parentId, now, input.form.icon, input.form.color)
                 } else {
-                    dao.updateLocation(editing.id, input.form.name, input.form.parentId, now)
+                    dao.updateLocation(editing.id, input.form.name, input.form.parentId, now, input.form.icon, input.form.color)
                 }
                 dialog.value = null
             } catch (e: CancellationException) {

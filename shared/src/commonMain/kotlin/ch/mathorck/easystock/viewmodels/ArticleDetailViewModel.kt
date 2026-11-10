@@ -38,7 +38,13 @@ import kotlin.uuid.Uuid
 // ---------- Detail ----------
 
 /** Stock of the article at one location. [path] is e.g. "Workshop › Shelf A". */
-data class LocationStockRow(val locationId: String, val path: String, val stockMilli: Long)
+data class LocationStockRow(
+    val locationId: String,
+    val path: String,
+    val stockMilli: Long,
+    val icon: String? = null,
+    val color: String? = null,
+)
 
 /** One line of the movement history. [occurredAt] is formatted in the local time zone. */
 data class MovementRow(
@@ -59,10 +65,14 @@ fun locationStockRows(stock: List<LocationStock>, locations: List<Location>): Li
     val options = buildLocationOptions(locations)
     val order = options.withIndex().associate { (index, option) -> option.id to index }
     val paths = options.associate { it.id to it.path }
+    val byId = locations.associateBy { it.id }
     return stock
         .filter { it.stockMilli != 0L }
         .sortedBy { order[it.locationId] ?: Int.MAX_VALUE }
-        .map { LocationStockRow(it.locationId, paths[it.locationId] ?: it.locationId, it.stockMilli) }
+        .map {
+            val location = byId[it.locationId]
+            LocationStockRow(it.locationId, paths[it.locationId] ?: it.locationId, it.stockMilli, location?.icon, location?.color)
+        }
 }
 
 /** History rows in the given order (the query sorts newest first). The location is shown with its path. */
