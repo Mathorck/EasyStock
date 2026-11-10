@@ -3,7 +3,9 @@ package ch.mathorck.easystock.composables.pages
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import ch.mathorck.easystock.composables.article.ArticleDetailScreen
-import ch.mathorck.easystock.composables.stock.AddStockEntrySheet
+import ch.mathorck.easystock.composables.article.ArticleFormDialog
+import androidx.compose.runtime.LaunchedEffect
+import ch.mathorck.easystock.viewmodels.NewArticleViewModel
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.stock_add_entry
 import androidx.compose.foundation.clickable
@@ -101,11 +103,20 @@ fun StockPage() {
     val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
-    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+    val newArticleViewModel = viewModel { NewArticleViewModel(db.articleFormDao(), db.categoryDao()) }
+    val newArticleState by newArticleViewModel.state.collectAsStateWithLifecycle()
+    val createdArticleId by newArticleViewModel.created.collectAsStateWithLifecycle()
     // Article shown in the detail screen instead of the list. The search and filters stay in the ViewModel.
     var selectedArticleId by rememberSaveable { mutableStateOf<String?>(null) }
     // Hoisted so the list keeps its scroll position while the detail is shown
     val listState = rememberLazyListState()
+    // A saved new article opens its detail screen
+    LaunchedEffect(createdArticleId) {
+        createdArticleId?.let {
+            selectedArticleId = it
+            newArticleViewModel.consumeCreated()
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         val articleId = selectedArticleId
         if (articleId != null) {
@@ -125,14 +136,21 @@ fun StockPage() {
                 contentPadding = PaddingValues(bottom = 88.dp),
             )
             FloatingActionButton(
-                onClick = { showAddSheet = true },
+                onClick = newArticleViewModel::start,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
             ) {
                 Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.stock_add_entry))
             }
         }
     }
-    if (showAddSheet) AddStockEntrySheet(onDismiss = { showAddSheet = false })
+    newArticleState?.let { form ->
+        ArticleFormDialog(
+            state = form,
+            onFormChange = newArticleViewModel::update,
+            onDismiss = newArticleViewModel::cancel,
+            onSave = newArticleViewModel::save,
+        )
+    }
 }
 
 private enum class StockPicker { Location, Category }

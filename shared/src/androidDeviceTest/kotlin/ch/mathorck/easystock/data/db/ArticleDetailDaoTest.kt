@@ -72,7 +72,7 @@ class ArticleDetailDaoTest {
         return id
     }
 
-    private suspend fun categoryCount() = db.stockEntryDao().countCategories()
+    private suspend fun categoryCount() = db.articleFormDao().countCategories()
 
     private fun changes(
         name: String = "Renamed",

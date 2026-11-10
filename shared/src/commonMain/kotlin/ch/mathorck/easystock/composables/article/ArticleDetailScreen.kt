@@ -42,14 +42,20 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.pages.LowStockBadge
 import ch.mathorck.easystock.data.db.rememberAppDatabase
+import ch.mathorck.easystock.data.db.UnitAction
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.data.model.Tracking
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.ArticleDetailUiState
 import ch.mathorck.easystock.viewmodels.ArticleDetailViewModel
 import ch.mathorck.easystock.viewmodels.LocationStockRow
 import ch.mathorck.easystock.viewmodels.MovementRow
+import ch.mathorck.easystock.viewmodels.StockActionForm
+import ch.mathorck.easystock.viewmodels.StockActionKind
+import ch.mathorck.easystock.viewmodels.StockActionViewModel
+import ch.mathorck.easystock.viewmodels.UnitRow
 import ch.mathorck.easystock.viewmodels.formatSignedQuantity
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.article_back
@@ -73,12 +79,17 @@ import easystock.shared.generated.resources.article_total_stock
 import easystock.shared.generated.resources.article_unit_label
 import easystock.shared.generated.resources.ic_arrow_back
 import easystock.shared.generated.resources.ic_edit
+import easystock.shared.generated.resources.stock_action_add_to_location
+import easystock.shared.generated.resources.stock_action_add_unit
+import easystock.shared.generated.resources.stock_action_section_units
+import easystock.shared.generated.resources.stock_action_units_empty
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Detail of one article: stock per location and movement history. The article can be edited, the stock cannot.
+ * Detail of one article: stock per location (or serial units) and movement history.
+ * The article can be edited, stock is added, removed and moved from the location rows.
  * [onBack] runs on the top-bar arrow, the system back, and when the article gets deleted.
  */
 @Composable
@@ -90,13 +101,38 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by viewModel.editState.collectAsStateWithLifecycle()
+    val actions = viewModel(key = "stock-actions-$articleId") {
+        StockActionViewModel(articleId, db.stockActionDao(), db.articleDetailDao(), db.stockDao())
+    }
+    val units by actions.units.collectAsStateWithLifecycle()
+    val actionState by actions.sheet.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) onBack()
     }
     NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = onBack)
 
-    ArticleDetailContent(state = state, onBack = onBack, onEdit = viewModel::startEdit, modifier = modifier)
+    ArticleDetailContent(
+        state = state,
+        onBack = onBack,
+        onEdit = viewModel::startEdit,
+        units = units,
+        onStockAction = actions::open,
+        onUnitAction = actions::openUnitAction,
+        modifier = modifier,
+    )
+
+    val unit = state.article?.unit
+    val sheet = actionState
+    if (sheet != null && unit != null) {
+        StockActionSheet(
+            state = sheet,
+            unit = unit,
+            onFormChange = actions::update,
+            onDismiss = actions::close,
+            onSave = actions::save,
+        )
+    }
 
     editState?.let { edit ->
         ArticleEditSheet(
@@ -114,6 +150,9 @@ fun ArticleDetailContent(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier,
+    units: List<UnitRow> = emptyList(),
+    onStockAction: (StockActionForm) -> Unit = {},
+    onUnitAction: (UnitRow, UnitAction) -> Unit = { _, _ -> },
 ) {
     val article = state.article
     Column(modifier.fillMaxSize()) {
@@ -140,11 +179,44 @@ fun ArticleDetailContent(
             item(key = "header") { Header(article, state.categoryName) }
             item(key = "total") { TotalStock(state, article.unit) }
 
-            item(key = "locations-title") { SectionTitle(stringResource(Res.string.article_section_locations)) }
-            if (state.locations.isEmpty()) {
-                item(key = "locations-empty") { EmptyHint(stringResource(Res.string.article_locations_empty)) }
+            if (article.tracking == Tracking.SERIAL) {
+                item(key = "units-title") { SectionTitle(stringResource(Res.string.stock_action_section_units)) }
+                if (units.isEmpty()) {
+                    item(key = "units-empty") { EmptyHint(stringResource(Res.string.stock_action_units_empty)) }
+                } else {
+                    items(units, key = { "unit-${it.itemId}" }) { unit ->
+                        UnitActionRow(
+                            unit = unit,
+                            onMove = { onStockAction(StockActionForm(kind = StockActionKind.MOVE_UNIT, itemId = unit.itemId)) },
+                            onAction = { action -> onUnitAction(unit, action) },
+                        )
+                    }
+                }
+                item(key = "units-add") {
+                    StockActionButton(stringResource(Res.string.stock_action_add_unit)) {
+                        onStockAction(StockActionForm(kind = StockActionKind.ADD_UNIT))
+                    }
+                }
             } else {
-                items(state.locations, key = { "location-${it.locationId}" }) { LocationRow(it, article.unit) }
+                item(key = "locations-title") { SectionTitle(stringResource(Res.string.article_section_locations)) }
+                if (state.locations.isEmpty()) {
+                    item(key = "locations-empty") { EmptyHint(stringResource(Res.string.article_locations_empty)) }
+                } else {
+                    items(state.locations, key = { "location-${it.locationId}" }) { row ->
+                        LocationActionRow(
+                            row = row,
+                            unit = article.unit,
+                            onMove = { onStockAction(StockActionForm(kind = StockActionKind.MOVE, sourceLocationId = row.locationId)) },
+                            onRemove = { onStockAction(StockActionForm(kind = StockActionKind.REMOVE, sourceLocationId = row.locationId)) },
+                            onAdd = { onStockAction(StockActionForm(kind = StockActionKind.ADD, sourceLocationId = row.locationId)) },
+                        )
+                    }
+                }
+                item(key = "locations-add") {
+                    StockActionButton(stringResource(Res.string.stock_action_add_to_location)) {
+                        onStockAction(StockActionForm(kind = StockActionKind.ADD))
+                    }
+                }
             }
 
             item(key = "history-title") { SectionTitle(stringResource(Res.string.article_section_history)) }
@@ -237,21 +309,6 @@ private fun EmptyHint(text: String) {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
-}
-
-@Composable
-private fun LocationRow(row: LocationStockRow, unit: String) {
-    ListItem(
-        headlineContent = { Text(row.path) },
-        trailingContent = {
-            Text(
-                "${formatQuantity(row.stockMilli)} $unit",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }
 

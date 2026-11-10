@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_form_title_new">Neuer Artikel</string>
+    <string name="article_form_close">Schliessen</string>
+    <string name="article_form_section_type">Typ</string>
+    <string name="article_form_section_info">Informationen</string>
+    <string name="article_form_section_stock">Bestandseinstellungen</string>
+    <string name="article_form_section_attributes">Eigene Attribute</string>
+    <string name="article_form_type_consumable">Verbrauchsmaterial</string>
+    <string name="article_form_type_consumable_hint">Wird in einer Einheit gezählt, z. B. Schrauben, Kabel oder Leim. Sie verfolgen, wie viel übrig ist.</string>
+    <string name="article_form_type_tool">Werkzeug / Gerät</string>
+    <string name="article_form_type_tool_hint">Jedes Stück wird einzeln erfasst, z. B. eine Bohrmaschine oder ein Laptop. Gezählt in Stück.</string>
+    <string name="article_form_type_locked">Der Typ kann nach dem Erstellen nicht mehr geändert werden.</string>
+    <string name="article_form_unit_hint">z. B. pce, kg, m, l</string>
+    <string name="article_form_create_hint">Nach dem Speichern können Sie auf der Artikelseite den Bestand, eine Artikelnummer, eine Beschreibung und eine Mindestbestand-Warnung hinzufügen.</string>
+</resources>

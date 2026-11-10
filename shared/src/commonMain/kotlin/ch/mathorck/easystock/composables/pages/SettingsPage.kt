@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -30,9 +31,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ch.mathorck.easystock.applyAppLanguage
 import ch.mathorck.easystock.currentAppLanguage
+import ch.mathorck.easystock.composables.settings.AttributesScreen
+import ch.mathorck.easystock.composables.settings.CategoriesScreen
 import ch.mathorck.easystock.enums.AppLanguage
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_category
+import easystock.shared.generated.resources.ic_chevron_right
+import easystock.shared.generated.resources.ic_label
 import easystock.shared.generated.resources.ic_language
+import easystock.shared.generated.resources.settings_attributes
+import easystock.shared.generated.resources.settings_attributes_summary
+import easystock.shared.generated.resources.settings_categories
+import easystock.shared.generated.resources.settings_categories_summary
+import easystock.shared.generated.resources.settings_section_catalogue
 import easystock.shared.generated.resources.settings_cancel
 import easystock.shared.generated.resources.settings_language
 import easystock.shared.generated.resources.settings_language_english
@@ -40,25 +51,40 @@ import easystock.shared.generated.resources.settings_language_french
 import easystock.shared.generated.resources.settings_language_german
 import easystock.shared.generated.resources.settings_language_system
 import easystock.shared.generated.resources.settings_section_general
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
+/** Full-screen subpages opened from the settings list. */
+enum class SettingsSubpageId { Attributes, Categories }
+
 @Composable
 fun SettingsPage() {
     var language by remember { mutableStateOf(currentAppLanguage()) }
-    SettingsContent(
-        language = language,
-        onLanguageSelected = {
-            language = it
-            applyAppLanguage(it)
-        },
-    )
+    var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
+    // Each subpage composes its own back handler, only while it is open
+    when (subpage) {
+        SettingsSubpageId.Attributes -> AttributesScreen(onBack = { subpage = null })
+        SettingsSubpageId.Categories -> CategoriesScreen(onBack = { subpage = null })
+        null -> SettingsContent(
+            language = language,
+            onLanguageSelected = {
+                language = it
+                applyAppLanguage(it)
+            },
+            onOpen = { subpage = it },
+        )
+    }
 }
 
 /** Stateless settings list, previewable without platform code. */
 @Composable
-fun SettingsContent(language: AppLanguage, onLanguageSelected: (AppLanguage) -> Unit) {
+fun SettingsContent(
+    language: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    onOpen: (SettingsSubpageId) -> Unit = {},
+) {
     // Not saveable: the activity recreates on a language change, the dialog must not reopen
     var showLanguageDialog by remember { mutableStateOf(false) }
 
@@ -70,6 +96,20 @@ fun SettingsContent(language: AppLanguage, onLanguageSelected: (AppLanguage) -> 
             leadingContent = { Icon(painterResource(Res.drawable.ic_language), contentDescription = null) },
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
             modifier = Modifier.clickable { showLanguageDialog = true },
+        )
+
+        SectionHeader(stringResource(Res.string.settings_section_catalogue))
+        SubpageItem(
+            title = stringResource(Res.string.settings_attributes),
+            summary = stringResource(Res.string.settings_attributes_summary),
+            icon = Res.drawable.ic_label,
+            onClick = { onOpen(SettingsSubpageId.Attributes) },
+        )
+        SubpageItem(
+            title = stringResource(Res.string.settings_categories),
+            summary = stringResource(Res.string.settings_categories_summary),
+            icon = Res.drawable.ic_category,
+            onClick = { onOpen(SettingsSubpageId.Categories) },
         )
     }
 
@@ -83,6 +123,18 @@ fun SettingsContent(language: AppLanguage, onLanguageSelected: (AppLanguage) -> 
             onDismiss = { showLanguageDialog = false },
         )
     }
+}
+
+@Composable
+private fun SubpageItem(title: String, summary: String, icon: DrawableResource, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(summary) },
+        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
+        trailingContent = { Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier.clickable(onClick = onClick),
+    )
 }
 
 @Composable

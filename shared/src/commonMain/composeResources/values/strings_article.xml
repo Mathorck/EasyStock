@@ -21,7 +21,7 @@
     <string name="article_reason_loss">Loss</string>
     <string name="article_edit_title">Edit article</string>
     <string name="article_name">Name *</string>
-    <string name="article_sku">SKU (optional)</string>
+    <string name="article_sku">Reference / SKU (optional)</string>
     <string name="article_description">Description</string>
     <string name="article_unit">Unit *</string>
     <string name="article_category">Category</string>
@@ -30,7 +30,7 @@
     <string name="article_category_name">Category name *</string>
     <string name="article_threshold">Low-stock alert at</string>
     <string name="article_threshold_hint">Optional. Warns when the stock drops to this level.</string>
-    <string name="article_stock_hint">The stock is changed with stock entries, not here.</string>
+    <string name="article_stock_hint">The stock is changed on the article page, not here.</string>
     <string name="article_cancel">Cancel</string>
     <string name="article_save">Save</string>
     <string name="article_error_too_long">Too long</string>

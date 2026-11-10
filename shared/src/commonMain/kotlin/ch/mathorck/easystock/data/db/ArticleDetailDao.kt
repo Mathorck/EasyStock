@@ -9,6 +9,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Category
+import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,12 @@ data class LocationStock(
 data class MovementWithLocation(
     @Embedded val movement: StockMovement,
     @ColumnInfo(name = "location_name") val locationName: String,
+)
+
+/** Location of the last movement of a serial unit. */
+data class ItemLastLocation(
+    @ColumnInfo(name = "item_id") val itemId: String,
+    @ColumnInfo(name = "location_id") val locationId: String,
 )
 
 /** The SKU of an article, deleted ones included. */
@@ -88,6 +95,39 @@ abstract class ArticleDetailDao {
     /** All locations, soft-deleted ones included, so old stock and movements keep their path. */
     @Query("SELECT * FROM location")
     abstract fun observeAllLocations(): Flow<List<Location>>
+
+    /** Active serial units of the article, sorted by serial number (units without one last). */
+    @Query(
+        """
+        SELECT * FROM item
+        WHERE article_id = :articleId AND deleted_at IS NULL
+        ORDER BY serial_number IS NULL, serial_number COLLATE NOCASE, created_at
+        """,
+    )
+    abstract fun observeItems(articleId: String): Flow<List<Item>>
+
+    /**
+     * Location of the last movement of each unit of the article: where a lent or lost unit was last,
+     * used as the default location when it comes back.
+     */
+    @Query(
+        """
+        SELECT m.item_id AS item_id, m.location_id AS location_id
+        FROM stock_movement m
+        WHERE m.article_id = :articleId AND m.item_id IS NOT NULL
+          AND m.id = (
+            SELECT latest.id FROM stock_movement latest
+            WHERE latest.item_id = m.item_id
+            ORDER BY latest.occurred_at DESC, latest.created_at DESC, latest.quantity DESC, latest.id DESC
+            LIMIT 1
+          )
+        """,
+    )
+    abstract fun observeLastItemLocations(articleId: String): Flow<List<ItemLastLocation>>
+
+    /** Serial numbers of all items, soft-deleted ones included (the unique index covers them). */
+    @Query("SELECT serial_number FROM item WHERE serial_number IS NOT NULL")
+    abstract fun observeSerials(): Flow<List<String>>
 
     /** SKUs of all articles, soft-deleted ones included (the unique index covers them). */
     @Query("SELECT id, sku FROM article WHERE sku IS NOT NULL")

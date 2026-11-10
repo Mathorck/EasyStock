@@ -3,13 +3,14 @@ package ch.mathorck.easystock.viewmodels
 import ch.mathorck.easystock.data.db.SkuOwner
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Category
+import ch.mathorck.easystock.data.model.Tracking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class ArticleEditFormTest {
+class ArticleFormTest {
     private val article = Article(
         id = "a1", sku = "BLT-8", name = "Bolt", description = "Zinc", categoryId = "c1", unit = "pce",
         thresholdMilli = 1_500, createdAt = 0, updatedAt = 0,
@@ -20,15 +21,15 @@ class ArticleEditFormTest {
     )
     private val skus = listOf(SkuOwner("a1", "BLT-8"), SkuOwner("a2", "CT-200"), SkuOwner("deleted", "OLD-1"))
 
-    private fun ArticleEditForm.errors(rejectedSku: String? = null, rejectedCategoryName: String? = null) =
+    private fun ArticleForm.errors(rejectedSku: String? = null, rejectedCategoryName: String? = null) =
         validate(article, skus, categories, rejectedSku, rejectedCategoryName)
 
-    private val form = article.toEditForm()
+    private val form = article.toForm()
 
     @Test
     fun formIsPrefilledFromTheArticle() {
         assertEquals(
-            ArticleEditForm(
+            ArticleForm(
                 name = "Bolt", sku = "BLT-8", description = "Zinc", unit = "pce",
                 categoryMode = CategoryMode.EXISTING, categoryId = "c1", threshold = "1.5",
             ),
@@ -39,7 +40,7 @@ class ArticleEditFormTest {
 
     @Test
     fun articleWithoutOptionalValuesGivesEmptyFields() {
-        val bare = article.copy(sku = null, description = null, categoryId = null, thresholdMilli = null).toEditForm()
+        val bare = article.copy(sku = null, description = null, categoryId = null, thresholdMilli = null).toForm()
 
         assertEquals("", bare.sku)
         assertEquals("", bare.description)
@@ -97,7 +98,7 @@ class ArticleEditFormTest {
         assertEquals(FieldError.REQUIRED, form.copy(categoryId = null).errors().category)
         // The stored category was soft-deleted meanwhile: keeping it stays valid
         val deletedCategory = article.copy(categoryId = "deleted-cat")
-        assertNull(deletedCategory.toEditForm().validate(deletedCategory, skus, categories).category)
+        assertNull(deletedCategory.toForm().validate(deletedCategory, skus, categories).category)
     }
 
     @Test
@@ -148,5 +149,103 @@ class ArticleEditFormTest {
 
         assertEquals(Category(id = "c-new", name = "Paint", createdAt = 5, updatedAt = 5), update.newCategory)
         assertEquals("c-new", update.changes.categoryId)
+    }
+
+    // ---------- Type (unit) ----------
+
+    @Test
+    fun serialArticleUnitIsNotCheckedAndSavedAsPieces() {
+        val tool = form.copy(tracking = Tracking.SERIAL, unit = "")
+        assertNull(tool.errors().unit)
+        assertTrue(tool.errors().isValid)
+        assertEquals(DEFAULT_UNIT, tool.toUpdate(categories, now = 5, newId = { "x" }).changes.unit)
+    }
+
+    @Test
+    fun serialArticleIsPrefilledWithItsTracking() {
+        assertEquals(Tracking.SERIAL, article.copy(tracking = Tracking.SERIAL).toForm().tracking)
+    }
+
+    // ---------- Create ----------
+
+    private fun ArticleForm.createErrors(rejectedSku: String? = null) =
+        validate(selfId = null, currentCategoryId = null, skus = skus, categories = categories, rejectedSku = rejectedSku)
+
+    private fun ids(vararg values: String): () -> String {
+        val queue = ArrayDeque(values.toList())
+        return { queue.removeFirst() }
+    }
+
+    @Test
+    fun emptyCreateFormIsInvalidOnlyBecauseOfTheName() {
+        val errors = ArticleForm().createErrors()
+        assertEquals(ArticleFormErrors(name = FieldError.REQUIRED), errors)
+        assertFalse(errors.isValid)
+    }
+
+    @Test
+    fun minimalCreateFormIsValid() {
+        assertTrue(ArticleForm(name = "Nail").createErrors().isValid)
+        assertTrue(ArticleForm(name = "Drill", tracking = Tracking.SERIAL, unit = "").createErrors().isValid)
+        assertEquals(FieldError.REQUIRED, ArticleForm(name = "Nail", unit = " ").createErrors().unit)
+    }
+
+    @Test
+    fun createChecksSkuAgainstEveryArticle() {
+        // No own id: the SKU of a1 is taken too
+        assertEquals(FieldError.DUPLICATE, ArticleForm(name = "Nail", sku = "blt-8").createErrors().sku)
+        assertEquals(FieldError.DUPLICATE, ArticleForm(name = "Nail", sku = "old-1").createErrors().sku)
+        assertEquals(FieldError.DUPLICATE, ArticleForm(name = "Nail", sku = "x-1").createErrors(rejectedSku = "X-1").sku)
+    }
+
+    @Test
+    fun createNeedsAnActiveExistingCategory() {
+        val existing = ArticleForm(name = "Nail", categoryMode = CategoryMode.EXISTING)
+        assertEquals(FieldError.REQUIRED, existing.createErrors().category)
+        assertEquals(FieldError.REQUIRED, existing.copy(categoryId = "gone").createErrors().category)
+        assertNull(existing.copy(categoryId = "c1").createErrors().category)
+    }
+
+    @Test
+    fun newArticleIsBuiltFromTheMinimalForm() {
+        val new = ArticleForm(name = " Nail ", unit = " kg ").toNewArticle(categories, now = 7, newId = ids("a-new"))
+
+        assertEquals(
+            Article(id = "a-new", name = "Nail", unit = "kg", tracking = Tracking.QUANTITY, createdAt = 7, updatedAt = 7),
+            new.article,
+        )
+        assertNull(new.newCategory)
+    }
+
+    @Test
+    fun newToolIsSerialTrackedInPieces() {
+        val new = ArticleForm(name = "Drill", tracking = Tracking.SERIAL, unit = "kg", categoryMode = CategoryMode.EXISTING, categoryId = "c2")
+            .toNewArticle(categories, now = 7, newId = ids("a-new"))
+
+        assertEquals(Tracking.SERIAL, new.article.tracking)
+        assertEquals(DEFAULT_UNIT, new.article.unit)
+        assertEquals("c2", new.article.categoryId)
+        assertNull(new.article.sku)
+        assertNull(new.article.description)
+        assertNull(new.article.thresholdMilli)
+    }
+
+    @Test
+    fun newArticleWithNewCategoryLinksIt() {
+        val new = ArticleForm(name = "Brush", categoryMode = CategoryMode.NEW, categoryName = " Paint ")
+            .toNewArticle(categories, now = 7, newId = ids("c-new", "a-new"))
+
+        assertEquals(Category(id = "c-new", name = "Paint", createdAt = 7, updatedAt = 7), new.newCategory)
+        assertEquals("c-new", new.article.categoryId)
+        assertEquals("a-new", new.article.id)
+    }
+
+    @Test
+    fun newArticleReusesAnActiveCategoryIgnoringCase() {
+        val new = ArticleForm(name = "Saw", categoryMode = CategoryMode.NEW, categoryName = "TOOLS")
+            .toNewArticle(categories, now = 7, newId = ids("a-new"))
+
+        assertNull(new.newCategory)
+        assertEquals("c2", new.article.categoryId)
     }
 }

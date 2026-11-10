@@ -21,5 +21,5 @@
     <string name="stock_empty_hint">Les articles ajoutés apparaîtront ici avec leur stock.</string>
     <string name="stock_no_results">Aucun article ne correspond à « %1$s »</string>
     <string name="stock_low">Stock bas</string>
-    <string name="stock_add_entry">Ajouter du stock</string>
+    <string name="stock_add_entry">Nouvel article</string>
 </resources>

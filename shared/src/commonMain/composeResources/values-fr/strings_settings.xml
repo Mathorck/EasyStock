@@ -7,4 +7,9 @@
     <string name="settings_language_french">Français</string>
     <string name="settings_language_german">Deutsch</string>
     <string name="settings_cancel">Annuler</string>
+    <string name="settings_section_catalogue">Catalogue</string>
+    <string name="settings_attributes">Attributs</string>
+    <string name="settings_attributes_summary">Champs personnalisés pour décrire les articles</string>
+    <string name="settings_categories">Catégories</string>
+    <string name="settings_categories_summary">Regrouper les articles et choisir leurs attributs</string>
 </resources>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Attribute fields (article / item forms) -->
+    <string name="attributes_field_required">%1$s *</string>
+    <string name="attributes_error_required">Required</string>
+    <string name="attributes_error_too_long">Too long</string>
+    <string name="attributes_error_number">Enter a number, e.g. 12.5</string>
+    <string name="attributes_error_date">Not a valid date</string>
+    <string name="attributes_error_option">Choose one of the options</string>
+    <string name="attributes_error_invalid">Invalid value</string>
+    <string name="attributes_pick_date">Pick a date</string>
+    <string name="attributes_clear">Clear</string>
+    <string name="attributes_none">None</string>
+    <string name="attributes_ok">OK</string>
+    <string name="attributes_cancel">Cancel</string>
+    <string name="attributes_save">Save</string>
+    <string name="attributes_delete">Delete</string>
+    <string name="attributes_back">Back</string>
+    <string name="attributes_discard">Discard</string>
+    <string name="attributes_error_save">Could not save. Try again.</string>
+    <!-- Settings > Attributes -->
+    <string name="attributes_title">Attributes</string>
+    <string name="attributes_empty">No attributes yet. Add one to describe your articles, e.g. a length or a color.</string>
+    <string name="attributes_add">Add attribute</string>
+    <string name="attributes_new_title">New attribute</string>
+    <string name="attributes_edit_title">Edit attribute</string>
+    <string name="attributes_label">Name *</string>
+    <string name="attributes_type">Type</string>
+    <string name="attributes_type_text">Text</string>
+    <string name="attributes_type_number">Number</string>
+    <string name="attributes_type_bool">Yes / No</string>
+    <string name="attributes_type_date">Date</string>
+    <string name="attributes_type_enum">List of choices</string>
+    <string name="attributes_type_locked">The type can’t be changed after creation: saved values depend on it.</string>
+    <string name="attributes_unit">Unit (optional)</string>
+    <string name="attributes_unit_hint">e.g. mm, N, kg</string>
+    <string name="attributes_options">Choices *</string>
+    <string name="attributes_options_hint">One choice per line. Removing a choice doesn’t change values already saved.</string>
+    <string name="attributes_error_label_taken">Another attribute already has this name</string>
+    <string name="attributes_error_no_options">Add at least one choice</string>
+    <string name="attributes_error_duplicate_option">Each choice must be unique</string>
+    <string name="attributes_delete_title">Delete attribute?</string>
+    <string name="attributes_delete_message">“%1$s” will be removed from all categories. Values already saved on articles are kept but no longer shown.</string>
+    <!-- Settings > Categories -->
+    <string name="attributes_categories_title">Categories</string>
+    <string name="attributes_categories_empty">No categories yet.</string>
+    <string name="attributes_category_add">Add category</string>
+    <string name="attributes_category_new_title">New category</string>
+    <string name="attributes_category_rename_title">Rename category</string>
+    <string name="attributes_category_name">Name *</string>
+    <string name="attributes_category_rename">Rename</string>
+    <string name="attributes_category_error_taken">Another category already has this name</string>
+    <string name="attributes_category_error_deleted">A deleted category already has this name</string>
+    <string name="attributes_category_delete_title">Delete category?</string>
+    <string name="attributes_category_delete_message">“%1$s” will be removed from the list. Articles in this category keep it until you change it.</string>
+    <string name="attributes_category_edit_attributes">Choose attributes</string>
+    <string name="attributes_category_linked_empty">No attributes for this category yet.</string>
+    <string name="attributes_category_add_attribute">Add attribute</string>
+    <string name="attributes_category_no_more">All attributes are already added. Create new ones in Settings › Attributes.</string>
+    <string name="attributes_category_none_defined">No attributes defined yet. Create them in Settings › Attributes.</string>
+    <string name="attributes_category_required">Required</string>
+    <string name="attributes_category_move_up">Move up</string>
+    <string name="attributes_category_move_down">Move down</string>
+    <string name="attributes_category_remove">Remove</string>
+    <string name="attributes_unsaved_title">Discard changes?</string>
+    <string name="attributes_unsaved_message">Your changes to this category are not saved.</string>
+    <string name="attributes_more">More options</string>
+</resources>

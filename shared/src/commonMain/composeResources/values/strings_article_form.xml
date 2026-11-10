@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_form_title_new">New article</string>
+    <string name="article_form_close">Close</string>
+    <string name="article_form_section_type">Type</string>
+    <string name="article_form_section_info">Information</string>
+    <string name="article_form_section_stock">Stock settings</string>
+    <string name="article_form_section_attributes">Custom attributes</string>
+    <string name="article_form_type_consumable">Consumable</string>
+    <string name="article_form_type_consumable_hint">Counted in a unit, e.g. screws, cable or glue. You track how much is left.</string>
+    <string name="article_form_type_tool">Tool / equipment</string>
+    <string name="article_form_type_tool_hint">Each unit is tracked on its own, e.g. a drill or a laptop. Counted in pieces.</string>
+    <string name="article_form_type_locked">The type cannot be changed after creation.</string>
+    <string name="article_form_unit_hint">e.g. pce, kg, m, l</string>
+    <string name="article_form_create_hint">After saving, add the stock, a reference, a description and a low-stock alert on the article page.</string>
+</resources>

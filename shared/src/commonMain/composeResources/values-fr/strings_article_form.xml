@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="article_form_title_new">Nouvel article</string>
+    <string name="article_form_close">Fermer</string>
+    <string name="article_form_section_type">Type</string>
+    <string name="article_form_section_info">Informations</string>
+    <string name="article_form_section_stock">Paramètres de stock</string>
+    <string name="article_form_section_attributes">Attributs personnalisés</string>
+    <string name="article_form_type_consumable">Consommable</string>
+    <string name="article_form_type_consumable_hint">Compté dans une unité, par ex. vis, câble ou colle. Vous suivez la quantité restante.</string>
+    <string name="article_form_type_tool">Outil / équipement</string>
+    <string name="article_form_type_tool_hint">Chaque unité est suivie individuellement, par ex. une perceuse ou un ordinateur portable. Compté en pièces.</string>
+    <string name="article_form_type_locked">Le type ne peut plus être modifié après la création.</string>
+    <string name="article_form_unit_hint">par ex. pce, kg, m, l</string>
+    <string name="article_form_create_hint">Après l’enregistrement, ajoutez le stock, une référence, une description et une alerte de stock bas sur la page de l’article.</string>
+</resources>

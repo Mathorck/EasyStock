@@ -30,7 +30,7 @@
     <string name="article_category_name">Name der Kategorie *</string>
     <string name="article_threshold">Warnung bei niedrigem Bestand ab</string>
     <string name="article_threshold_hint">Optional. Warnt, wenn der Bestand auf diesen Wert sinkt.</string>
-    <string name="article_stock_hint">Der Bestand wird über Zugänge geändert, nicht hier.</string>
+    <string name="article_stock_hint">Der Bestand wird auf der Artikelseite geändert, nicht hier.</string>
     <string name="article_cancel">Abbrechen</string>
     <string name="article_save">Speichern</string>
     <string name="article_error_too_long">Zu lang</string>

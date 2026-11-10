@@ -2,7 +2,6 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ch.mathorck.easystock.data.db.ArticleChanges
 import ch.mathorck.easystock.data.db.ArticleDetailDao
 import ch.mathorck.easystock.data.db.ArticleNotFoundException
 import ch.mathorck.easystock.data.db.CategoryDao
@@ -10,13 +9,10 @@ import ch.mathorck.easystock.data.db.DeletedCategoryNameException
 import ch.mathorck.easystock.data.db.DuplicateSkuException
 import ch.mathorck.easystock.data.db.LocationStock
 import ch.mathorck.easystock.data.db.MovementWithLocation
-import ch.mathorck.easystock.data.db.SkuOwner
 import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.util.formatQuantity
-import ch.mathorck.easystock.util.parseQuantity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -115,144 +111,6 @@ data class ArticleDetailUiState(
     val isLowStock: Boolean get() = article?.thresholdMilli?.let { totalMilli <= it } ?: false
 }
 
-// ---------- Edit ----------
-
-/** Raw edit input, as typed. */
-data class ArticleEditForm(
-    val name: String = "",
-    val sku: String = "",
-    val description: String = "",
-    val unit: String = DEFAULT_UNIT,
-    val categoryMode: CategoryMode = CategoryMode.NONE,
-    val categoryId: String? = null,
-    val categoryName: String = "",
-    val threshold: String = "",
-)
-
-/** Form prefilled with the stored values. */
-fun Article.toEditForm(): ArticleEditForm = ArticleEditForm(
-    name = name,
-    sku = sku.orEmpty(),
-    description = description.orEmpty(),
-    unit = unit,
-    categoryMode = if (categoryId == null) CategoryMode.NONE else CategoryMode.EXISTING,
-    categoryId = categoryId,
-    threshold = thresholdMilli?.let { formatQuantity(it) }.orEmpty(),
-)
-
-/** One error per field, null when the field is valid. */
-data class ArticleEditErrors(
-    val name: FieldError? = null,
-    val sku: FieldError? = null,
-    val unit: FieldError? = null,
-    val category: FieldError? = null,
-    val categoryName: FieldError? = null,
-    val threshold: FieldError? = null,
-) {
-    val isValid: Boolean get() = listOf(name, sku, unit, category, categoryName, threshold).all { it == null }
-}
-
-/**
- * Checks the form of [article].
- * [skus]: SKUs of all articles, soft-deleted ones included. [categories]: active categories.
- * The current category of the article stays valid even if it was soft-deleted meanwhile.
- * [rejectedSku] / [rejectedCategoryName]: values the database refused on the last save.
- */
-fun ArticleEditForm.validate(
-    article: Article,
-    skus: List<SkuOwner>,
-    categories: List<Category>,
-    rejectedSku: String? = null,
-    rejectedCategoryName: String? = null,
-): ArticleEditErrors {
-    val skuValue = sku.trim()
-    val categoryValue = categoryName.trim()
-    return ArticleEditErrors(
-        name = requiredText(name, MAX_NAME_LENGTH),
-        sku = when {
-            skuValue.isEmpty() -> null
-            skuValue.length > MAX_SKU_LENGTH -> FieldError.TOO_LONG
-            skus.any { it.id != article.id && it.sku.equals(skuValue, ignoreCase = true) } -> FieldError.DUPLICATE
-            rejectedSku != null && rejectedSku.equals(skuValue, ignoreCase = true) -> FieldError.DUPLICATE
-            else -> null
-        },
-        unit = requiredText(unit, MAX_UNIT_LENGTH),
-        category = if (
-            categoryMode == CategoryMode.EXISTING &&
-            categoryId != article.categoryId &&
-            categories.none { it.id == categoryId }
-        ) {
-            FieldError.REQUIRED
-        } else {
-            null
-        },
-        categoryName = when {
-            categoryMode != CategoryMode.NEW -> null
-            requiredText(categoryName, MAX_CATEGORY_NAME_LENGTH) != null -> requiredText(categoryName, MAX_CATEGORY_NAME_LENGTH)
-            rejectedCategoryName != null && rejectedCategoryName.equals(categoryValue, ignoreCase = true) ->
-                FieldError.DELETED_NAME
-            else -> null
-        },
-        threshold = if (threshold.isNotBlank() && parseQuantity(threshold) == null) FieldError.INVALID_QUANTITY else null,
-    )
-}
-
-private fun requiredText(value: String, maxLength: Int): FieldError? = when {
-    value.isBlank() -> FieldError.REQUIRED
-    value.trim().length > maxLength -> FieldError.TOO_LONG
-    else -> null
-}
-
-/** What to save: the changed fields, and the category to create first (if any). */
-data class ArticleUpdate(val changes: ArticleChanges, val newCategory: Category?)
-
-/**
- * Builds the update. Call only on a valid form. A blank SKU or description becomes null.
- * [categories]: active categories, a new category with the same name (ignoring case) reuses it.
- */
-fun ArticleEditForm.toUpdate(categories: List<Category>, now: Long, newId: () -> String): ArticleUpdate {
-    var newCategory: Category? = null
-    val categoryId = when (categoryMode) {
-        CategoryMode.NONE -> null
-        CategoryMode.EXISTING -> requireNotNull(categoryId) { "No category" }
-        CategoryMode.NEW -> {
-            val wanted = categoryName.trim()
-            categories.firstOrNull { it.name.equals(wanted, ignoreCase = true) }?.id
-                ?: Category(id = newId(), name = wanted, createdAt = now, updatedAt = now).also { newCategory = it }.id
-        }
-    }
-    val changes = ArticleChanges(
-        name = name.trim(),
-        sku = sku.trim().ifEmpty { null },
-        description = description.trim().ifEmpty { null },
-        categoryId = categoryId,
-        unit = unit.trim(),
-        thresholdMilli = threshold.takeIf { it.isNotBlank() }?.let { requireNotNull(parseQuantity(it)) { "Invalid threshold" } },
-    )
-    return ArticleUpdate(changes, newCategory)
-}
-
-data class ArticleEditUiState(
-    val form: ArticleEditForm,
-    /** Active categories. */
-    val categories: List<Category>,
-    /** Name of the stored category, also when it is soft-deleted. */
-    val currentCategoryName: String?,
-    val errors: ArticleEditErrors,
-    val saving: Boolean = false,
-    /** The last save failed for an unexpected reason. */
-    val saveFailed: Boolean = false,
-) {
-    val canSave: Boolean get() = errors.isValid && !saving
-}
-
-private data class EditStatus(
-    val saving: Boolean = false,
-    val failed: Boolean = false,
-    val rejectedSku: String? = null,
-    val rejectedCategoryName: String? = null,
-)
-
 /** Detail of one article (stock per location, history) and its edit form. */
 @OptIn(ExperimentalUuidApi::class)
 class ArticleDetailViewModel(
@@ -280,14 +138,14 @@ class ArticleDetailViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleDetailUiState())
 
     /** Null when the edit form is closed. */
-    private val form = MutableStateFlow<ArticleEditForm?>(null)
-    private val status = MutableStateFlow(EditStatus())
-    private var latest: ArticleEditUiState? = null
+    private val form = MutableStateFlow<ArticleForm?>(null)
+    private val status = MutableStateFlow(FormSaveStatus())
+    private var latest: ArticleFormUiState? = null
 
     /** Bumped when the form opens or closes, so a late save result is ignored. */
     private var generation = 0
 
-    val editState: StateFlow<ArticleEditUiState?> = combine(
+    val editState: StateFlow<ArticleFormUiState?> = combine(
         form,
         state,
         categoryDao.observeAll(),
@@ -298,7 +156,8 @@ class ArticleDetailViewModel(
         if (form == null || article == null) {
             null
         } else {
-            ArticleEditUiState(
+            ArticleFormUiState(
+                mode = ArticleFormMode.EDIT,
                 form = form,
                 categories = categories,
                 currentCategoryName = detail.categoryName,
@@ -313,11 +172,11 @@ class ArticleDetailViewModel(
     fun startEdit() {
         val article = state.value.article ?: return
         generation++
-        status.value = EditStatus()
-        form.value = article.toEditForm()
+        status.value = FormSaveStatus()
+        form.value = article.toForm()
     }
 
-    fun updateEdit(transform: (ArticleEditForm) -> ArticleEditForm) {
+    fun updateEdit(transform: (ArticleForm) -> ArticleForm) {
         form.update { it?.let(transform) }
         status.update { it.copy(failed = false) }
     }
@@ -325,7 +184,7 @@ class ArticleDetailViewModel(
     fun cancelEdit() {
         generation++
         form.value = null
-        status.value = EditStatus()
+        status.value = FormSaveStatus()
     }
 
     /** Saves the form. The form closes on success. */
