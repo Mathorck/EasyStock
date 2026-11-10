@@ -34,4 +34,12 @@ class ArticleStockTest {
     fun negativeStockIsLow() {
         assertTrue(stock(-1_000, 0).isLowStock)
     }
+
+    @Test
+    fun serialArticleIsNeverLowEvenWithAThreshold() {
+        val tool = Article(id = "t1", name = "Drill", tracking = Tracking.SERIAL, thresholdMilli = 5_000, createdAt = 0, updatedAt = 0)
+        assertFalse(ArticleStock(tool, 0).isLowStock)
+        assertFalse(tool.isLowAt(-1_000))
+        assertTrue(tool.copy(tracking = Tracking.QUANTITY).isLowAt(0))
+    }
 }

@@ -8,7 +8,14 @@ data class ArticleStock(
     @Embedded val article: Article,
     @ColumnInfo(name = "stock") val stockMilli: Long,
 ) {
-    /** True when a threshold is set and the stock is at or below it. */
+    /** See [Article.isLowAt]. */
     val isLowStock: Boolean
-        get() = article.thresholdMilli?.let { stockMilli <= it } ?: false
+        get() = article.isLowAt(stockMilli)
 }
+
+/**
+ * True when a threshold is set and [stockMilli] is at or below it. Serial-tracked articles (tools) have no
+ * low-stock alert: a threshold left on an old row is ignored.
+ */
+fun Article.isLowAt(stockMilli: Long): Boolean =
+    tracking != Tracking.SERIAL && thresholdMilli?.let { stockMilli <= it } ?: false
