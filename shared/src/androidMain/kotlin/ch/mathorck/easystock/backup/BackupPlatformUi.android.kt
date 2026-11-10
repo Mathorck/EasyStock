@@ -1,8 +1,11 @@
 package ch.mathorck.easystock.backup
 
 import android.Manifest
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -271,4 +274,16 @@ actual fun rememberBackupFiles(
             }
         }
     }
+}
+
+@Composable
+actual fun rememberIsChangingConfigurations(): () -> Boolean {
+    val context = LocalContext.current
+    return { context.findActivity()?.isChangingConfigurations == true }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

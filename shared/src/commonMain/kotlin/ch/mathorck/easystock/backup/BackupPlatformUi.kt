@@ -82,3 +82,10 @@ expect fun rememberBackupFiles(
     onSaved: () -> Unit,
     onError: (BackupError) -> Unit,
 ): BackupFiles
+
+/**
+ * Returns a function that is true while the screen is torn down only to be rebuilt (rotation, language
+ * change). Used to tell it from the user leaving the screen. Always false where that does not exist.
+ */
+@Composable
+expect fun rememberIsChangingConfigurations(): () -> Boolean

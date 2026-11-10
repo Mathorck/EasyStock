@@ -26,3 +26,6 @@ actual fun rememberBackupFiles(
         override fun open() = onError(BackupError.FAILED)
     }
 }
+
+@Composable
+actual fun rememberIsChangingConfigurations(): () -> Boolean = { false }

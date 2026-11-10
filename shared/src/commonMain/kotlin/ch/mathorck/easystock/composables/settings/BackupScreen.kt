@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +64,7 @@ import ch.mathorck.easystock.backup.QrDecision
 import ch.mathorck.easystock.backup.QrScanner
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupFiles
+import ch.mathorck.easystock.backup.rememberIsChangingConfigurations
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.backup.rowCount
 import ch.mathorck.easystock.theme.EasyStockTheme
@@ -203,6 +205,11 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         onSaved = { saved = true },
         onError = viewModel::reportError,
     )
+    // The view model outlives the screen (it belongs to the activity): leaving must not keep a result
+    val isChangingConfigurations = rememberIsChangingConfigurations()
+    DisposableEffect(viewModel) {
+        onDispose { if (!isChangingConfigurations()) viewModel.leave() }
+    }
     val back: () -> Unit = {
         saved = false
         when (state.step) {

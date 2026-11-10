@@ -73,6 +73,12 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
     private var wifi: WifiSender? = null
     private var job: Job? = null
 
+    /** True while the import is being written: it cannot be stopped half way. */
+    private var writing = false
+
+    /** The screen was left while the import was being written: its result is not shown later. */
+    private var left = false
+
     private fun go(step: BackupStep) = _state.update { it.copy(step = step) }
 
     private fun fail(error: BackupError, step: BackupStep = _state.value.step) =
@@ -223,10 +229,14 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
     fun import(mode: ImportMode) {
         val backup = opened ?: return
         go(BackupStep.Working)
-        run(onError = { fail(it, BackupStep.Preview(backup)) }) {
+        writing = true
+        left = false
+        run(onError = { writing = false; fail(it, BackupStep.Preview(backup)) }) {
             val summary = service.import(backup, mode)
+            writing = false
             clearImport()
-            go(BackupStep.Done(summary))
+            go(if (left) BackupStep.Home else BackupStep.Done(summary))
+            left = false
         }
     }
 
@@ -235,6 +245,20 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
         opened = null
         input?.let(service::discard)
         input = null
+    }
+
+    /**
+     * The screen is gone (back, other page, leaving Settings): a result or error must not wait for
+     * the user's return. Everything resets, including a Wi-Fi share (nothing could stop it once the
+     * screen is gone) and a download. Only an import being written continues, and when it ends the
+     * screen is back at its start instead of showing the result.
+     */
+    fun leave() {
+        if (writing) {
+            left = true
+            return
+        }
+        reset()
     }
 
     /** Back to the start, every temporary file deleted. */
