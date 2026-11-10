@@ -9,12 +9,16 @@ import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.StockMovement
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -80,9 +84,11 @@ class ArticleDetailDaoTest {
         categoryId: String? = null,
         thresholdMilli: Long? = 0,
         imagePath: String? = null,
+        nameAuto: Boolean = false,
+        attributes: JsonObject? = null,
     ) = ArticleChanges(
-        name = name, sku = sku, description = "Desc", categoryId = categoryId, unit = "kg",
-        thresholdMilli = thresholdMilli, imagePath = imagePath,
+        name = name, nameAuto = nameAuto, sku = sku, description = "Desc", categoryId = categoryId, unit = "kg",
+        thresholdMilli = thresholdMilli, imagePath = imagePath, attributes = attributes,
     )
 
     // ---------- Reads ----------
@@ -171,6 +177,22 @@ class ArticleDetailDaoTest {
         assertEquals(10L, updated.createdAt)
         assertEquals("tag-a1", updated.barcode)
         assertEquals(4_000L, articles.observeStock().first().single().stockMilli)
+    }
+
+    @Test
+    fun updateSavesTheAttributesAndTheNameMode() = runBlocking<Unit> {
+        article("a1")
+        val values = JsonObject(mapOf("note" to JsonPrimitive("red")))
+
+        detail.updateArticle("a1", changes(nameAuto = true, attributes = values), newCategory = null, now = 99)
+        val updated = assertNotNull(articles.getById("a1"))
+        assertTrue(updated.nameAuto)
+        assertEquals(values, updated.attributes)
+
+        detail.updateArticle("a1", changes(), newCategory = null, now = 100)
+        val cleared = assertNotNull(articles.getById("a1"))
+        assertFalse(cleared.nameAuto)
+        assertNull(cleared.attributes)
     }
 
     @Test

@@ -7,9 +7,15 @@ import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
+import ch.mathorck.easystock.composables.attributes.NameTemplateError
+import ch.mathorck.easystock.composables.attributes.articleNameFromTemplate
+import ch.mathorck.easystock.composables.attributes.validateNameTemplate
+import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
+import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
+import ch.mathorck.easystock.viewmodels.MAX_NAME_LENGTH
 import kotlinx.coroutines.flow.Flow
 
 /** Max length of [AttributeDefinition.key] (schema: varchar(50)). */
@@ -74,6 +80,9 @@ data class CategoryAttributeWithDefinition(
 /** One wanted link of a category, see [AttributeDao.setCategoryAttributes]. */
 data class CategoryAttributeInput(val attributeId: String, val required: Boolean)
 
+/** The name template does not match the attributes of the category. Nothing is saved. */
+class InvalidNameTemplateException(val error: NameTemplateError) : IllegalArgumentException("Invalid name template: $error")
+
 /** The attribute definition was deleted (or never existed). */
 class AttributeNotFoundException(val id: String) : IllegalStateException("No active attribute: $id")
 
@@ -126,10 +135,12 @@ abstract class AttributeDao {
 
     /**
      * Changes the label, unit and options. The key and the data type are kept: stored values depend on them.
+     * The label (bool) and the unit (number) appear in template names: the articles that follow the template
+     * of a category using this attribute are renamed in the same transaction. Returns how many were renamed.
      * Throws [AttributeNotFoundException] if the definition is deleted.
      */
     @Transaction
-    open suspend fun updateDefinition(id: String, label: String, unit: String?, options: List<String>?, now: Long) {
+    open suspend fun updateDefinition(id: String, label: String, unit: String?, options: List<String>?, now: Long): Int {
         val stored = getActiveDefinition(id) ?: throw AttributeNotFoundException(id)
         updateDefinitionRow(
             stored.copy(
@@ -139,7 +150,11 @@ abstract class AttributeDao {
                 updatedAt = now,
             ),
         )
+        return categoriesOfAttribute(id).sumOf { renameAutoNamedArticles(it, now) }
     }
+
+    @Query("SELECT DISTINCT category_id FROM category_attribute WHERE attribute_id = :attributeId AND deleted_at IS NULL")
+    protected abstract suspend fun categoriesOfAttribute(attributeId: String): List<String>
 
     @Query("UPDATE attribute_definition SET deleted_at = :now, updated_at = :now WHERE id = :id AND deleted_at IS NULL")
     protected abstract suspend fun softDeleteDefinitionRow(id: String, now: Long)
@@ -170,6 +185,20 @@ abstract class AttributeDao {
         """,
     )
     abstract fun observeCategoryAttributes(categoryId: String): Flow<List<CategoryAttributeWithDefinition>>
+
+    /** Same as [observeCategoryAttributes], read once. */
+    @Transaction
+    @Query(
+        """
+        SELECT category_attribute.* FROM category_attribute
+        JOIN attribute_definition ON attribute_definition.id = category_attribute.attribute_id
+        WHERE category_attribute.category_id = :categoryId
+          AND category_attribute.deleted_at IS NULL
+          AND attribute_definition.deleted_at IS NULL
+        ORDER BY category_attribute.sort_order, attribute_definition.label COLLATE NOCASE
+        """,
+    )
+    abstract suspend fun getCategoryAttributes(categoryId: String): List<CategoryAttributeWithDefinition>
 
     /** Active links of all categories (deleted links and definitions left out), to format attributes in lists. */
     @Query(
@@ -229,5 +258,85 @@ abstract class AttributeDao {
                     updateLink(link.copy(required = input.required, sortOrder = index, deletedAt = null, updatedAt = now))
             }
         }
+    }
+
+    // ---------- Name template ----------
+
+    @Query("SELECT * FROM category WHERE id = :id AND deleted_at IS NULL")
+    protected abstract suspend fun getActiveCategory(id: String): Category?
+
+    @Query("UPDATE category SET name_template = :template, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun updateTemplateRow(id: String, template: String?, now: Long)
+
+    @Query("SELECT * FROM article WHERE category_id = :categoryId AND deleted_at IS NULL AND name_auto = 1")
+    protected abstract suspend fun autoNamedArticles(categoryId: String): List<Article>
+
+    @Query("UPDATE article SET name = :name, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun renameArticleRow(id: String, name: String, now: Long)
+
+    @Query("UPDATE article SET name_auto = 1, updated_at = :now WHERE category_id = :categoryId AND deleted_at IS NULL AND name_auto = 0")
+    protected abstract suspend fun makeAllAutoNamed(categoryId: String, now: Long)
+
+    /** Active articles of the category whose name was typed by hand (not following the template). */
+    @Query("SELECT COUNT(*) FROM article WHERE category_id = :categoryId AND deleted_at IS NULL AND name_auto = 0")
+    abstract fun observeManualNameCount(categoryId: String): Flow<Int>
+
+    /** The last edited active article of the category with attribute values, for the template preview. */
+    @Query(
+        """
+        SELECT * FROM article
+        WHERE category_id = :categoryId AND deleted_at IS NULL AND attributes IS NOT NULL
+        ORDER BY updated_at DESC, id
+        LIMIT 1
+        """,
+    )
+    abstract fun observeSampleArticle(categoryId: String): Flow<Article?>
+
+    /**
+     * Renders the template of the category again for its active articles that follow it (`name_auto`).
+     * Only changed names are written, with `updated_at` = [now]; an empty result keeps the old name.
+     * Returns how many articles were renamed. Does nothing for a deleted category or without template.
+     */
+    @Transaction
+    open suspend fun renameAutoNamedArticles(categoryId: String, now: Long): Int {
+        val category = getActiveCategory(categoryId) ?: return 0
+        val template = category.nameTemplate ?: return 0
+        val definitions = getCategoryAttributes(categoryId).map { it.definition }
+        var renamed = 0
+        autoNamedArticles(categoryId).forEach { article ->
+            val name = articleNameFromTemplate(template, definitions, article.attributes, MAX_NAME_LENGTH)
+            if (!name.isNullOrEmpty() && name != article.name) {
+                renameArticleRow(article.id, name, now)
+                renamed++
+            }
+        }
+        return renamed
+    }
+
+    /**
+     * Saves the category settings in one transaction: its attributes ([setCategoryAttributes]) and its
+     * name template (blank = none), checked against these attributes. [applyToAll]: the articles of the
+     * category with a typed name follow the template from now on. Then renames the articles that follow
+     * the template ([renameAutoNamedArticles]) and returns how many were renamed.
+     * Throws [CategoryNotFoundException], [AttributeNotFoundException] or [InvalidNameTemplateException];
+     * nothing is saved then.
+     */
+    @Transaction
+    open suspend fun saveCategorySettings(
+        categoryId: String,
+        attributes: List<CategoryAttributeInput>,
+        nameTemplate: String?,
+        applyToAll: Boolean,
+        now: Long,
+        newId: () -> String,
+    ): Int {
+        val category = getActiveCategory(categoryId) ?: throw CategoryNotFoundException(categoryId)
+        val template = nameTemplate?.trim()?.ifEmpty { null }
+        val keys = attributes.mapNotNull { getActiveDefinition(it.attributeId)?.key }
+        if (template != null) validateNameTemplate(template, keys)?.let { throw InvalidNameTemplateException(it) }
+        setCategoryAttributes(categoryId, attributes, now, newId)
+        if (template != category.nameTemplate) updateTemplateRow(categoryId, template, now)
+        if (applyToAll && template != null) makeAllAutoNamed(categoryId, now)
+        return renameAutoNamedArticles(categoryId, now)
     }
 }

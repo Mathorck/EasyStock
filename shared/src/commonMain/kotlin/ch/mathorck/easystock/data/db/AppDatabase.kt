@@ -29,10 +29,12 @@ const val DATABASE_NAME = "easystock.db"
         Item::class,
         StockMovement::class,
     ],
-    version = 2,
+    version = 3,
     autoMigrations = [
         // sku becomes nullable
         AutoMigration(from = 1, to = 2),
+        // category.name_template, article.name_auto
+        AutoMigration(from = 2, to = 3),
     ],
     exportSchema = true,
 )

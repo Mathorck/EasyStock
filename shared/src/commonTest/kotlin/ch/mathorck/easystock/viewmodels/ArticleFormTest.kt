@@ -1,9 +1,18 @@
 package ch.mathorck.easystock.viewmodels
 
+import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
 import ch.mathorck.easystock.data.db.SkuOwner
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.AttributeDataType
+import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
+import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Tracking
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -31,7 +40,7 @@ class ArticleFormTest {
         assertEquals(
             ArticleForm(
                 name = "Bolt", sku = "BLT-8", description = "Zinc", unit = "pce",
-                categoryMode = CategoryMode.EXISTING, categoryId = "c1", threshold = "1.5",
+                categoryMode = CategoryMode.EXISTING, categoryId = "c1", threshold = "1.5", nameAuto = false,
             ),
             form,
         )
@@ -247,5 +256,118 @@ class ArticleFormTest {
 
         assertNull(new.newCategory)
         assertEquals("c2", new.article.categoryId)
+    }
+
+    // ---------- Name template ----------
+
+    private val ropes = Category(id = "c3", name = "Ropes", nameTemplate = "{type} rope {length}", createdAt = 0, updatedAt = 0)
+    private val withTemplate = categories + ropes
+
+    private fun ArticleForm.ropeErrors() =
+        validate(selfId = null, currentCategoryId = null, skus = skus, categories = withTemplate)
+
+    private fun link(key: String, type: AttributeDataType, unit: String? = null, required: Boolean = false) = CategoryAttributeWithDefinition(
+        CategoryAttribute(id = "l_$key", categoryId = "c3", attributeId = "id_$key", required = required, createdAt = 0, updatedAt = 0),
+        AttributeDefinition(id = "id_$key", key = key, label = key, dataType = type, unit = unit, createdAt = 0, updatedAt = 0),
+    )
+
+    private val ropeAttributes = listOf(link("type", AttributeDataType.TEXT, required = true), link("length", AttributeDataType.NUMBER, "m"))
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private val ropeValues = JsonObject(mapOf("type" to JsonPrimitive("static"), "length" to JsonUnquotedLiteral("50")))
+
+    private val ropeForm = ArticleForm(categoryMode = CategoryMode.EXISTING, categoryId = "c3", attributes = ropeValues)
+
+    @Test
+    fun templateNameComesFromTheChosenCategory() {
+        assertEquals("Static rope 50 m", ropeForm.templateName(withTemplate, ropeAttributes))
+        // No template, no existing category, or a new one
+        assertNull(ropeForm.copy(categoryId = "c1").templateName(withTemplate, ropeAttributes))
+        assertNull(ropeForm.copy(categoryMode = CategoryMode.NONE).templateName(withTemplate, ropeAttributes))
+        assertNull(ropeForm.copy(categoryMode = CategoryMode.NEW, categoryName = "Ropes").templateName(withTemplate, ropeAttributes))
+        // Not valid
+        assertNull(ropeForm.templateName(categories + ropes.copy(nameTemplate = "{type"), ropeAttributes))
+    }
+
+    @Test
+    fun templateNameIsEmptyWithoutValues() {
+        assertEquals("Rope", ropeForm.copy(attributes = null).templateName(withTemplate, ropeAttributes))
+        assertEquals("", ropeForm.copy(attributes = null).templateName(categories + ropes.copy(nameTemplate = "{type}"), ropeAttributes))
+    }
+
+    @Test
+    fun nameFollowsTheTemplateUntilTyped() {
+        assertEquals("Static rope 50 m", ropeForm.withTemplateName("Static rope 50 m").name)
+        // No template: the name stays
+        assertEquals("Bolt", ropeForm.copy(name = "Bolt").withTemplateName(null).name)
+
+        val typed = ropeForm.withTemplateName("Static rope 50 m").withTypedName("My rope")
+        assertFalse(typed.nameAuto)
+        assertEquals("My rope", typed.withTemplateName("Static rope 50 m").name)
+        // Back to the template
+        assertEquals("Static rope 50 m", typed.copy(nameAuto = true).withTemplateName("Static rope 50 m").name)
+    }
+
+    @Test
+    fun formStateAppliesTheTemplateAndChecksTheAttributes() {
+        val state = articleFormState(
+            ArticleFormMode.CREATE, ropeForm, withTemplate, FormAttributes("c3", ropeAttributes), FormSaveStatus(),
+        ) { it.ropeErrors() }
+        assertEquals("Static rope 50 m", state.form.name)
+        assertEquals("Static rope 50 m", state.templateName)
+        assertTrue(state.followsTemplate)
+        assertTrue(state.canSave)
+
+        val missing = articleFormState(
+            ArticleFormMode.CREATE, ropeForm.copy(attributes = null), withTemplate.map { if (it.id == "c3") it.copy(nameTemplate = "{type}") else it },
+            FormAttributes("c3", ropeAttributes), FormSaveStatus(),
+        ) { it.ropeErrors() }
+        // The rendered name is empty: the name is required, and so is the type
+        assertEquals("", missing.form.name)
+        assertEquals(FieldError.REQUIRED, missing.errors.name)
+        assertEquals(mapOf("type" to AttributeError.REQUIRED), missing.attributeErrors)
+        assertFalse(missing.canSave)
+    }
+
+    @Test
+    fun formStateIgnoresAttributesOfAnotherCategory() {
+        val state = articleFormState(
+            ArticleFormMode.CREATE, ropeForm.copy(name = "Old"), withTemplate, FormAttributes("c1", ropeAttributes), FormSaveStatus(),
+        ) { it.ropeErrors() }
+        assertTrue(state.attributes.isEmpty())
+        // Still loading the attributes of c3: the template renders without definitions
+        assertEquals("Rope", state.form.name)
+    }
+
+    @Test
+    fun typedNameDoesNotFollow() {
+        val state = articleFormState(
+            ArticleFormMode.EDIT, ropeForm.withTypedName("Mine"), withTemplate, FormAttributes("c3", ropeAttributes), FormSaveStatus(),
+        ) { it.ropeErrors() }
+        assertEquals("Mine", state.form.name)
+        assertEquals("Static rope 50 m", state.templateName)
+        assertFalse(state.followsTemplate)
+    }
+
+    @Test
+    fun savedArticleKeepsTheValuesAndWhetherItFollows() {
+        val form = ropeForm.copy(name = "Static rope 50 m")
+        val new = form.toNewArticle(withTemplate, now = 7, newId = ids("a-new"), followsTemplate = true)
+        assertTrue(new.article.nameAuto)
+        assertEquals(ropeValues, new.article.attributes)
+        assertFalse(form.toNewArticle(withTemplate, now = 7, newId = ids("a-new")).article.nameAuto)
+
+        val update = form.toUpdate(withTemplate, now = 7, newId = ids(), followsTemplate = true)
+        assertTrue(update.changes.nameAuto)
+        assertEquals(ropeValues, update.changes.attributes)
+        assertFalse(form.toUpdate(withTemplate, now = 7, newId = ids()).changes.nameAuto)
+    }
+
+    @Test
+    fun storedArticleKeepsItsNameMode() {
+        assertTrue(article.copy(nameAuto = true).toForm().nameAuto)
+        assertFalse(article.toForm().nameAuto)
+        // A new article follows the template by default
+        assertTrue(ArticleForm().nameAuto)
     }
 }

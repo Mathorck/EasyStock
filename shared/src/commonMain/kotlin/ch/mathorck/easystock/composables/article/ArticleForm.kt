@@ -44,6 +44,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.composables.attributes.AttributeFields
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Tracking
@@ -55,6 +57,7 @@ import ch.mathorck.easystock.viewmodels.CategoryMode
 import ch.mathorck.easystock.viewmodels.FieldError
 import ch.mathorck.easystock.viewmodels.toForm
 import ch.mathorck.easystock.viewmodels.validate
+import ch.mathorck.easystock.viewmodels.withTypedName
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.article_category
 import easystock.shared.generated.resources.article_category_name
@@ -82,6 +85,8 @@ import easystock.shared.generated.resources.article_form_type_tool_hint
 import easystock.shared.generated.resources.article_image_section
 import easystock.shared.generated.resources.article_form_unit_hint
 import easystock.shared.generated.resources.article_name
+import easystock.shared.generated.resources.article_name_template_follows
+import easystock.shared.generated.resources.article_name_template_use
 import easystock.shared.generated.resources.article_save
 import easystock.shared.generated.resources.article_sku
 import easystock.shared.generated.resources.article_stock_hint
@@ -98,7 +103,8 @@ private typealias FormChange = ((ArticleForm) -> ArticleForm) -> Unit
  * Full-screen article form, for create and edit (see [ArticleFormMode]).
  * [onDismiss] closes it without saving (close icon or system back).
  * [onImageImported]: a photo was copied for the form, see [ArticleImageEditor].
- * [attributes]: custom attribute fields, shown in edit mode only.
+ * The custom attribute fields of the chosen category are shown in both modes; with a category name template,
+ * the name is filled in from them (see [ArticleFormUiState.templateName]).
  */
 @Composable
 fun ArticleFormDialog(
@@ -107,10 +113,9 @@ fun ArticleFormDialog(
     onImageImported: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
-    attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        ArticleFormScreen(state, onFormChange, onDismiss, onSave, onImageImported = onImageImported, attributes = attributes)
+        ArticleFormScreen(state, onFormChange, onDismiss, onSave, onImageImported = onImageImported)
     }
 }
 
@@ -122,9 +127,8 @@ fun ArticleEditSheet(
     onImageImported: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
-    attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    ArticleFormDialog(state, onFormChange, onImageImported, onDismiss, onSave, attributes)
+    ArticleFormDialog(state, onFormChange, onImageImported, onDismiss, onSave)
 }
 
 @Composable
@@ -135,7 +139,6 @@ fun ArticleFormScreen(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
     onImageImported: (String) -> Unit = {},
-    attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val title = when (state.mode) {
         ArticleFormMode.CREATE -> stringResource(Res.string.article_form_title_new)
@@ -154,7 +157,7 @@ fun ArticleFormScreen(
                     TextButton(onClick = onSave, enabled = state.canSave) { Text(stringResource(Res.string.article_save)) }
                 },
             )
-            ArticleFormContent(state, onFormChange, onImageImported = onImageImported, attributes = attributes)
+            ArticleFormContent(state, onFormChange, onImageImported = onImageImported)
         }
     }
 }
@@ -165,7 +168,6 @@ fun ArticleFormContent(
     onFormChange: FormChange,
     modifier: Modifier = Modifier,
     onImageImported: (String) -> Unit = {},
-    attributes: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val form = state.form
     val errors = state.errors
@@ -187,11 +189,21 @@ fun ArticleFormContent(
         Section(stringResource(Res.string.article_form_section_info)) {
             FormField(
                 value = form.name,
-                onValueChange = { v -> onFormChange { it.copy(name = v) } },
+                onValueChange = { v -> onFormChange { it.withTypedName(v) } },
                 label = stringResource(Res.string.article_name),
                 error = errors.name,
+                supporting = if (state.followsTemplate) stringResource(Res.string.article_name_template_follows) else null,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
+            val templateName = state.templateName
+            if (templateName != null && !state.followsTemplate) {
+                TextButton(onClick = { onFormChange { it.copy(nameAuto = true) } }) {
+                    Text(
+                        stringResource(Res.string.article_name_template_use, templateName.ifEmpty { "…" }),
+                        maxLines = 2,
+                    )
+                }
+            }
             if (isEdit) {
                 FormField(
                     value = form.sku,
@@ -248,9 +260,17 @@ fun ArticleFormContent(
             }
         }
 
-        // TODO(attributes): the custom attribute fields are plugged in through [attributes] (edit mode only).
-        if (isEdit && attributes != null) {
-            Section(stringResource(Res.string.article_form_section_attributes), content = attributes)
+        if (state.attributes.isNotEmpty()) {
+            Section(stringResource(Res.string.article_form_section_attributes)) {
+                AttributeFields(
+                    attributes = state.attributes,
+                    values = form.attributes,
+                    onValuesChange = { v -> onFormChange { it.copy(attributes = v) } },
+                    // A missing required value is not shown as an error, Save stays disabled (as for the fields above)
+                    errors = state.attributeErrors.filterValues { it != AttributeError.REQUIRED },
+                    enabled = !state.saving,
+                )
+            }
         }
 
         if (!isEdit) HintText(stringResource(Res.string.article_form_create_hint))

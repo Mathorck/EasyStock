@@ -13,4 +13,6 @@
     <string name="article_form_type_locked">The type cannot be changed after creation.</string>
     <string name="article_form_unit_hint">e.g. pce, kg, m, l</string>
     <string name="article_form_create_hint">After saving, add the stock, a reference, a description and a low-stock alert on the article page.</string>
+    <string name="article_name_template_follows">Filled in from the category name template</string>
+    <string name="article_name_template_use">Use the template name: %1$s</string>
 </resources>

@@ -21,6 +21,7 @@ Table category [headercolor: #175e7a] {
   id uuid [pk]
   name varchar(100) [not null, unique]
   description text
+  name_template text [note: 'Article name built from attribute values, e.g. "{rope_type} rope {diameter} {length}". Placeholders are attribute_definition.key']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
@@ -66,6 +67,7 @@ Table article [headercolor: #175e7a] {
   id uuid [pk]
   sku varchar(50) [unique, note: 'Optional human-readable internal reference']
   name varchar(255) [not null]
+  name_auto boolean [not null, default: false, note: 'True: name follows category.name_template and is re-rendered when the template or the values change. False: typed by hand']
   description text
   category_id uuid [ref: > category.id]
   tracking varchar(10) [not null, default: 'quantity', note: 'quantity | serial']
