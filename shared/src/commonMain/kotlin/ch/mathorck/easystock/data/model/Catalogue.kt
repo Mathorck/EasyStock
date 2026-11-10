@@ -87,8 +87,8 @@ data class CategoryAttribute(
 )
 data class Article(
     @PrimaryKey val id: String,
-    /** Human-readable internal reference. */
-    val sku: String,
+    /** Optional human-readable internal reference. Unique when set. */
+    val sku: String? = null,
     val name: String,
     val description: String? = null,
     @ColumnInfo(name = "category_id") val categoryId: String? = null,

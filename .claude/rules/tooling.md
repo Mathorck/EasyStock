@@ -9,3 +9,8 @@
   1. `adb.exe -s <device> install -r -t shared/build/outputs/apk/androidTest/shared-androidTest.apk` (built by that Gradle task)
   2. `adb.exe -s <device> shell am instrument -w ch.mathorck.easystock.shared.test/androidx.test.runner.AndroidJUnitRunner`
   3. `adb.exe -s <device> uninstall ch.mathorck.easystock.shared.test`
+
+## Test device
+- Test on the Pixel 10 Pro emulator (AVD `Pixel_10_Pro`), never the `Tablet_Android_11` AVD.
+- Serials change between boots: check with `adb.exe -s <serial> emu avd name`. Start it with `/mnt/c/Users/Admin.MMO/AppData/Local/Android/Sdk/emulator/emulator.exe -avd Pixel_10_Pro` (`cmd.exe /c start` is denied).
+- Other devices may be connected (a phone, a network device): always pass `-s <serial>` and `set ANDROID_SERIAL=<serial>&&` for connected Gradle tasks.

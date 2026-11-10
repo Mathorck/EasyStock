@@ -79,11 +79,17 @@ class AddStockEntryFormTest {
     }
 
     @Test
-    fun newArticleNeedsNameSkuAndUnit() {
+    fun newArticleNeedsNameAndUnitButNotSku() {
         val errors = newForm.copy(name = " ", sku = "", unit = "").errors()
         assertEquals(FieldError.REQUIRED, errors.name)
-        assertEquals(FieldError.REQUIRED, errors.sku)
+        assertNull(errors.sku)
         assertEquals(FieldError.REQUIRED, errors.unit)
+    }
+
+    @Test
+    fun blankSkuIsSavedAsNull() {
+        val article = newForm.copy(sku = "  ").toEntry(emptyList(), now = 7, newId = ids()).newArticle!!
+        assertNull(article.sku)
     }
 
     @Test

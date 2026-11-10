@@ -345,7 +345,7 @@ private fun PickerSheet(
 private fun StockRow(item: ArticleStock) {
     ListItem(
         headlineContent = { Text(item.article.name) },
-        supportingContent = { Text(item.article.sku) },
+        supportingContent = item.article.sku?.let { sku -> { Text(sku) } },
         trailingContent = {
             Column(horizontalAlignment = Alignment.End) {
                 Text(

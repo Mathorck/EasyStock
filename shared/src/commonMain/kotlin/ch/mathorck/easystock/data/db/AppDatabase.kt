@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.data.db
 
+import androidx.room.AutoMigration
 import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
@@ -28,7 +29,11 @@ const val DATABASE_NAME = "easystock.db"
         Item::class,
         StockMovement::class,
     ],
-    version = 1,
+    version = 2,
+    autoMigrations = [
+        // sku becomes nullable
+        AutoMigration(from = 1, to = 2),
+    ],
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

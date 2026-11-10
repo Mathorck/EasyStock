@@ -13,7 +13,7 @@
     <string name="add_stock_article_more">%1$d de plus, affinez la recherche</string>
     <string name="add_stock_change">Changer</string>
     <string name="add_stock_name">Nom *</string>
-    <string name="add_stock_sku">Référence *</string>
+    <string name="add_stock_sku">Référence (facultatif)</string>
     <string name="add_stock_unit">Unité *</string>
     <string name="add_stock_category">Catégorie</string>
     <string name="add_stock_category_none">Aucune</string>

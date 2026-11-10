@@ -64,7 +64,7 @@ Table category_attribute [headercolor: #175e7a] {
 
 Table article [headercolor: #175e7a] {
   id uuid [pk]
-  sku varchar(50) [not null, unique, note: 'Human-readable internal reference']
+  sku varchar(50) [unique, note: 'Optional human-readable internal reference']
   name varchar(255) [not null]
   description text
   category_id uuid [ref: > category.id]

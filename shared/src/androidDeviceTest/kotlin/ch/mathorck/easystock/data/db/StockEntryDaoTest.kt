@@ -14,6 +14,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertFailsWith
 
 class StockEntryDaoTest {
@@ -46,11 +47,11 @@ class StockEntryDaoTest {
         createdAt = 1,
     )
 
-    private fun newEntry(sku: String) = NewStockEntry(
+    private fun newEntry(sku: String?, articleId: String = "nail", movementId: String = "m1") = NewStockEntry(
         newCategory = Category(id = "cat", name = "Hardware", createdAt = 1, updatedAt = 1),
-        newArticle = Article(id = "nail", sku = sku, name = "Nail", categoryId = "cat", createdAt = 1, updatedAt = 1),
+        newArticle = Article(id = articleId, sku = sku, name = "Nail", categoryId = "cat", createdAt = 1, updatedAt = 1),
         newLocation = Location(id = "garage", name = "Garage", parentId = "shelf", createdAt = 1, updatedAt = 1),
-        movement = movement("m1", articleId = "nail", locationId = "garage"),
+        movement = movement(movementId, articleId = articleId, locationId = "garage"),
     )
 
     private suspend fun stockOf(id: String) = articles.observeStock().first().single { it.article.id == id }.stockMilli
@@ -83,6 +84,19 @@ class StockEntryDaoTest {
         assertEquals(1, entries.countLocations())
         assertEquals(0, entries.countCategories())
         assertEquals(0, stockOf("bolt"))
+    }
+
+    @Test
+    fun articlesWithoutSkuDoNotClash() = runBlocking {
+        entries.save(newEntry(null).copy(newLocation = null, newCategory = null).let {
+            it.copy(newArticle = it.newArticle!!.copy(categoryId = null), movement = it.movement.copy(locationId = "shelf"))
+        })
+        entries.save(newEntry(null, articleId = "screw", movementId = "m2").copy(newLocation = null, newCategory = null).let {
+            it.copy(newArticle = it.newArticle!!.copy(categoryId = null), movement = it.movement.copy(locationId = "shelf"))
+        })
+
+        assertNull(articles.getById("nail")?.sku)
+        assertNull(articles.getById("screw")?.sku)
     }
 
     @Test

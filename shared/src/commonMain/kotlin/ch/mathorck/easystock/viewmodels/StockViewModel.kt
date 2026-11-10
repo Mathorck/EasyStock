@@ -54,7 +54,7 @@ data class StockUiState(
 fun List<ArticleStock>.filterByQuery(query: String): List<ArticleStock> {
     val q = query.trim()
     if (q.isEmpty()) return this
-    return filter { it.article.name.contains(q, ignoreCase = true) || it.article.sku.contains(q, ignoreCase = true) }
+    return filter { it.article.name.contains(q, ignoreCase = true) || it.article.sku?.contains(q, ignoreCase = true) == true }
 }
 
 /**

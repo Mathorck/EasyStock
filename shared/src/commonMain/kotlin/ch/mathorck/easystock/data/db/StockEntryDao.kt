@@ -92,7 +92,7 @@ abstract class StockEntryDao {
         }
         entry.newLocation?.let { insertLocation(it) }
         article?.let {
-            if (countArticlesWithSku(it.sku) > 0) throw DuplicateSkuException(it.sku)
+            it.sku?.let { sku -> if (countArticlesWithSku(sku) > 0) throw DuplicateSkuException(sku) }
             insertArticle(it)
         }
         insertMovement(movement)

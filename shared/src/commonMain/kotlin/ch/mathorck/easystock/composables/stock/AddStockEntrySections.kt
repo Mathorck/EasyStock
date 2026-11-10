@@ -166,7 +166,7 @@ private fun ArticleRow(
 ) {
     ListItem(
         headlineContent = { Text(article.name) },
-        supportingContent = { Text(article.sku) },
+        supportingContent = article.sku?.let { sku -> { Text(sku) } },
         leadingContent = if (selected) {
             { Icon(painterResource(Res.drawable.ic_check), contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
         } else {

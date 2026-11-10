@@ -93,7 +93,7 @@ fun List<Article>.entryCandidates(): List<Article> = filter { it.tracking == Tra
 fun List<Article>.matching(query: String): List<Article> {
     val q = query.trim()
     if (q.isEmpty()) return this
-    return filter { it.name.contains(q, ignoreCase = true) || it.sku.contains(q, ignoreCase = true) }
+    return filter { it.name.contains(q, ignoreCase = true) || it.sku?.contains(q, ignoreCase = true) == true }
 }
 
 private const val MAX_LOCATION_DEPTH = 16
@@ -151,8 +151,8 @@ fun AddStockEntryForm.validate(
         article = if (!newArticle && articles.entryCandidates().none { it.id == articleId }) FieldError.REQUIRED else null,
         name = if (newArticle) text(name, MAX_NAME_LENGTH) else null,
         sku = when {
-            !newArticle -> null
-            text(sku, MAX_SKU_LENGTH) != null -> text(sku, MAX_SKU_LENGTH)
+            !newArticle || skuValue.isEmpty() -> null
+            skuValue.length > MAX_SKU_LENGTH -> FieldError.TOO_LONG
             articles.any { it.sku.equals(skuValue, ignoreCase = true) } -> FieldError.DUPLICATE
             rejectedSku != null && rejectedSku.equals(skuValue, ignoreCase = true) -> FieldError.DUPLICATE
             else -> null
@@ -215,7 +215,7 @@ fun AddStockEntryForm.toEntry(categories: List<Category>, now: Long, newId: () -
         }
         Article(
             id = newId(),
-            sku = sku.trim(),
+            sku = sku.trim().ifEmpty { null },
             name = name.trim(),
             categoryId = categoryId,
             tracking = Tracking.QUANTITY,
