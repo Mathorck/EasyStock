@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.min
 import ch.mathorck.easystock.enums.ScanState
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_scan
+import easystock.shared.generated.resources.ic_scan_off
 import easystock.shared.generated.resources.scan_state_error
 import easystock.shared.generated.resources.scan_state_nfc_disabled
 import easystock.shared.generated.resources.scan_state_nfc_unavailable
@@ -46,6 +47,7 @@ import easystock.shared.generated.resources.scan_state_not_found
 import easystock.shared.generated.resources.scan_state_reading
 import easystock.shared.generated.resources.scan_state_ready
 import easystock.shared.generated.resources.scan_state_success
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -56,22 +58,30 @@ fun ScanPage(state: ScanState = ScanState.Ready) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        ScanCircle(state = state, modifier = Modifier.size(min(min(maxWidth, maxHeight) * 0.7f, 360.dp)))
+        ScanCircle(state = state, modifier = Modifier.size(min(min(maxWidth, maxHeight) * 0.9f, 460.dp)))
     }
 }
+
+private const val ECHO_RINGS = 3
+private const val ECHO_GROWTH = 0.3f
 
 @Composable
 private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
     val color by animateColorAsState(state.color())
-    val active = state == ScanState.Ready || state == ScanState.Reading
+    val waiting = state == ScanState.Ready
+    val reading = state == ScanState.Reading
+    val active = waiting || reading
 
     val transition = rememberInfiniteTransition()
     val rotation by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            tween(if (state == ScanState.Reading) 2500 else 10000, easing = LinearEasing),
-        ),
+        animationSpec = infiniteRepeatable(tween(2500, easing = LinearEasing)),
+    )
+    val echo by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)),
     )
     val pulse by transition.animateFloat(
         initialValue = 0.94f,
@@ -85,27 +95,44 @@ private fun ScanCircle(state: ScanState, modifier: Modifier = Modifier) {
     Box(modifier = modifier.scale(if (active) pulse else 1f), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 4.dp.toPx()
-            val radius = (size.minDimension - strokeWidth) / 2
+            // Leave room for the echo rings around the circle
+            val radius = (size.minDimension - strokeWidth) / 2 / (1 + ECHO_GROWTH)
             drawCircle(color = color.copy(alpha = 0.12f), radius = radius)
-            // Dashed ring, rotates only while waiting for or reading a tag
-            rotate(if (active) rotation else 0f) {
-                drawCircle(
-                    color = color,
-                    radius = radius,
-                    style = Stroke(
-                        width = strokeWidth,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(18.dp.toPx(), 10.dp.toPx())),
-                    ),
-                )
+            if (waiting) {
+                // Echo: rings grow out of the circle and fade
+                repeat(ECHO_RINGS) { i ->
+                    val progress = (echo + i.toFloat() / ECHO_RINGS) % 1f
+                    drawCircle(
+                        color = color.copy(alpha = 0.5f * (1 - progress)),
+                        radius = radius * (1 + ECHO_GROWTH * progress),
+                        style = Stroke(width = strokeWidth * (1 - progress / 2)),
+                    )
+                }
+            }
+            if (reading) {
+                // Dashed rotating ring while a tag is read
+                rotate(rotation) {
+                    drawCircle(
+                        color = color,
+                        radius = radius,
+                        style = Stroke(
+                            width = strokeWidth,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(18.dp.toPx(), 10.dp.toPx())),
+                        ),
+                    )
+                }
+            } else {
+                drawCircle(color = color, radius = radius, style = Stroke(width = strokeWidth))
             }
         }
         Column(
-            modifier = Modifier.padding(32.dp),
+            // Keep the content inside the inner circle
+            modifier = Modifier.fillMaxSize(1 / (1 + ECHO_GROWTH)).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
         ) {
             Icon(
-                painter = painterResource(Res.drawable.ic_scan),
+                painter = painterResource(state.icon()),
                 contentDescription = null,
                 tint = color,
                 modifier = Modifier.size(48.dp),
@@ -132,6 +159,11 @@ private fun ScanState.color(): Color = when (this) {
     ScanState.NotFound -> MaterialTheme.colorScheme.secondary
     ScanState.Error -> MaterialTheme.colorScheme.error
     ScanState.NfcDisabled, ScanState.NfcUnavailable -> MaterialTheme.colorScheme.outline
+}
+
+private fun ScanState.icon(): DrawableResource = when (this) {
+    ScanState.NfcDisabled, ScanState.NfcUnavailable -> Res.drawable.ic_scan_off
+    else -> Res.drawable.ic_scan
 }
 
 private fun ScanState.label(): StringResource = when (this) {
