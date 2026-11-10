@@ -1,0 +1,135 @@
+// Inventory schema — shared logical model
+// Targets: SQLite (KMP, json -> TEXT) and PostgreSQL (json -> jsonb)
+// Conventions:
+//   - UUID primary keys (generated client-side, safe for offline sync)
+//   - Timestamps set by the app, always UTC
+//   - Soft delete via deleted_at (needed to sync deletions)
+//   - Enum-like columns are varchar + app validation (SQLite has no enums)
+
+Project inventory {
+  database_type: 'PostgreSQL'
+  Note: 'Same logical schema on SQLite (mobile) and PostgreSQL (server)'
+}
+
+// ---------- Catalogue ----------
+
+Table category [headercolor: #175e7a] {
+  id uuid [pk]
+  name varchar(100) [not null, unique]
+  description text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    updated_at
+  }
+}
+
+Table attribute_definition [headercolor: #175e7a] {
+  id uuid [pk]
+  key varchar(50) [not null, unique, note: 'Immutable once created, used as JSON key in attributes (e.g. "color")']
+  label varchar(100) [not null, note: 'Display name, can be renamed freely']
+  data_type varchar(20) [not null, note: 'text | number | bool | date | enum']
+  unit varchar(20) [note: 'e.g. mm, V, kg']
+  options json [note: 'Allowed values when data_type = enum, e.g. ["red","blue"]']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    updated_at
+  }
+}
+
+Table category_attribute [headercolor: #175e7a] {
+  id uuid [pk]
+  category_id uuid [not null, ref: > category.id]
+  attribute_id uuid [not null, ref: > attribute_definition.id]
+  required boolean [not null, default: false]
+  sort_order int [not null, default: 0]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (category_id, attribute_id) [unique]
+    updated_at
+  }
+}
+
+Table article [headercolor: #175e7a] {
+  id uuid [pk]
+  sku varchar(50) [not null, unique, note: 'Human-readable internal reference']
+  name varchar(255) [not null]
+  description text
+  category_id uuid [ref: > category.id]
+  tracking varchar(10) [not null, default: 'quantity', note: 'quantity | serial']
+  unit varchar(20) [not null, default: 'pce', note: 'pce, kg, m, l...']
+  barcode varchar(64) [unique]
+  threshold decimal(12,3) [note: 'Reorder alert level']
+  image_path text
+  attributes json [note: 'Values keyed by attribute_definition.key, e.g. {"color":"red","length":20}']
+  archived boolean [not null, default: false, note: 'No longer used, kept for history']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp [note: 'Soft delete for sync']
+
+  indexes {
+    category_id
+    updated_at
+  }
+}
+
+// ---------- Physical stock ----------
+
+Table location [headercolor: #2e7d32] {
+  id uuid [pk]
+  name varchar(100) [not null]
+  parent_id uuid [ref: > location.id, note: 'Hierarchy: room > shelf > bin']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    parent_id
+    updated_at
+  }
+}
+
+Table item [headercolor: #2e7d32, note: 'Individual unit, only for articles with tracking = serial (tools, devices...)'] {
+  id uuid [pk]
+  article_id uuid [not null, ref: > article.id]
+  serial_number varchar(100) [unique]
+  status varchar(20) [not null, default: 'available', note: 'available | lent | repair | lost']
+  location_id uuid [ref: > location.id, note: 'Current location (cache, source of truth = movements)']
+  attributes json [note: 'Unit-specific values, same keys as article.attributes']
+  archived boolean [not null, default: false]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    article_id
+    location_id
+    updated_at
+  }
+}
+
+Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or deleted. Stock = SUM(quantity).'] {
+  id uuid [pk]
+  article_id uuid [not null, ref: > article.id]
+  item_id uuid [ref: > item.id, note: 'Set when tracking = serial']
+  location_id uuid [not null, ref: > location.id]
+  quantity decimal(12,3) [not null, note: '+ in / - out (a transfer = two rows)']
+  reason varchar(30) [not null, note: 'purchase | consumption | inventory | transfer | loan | return | loss']
+  comment text
+  occurred_at timestamp [not null, note: 'When it happened (may be offline)']
+  created_at timestamp [not null, note: 'When it was recorded']
+
+  indexes {
+    (article_id, location_id)
+    item_id
+    created_at
+  }
+}
