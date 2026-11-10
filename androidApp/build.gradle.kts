@@ -20,11 +20,11 @@ dependencies {
 }
 
 android {
-    namespace = "ch.mathorck.stockapp2"
+    namespace = "ch.mathorck.easystock"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "ch.mathorck.stockapp2"
+        applicationId = "ch.mathorck.easystock"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1

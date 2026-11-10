@@ -1,22 +1,22 @@
-package ch.mathorck.stockapp2.composables
+package ch.mathorck.easystock.composables
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import ch.mathorck.stockapp2.enums.Page
+import ch.mathorck.easystock.enums.Page
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import stockapp2.shared.generated.resources.Res
-import stockapp2.shared.generated.resources.ic_scan
-import stockapp2.shared.generated.resources.ic_stock
-import stockapp2.shared.generated.resources.ic_settings
-import stockapp2.shared.generated.resources.nav_scan
-import stockapp2.shared.generated.resources.nav_stock
-import stockapp2.shared.generated.resources.nav_settings
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_scan
+import easystock.shared.generated.resources.ic_stock
+import easystock.shared.generated.resources.ic_settings
+import easystock.shared.generated.resources.nav_scan
+import easystock.shared.generated.resources.nav_stock
+import easystock.shared.generated.resources.nav_settings
 
 @Composable
 fun NavBarComposable(currentPage: Page, onPageSelected: (Page) -> Unit) {

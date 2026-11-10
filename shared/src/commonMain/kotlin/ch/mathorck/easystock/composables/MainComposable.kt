@@ -1,4 +1,4 @@
-package ch.mathorck.stockapp2.composables
+package ch.mathorck.easystock.composables
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,10 +12,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import ch.mathorck.stockapp2.composables.pages.StockPage
-import ch.mathorck.stockapp2.composables.pages.ScanPage
-import ch.mathorck.stockapp2.composables.pages.SettingsPage
-import ch.mathorck.stockapp2.enums.Page
+import ch.mathorck.easystock.composables.pages.StockPage
+import ch.mathorck.easystock.composables.pages.ScanPage
+import ch.mathorck.easystock.composables.pages.SettingsPage
+import ch.mathorck.easystock.enums.Page
 
 @Composable
 fun MainComposable() {

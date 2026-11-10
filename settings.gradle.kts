@@ -1,4 +1,4 @@
-rootProject.name = "StockApp2"
+rootProject.name = "EasyStock"
 
 pluginManagement {
     repositories {

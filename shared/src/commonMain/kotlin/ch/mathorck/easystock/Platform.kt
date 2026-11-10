@@ -1,4 +1,4 @@
-package ch.mathorck.stockapp2
+package ch.mathorck.easystock
 
 interface Platform {
     val name: String

@@ -1,4 +1,4 @@
-package ch.mathorck.stockapp2.enums
+package ch.mathorck.easystock.enums
 
 enum class Page {
     Stock,

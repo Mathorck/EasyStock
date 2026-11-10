@@ -1,4 +1,4 @@
-package ch.mathorck.stockapp2.composables.pages
+package ch.mathorck.easystock.composables.pages
 
 import androidx.compose.runtime.Composable
 

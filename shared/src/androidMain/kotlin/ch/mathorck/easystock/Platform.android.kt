@@ -1,4 +1,4 @@
-package ch.mathorck.stockapp2
+package ch.mathorck.easystock
 
 import android.os.Build
 

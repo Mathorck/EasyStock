@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		BAFE36A53B60DF7C54647B23 /* StockApp2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StockApp2.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BAFE36A53B60DF7C54647B23 /* EasyStock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EasyStock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,7 +59,7 @@
 		63591C11B6CDAE869510E502 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				BAFE36A53B60DF7C54647B23 /* StockApp2.app */,
+				BAFE36A53B60DF7C54647B23 /* EasyStock.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,7 +87,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = BAFE36A53B60DF7C54647B23 /* StockApp2.app */;
+			productReference = BAFE36A53B60DF7C54647B23 /* EasyStock.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

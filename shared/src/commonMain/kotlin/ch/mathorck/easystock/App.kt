@@ -1,4 +1,4 @@
-package ch.mathorck.stockapp2
+package ch.mathorck.easystock
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -14,11 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import ch.mathorck.stockapp2.composables.MainComposable
+import ch.mathorck.easystock.composables.MainComposable
 import org.jetbrains.compose.resources.painterResource
 
-import stockapp2.shared.generated.resources.Res
-import stockapp2.shared.generated.resources.compose_multiplatform
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.compose_multiplatform
 
 @Composable
 @Preview
