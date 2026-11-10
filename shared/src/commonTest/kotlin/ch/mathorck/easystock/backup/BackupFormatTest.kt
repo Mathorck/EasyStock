@@ -91,6 +91,44 @@ class BackupFormatTest {
     }
 
     @Test
+    fun schema5ReviewTablesAreWritten() {
+        val reviews = BackupCodec.encodeTable(full(), BackupTable.STOCK_REVIEW).decodeToString()
+        val lines = BackupCodec.encodeTable(full(), BackupTable.STOCK_REVIEW_LINE).decodeToString()
+
+        assertTrue("\"status\":\"finished\"" in reviews)
+        assertTrue("\"result\":\"elsewhere\"" in lines)
+        assertTrue("\"expected_quantity\":2500" in lines)
+        assertTrue("\"found_location_id\":\"room\"" in lines)
+    }
+
+    /** A schema 4 backup has no review tables: none, and the rest is read as before. */
+    @Test
+    fun schema4BackupHasNoReviews() {
+        val data = full()
+        val tables = BackupTable.entries
+            .filter { it != BackupTable.STOCK_REVIEW && it != BackupTable.STOCK_REVIEW_LINE }
+            .associateWith { BackupCodec.encodeTable(data, it) }
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
+
+        val decoded = BackupCodec.decodeTables { tables[it] }
+
+        assertEquals(data.copy(reviews = emptyList(), reviewLines = emptyList()), decoded)
+        validateBackup(decoded)
+    }
+
+    @Test
+    fun reviewLineOfUnknownReviewIsDamaged() {
+        val data = full().copy(reviews = emptyList())
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun reviewOfUnknownLocationIsDamaged() {
+        val data = full().let { it.copy(reviews = it.reviews.map { r -> r.copy(locationId = "nowhere") }) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
     fun missingTableFileIsAnEmptyTable() {
         assertEquals(BackupData(), BackupCodec.decodeTables { null })
     }
@@ -160,13 +198,14 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(4, DB_VERSION)
+        assertEquals(5, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
     @Test
     fun olderSchemaIsAccepted() {
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 1))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
     }
 
     @Test

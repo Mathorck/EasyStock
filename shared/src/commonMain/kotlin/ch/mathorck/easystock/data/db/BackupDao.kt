@@ -17,6 +17,8 @@ import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.data.model.StockReview
+import ch.mathorck.easystock.data.model.StockReviewLine
 
 /**
  * Whole-database reads and writes for backups. Every row, soft-deleted ones included.
@@ -32,6 +34,8 @@ abstract class BackupDao {
     @Query("SELECT * FROM article ORDER BY id") protected abstract suspend fun articles(): List<Article>
     @Query("SELECT * FROM item ORDER BY id") protected abstract suspend fun items(): List<Item>
     @Query("SELECT * FROM stock_movement ORDER BY created_at, id") protected abstract suspend fun movements(): List<StockMovement>
+    @Query("SELECT * FROM stock_review ORDER BY id") protected abstract suspend fun reviews(): List<StockReview>
+    @Query("SELECT * FROM stock_review_line ORDER BY id") protected abstract suspend fun reviewLines(): List<StockReviewLine>
 
     @Insert protected abstract suspend fun insertCategories(rows: List<Category>)
     @Insert protected abstract suspend fun insertAttributeDefinitions(rows: List<AttributeDefinition>)
@@ -40,6 +44,8 @@ abstract class BackupDao {
     @Insert protected abstract suspend fun insertArticles(rows: List<Article>)
     @Insert protected abstract suspend fun insertItems(rows: List<Item>)
     @Insert protected abstract suspend fun insertMovements(rows: List<StockMovement>)
+    @Insert protected abstract suspend fun insertReviews(rows: List<StockReview>)
+    @Insert protected abstract suspend fun insertReviewLines(rows: List<StockReviewLine>)
 
     @Update protected abstract suspend fun updateCategories(rows: List<Category>)
     @Update protected abstract suspend fun updateAttributeDefinitions(rows: List<AttributeDefinition>)
@@ -47,9 +53,13 @@ abstract class BackupDao {
     @Update protected abstract suspend fun updateLocations(rows: List<Location>)
     @Update protected abstract suspend fun updateArticles(rows: List<Article>)
     @Update protected abstract suspend fun updateItems(rows: List<Item>)
+    @Update protected abstract suspend fun updateReviews(rows: List<StockReview>)
+    @Update protected abstract suspend fun updateReviewLines(rows: List<StockReviewLine>)
 
     // Children first (foreign keys). A replace is the only place rows are hard-deleted:
     // the user explicitly asked to wipe this phone and restore a backup.
+    @Query("DELETE FROM stock_review_line") protected abstract suspend fun deleteReviewLines()
+    @Query("DELETE FROM stock_review") protected abstract suspend fun deleteReviews()
     @Query("DELETE FROM stock_movement") protected abstract suspend fun deleteMovements()
     @Query("DELETE FROM item") protected abstract suspend fun deleteItems()
     @Query("DELETE FROM article") protected abstract suspend fun deleteArticles()
@@ -76,11 +86,15 @@ abstract class BackupDao {
         articles = articles(),
         items = items(),
         movements = movements(),
+        reviews = reviews(),
+        reviewLines = reviewLines(),
     )
 
     /** Wipes every table and writes [data]. `item.location_id` is recomputed from the movements. */
     @Transaction
     open suspend fun replaceAll(data: BackupData) {
+        deleteReviewLines()
+        deleteReviews()
         deleteMovements()
         deleteItems()
         deleteArticles()
@@ -96,6 +110,8 @@ abstract class BackupDao {
         insertArticles(rows.articles)
         insertItems(rows.items)
         insertMovements(rows.movements)
+        insertReviews(rows.reviews)
+        insertReviewLines(rows.reviewLines)
     }
 
     /** Reads the local rows, plans the merge of [incoming] and writes it, in one transaction. */
@@ -127,6 +143,10 @@ abstract class BackupDao {
         updateItems(updates.items)
         // Append-only
         insertMovements(plan.inserts.movements)
+        insertReviews(plan.inserts.reviews)
+        updateReviews(updates.reviews)
+        insertReviewLines(plan.inserts.reviewLines)
+        updateReviewLines(updates.reviewLines)
         plan.itemLocationFixes.forEach { (id, location) -> setItemLocation(id, location) }
     }
 }

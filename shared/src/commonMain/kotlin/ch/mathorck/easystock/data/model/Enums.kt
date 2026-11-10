@@ -29,6 +29,23 @@ enum class ItemStatus { AVAILABLE, LENT, REPAIR, LOST }
 @Serializable(with = MovementReasonSerializer::class)
 enum class MovementReason { PURCHASE, CONSUMPTION, INVENTORY, TRANSFER, LOAN, RETURN, LOSS }
 
+@Serializable(with = ReviewStatusSerializer::class)
+enum class ReviewStatus { OPEN, FINISHED, CANCELLED }
+
+/** What the user found for a review line. */
+@Serializable(with = ReviewResultSerializer::class)
+enum class ReviewResult {
+    UNCHECKED,
+    /** Quantity line: counted_quantity is set. */
+    COUNTED,
+    /** Serial unit found at the line location. */
+    PRESENT,
+    /** Serial unit not found. */
+    MISSING,
+    /** Serial unit found at found_location_id. */
+    ELSEWHERE,
+}
+
 /** Value stored in the database. */
 val Enum<*>.dbValue: String get() = name.lowercase()
 
@@ -53,3 +70,5 @@ object AttributeDataTypeSerializer : DbEnumSerializer<AttributeDataType>("Attrib
 object TrackingSerializer : DbEnumSerializer<Tracking>("Tracking", Tracking.entries.toTypedArray())
 object ItemStatusSerializer : DbEnumSerializer<ItemStatus>("ItemStatus", ItemStatus.entries.toTypedArray())
 object MovementReasonSerializer : DbEnumSerializer<MovementReason>("MovementReason", MovementReason.entries.toTypedArray())
+object ReviewStatusSerializer : DbEnumSerializer<ReviewStatus>("ReviewStatus", ReviewStatus.entries.toTypedArray())
+object ReviewResultSerializer : DbEnumSerializer<ReviewResult>("ReviewResult", ReviewResult.entries.toTypedArray())

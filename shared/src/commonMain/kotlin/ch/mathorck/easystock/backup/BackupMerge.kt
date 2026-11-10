@@ -9,6 +9,8 @@ import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.data.model.StockReview
+import ch.mathorck.easystock.data.model.StockReviewLine
 
 /** Max lengths of the columns that may get a " (2)" suffix (docs/schema.dbml). */
 const val MAX_CATEGORY_NAME_LENGTH = 100
@@ -77,7 +79,9 @@ data class MergePlan(
  * - a row on both sides: the newer `updated_at` wins (a soft delete is an update), the local one on a tie;
  * - `stock_movement` is append-only: missing ids are added, existing ones never changed;
  * - unique columns are resolved deterministically (rows sorted by id) and reported in [MergePlan.conflicts];
- * - `item.location_id` is recomputed from the merged movements.
+ * - `item.location_id` is recomputed from the merged movements;
+ * - stock reviews and their lines merge like the other rows (newer wins). A finished review never adds
+ *   movements here: its corrections are movements already, merged with the others.
  * [incoming] must be valid ([validateBackup]). Pure: nothing is written.
  */
 fun planMerge(local: BackupData, incoming: BackupData): MergePlan = Merger(local, incoming).plan()
@@ -146,6 +150,8 @@ private class Merger(private val local: BackupData, private val incoming: Backup
         val articles = mergeArticles()
         val items = mergeItems()
         val movements = mergeMovements()
+        val reviews = mergeRows(local.reviews, incoming.reviews, StockReview::id, StockReview::updatedAt)
+        val reviewLines = mergeRows(local.reviewLines, incoming.reviewLines, StockReviewLine::id, StockReviewLine::updatedAt)
 
         // Cached item location, from the merged movements
         val fixes = LinkedHashMap<String, String?>()
@@ -171,6 +177,8 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             articles = articles.final.values.toList(),
             items = items.final.values.toList(),
             movements = movements.final.values.toList(),
+            reviews = reviews.final.values.toList(),
+            reviewLines = reviewLines.final.values.toList(),
         )
         // Defensive: the plan must satisfy every database constraint before anything is written
         validateBackup(result)
@@ -188,6 +196,8 @@ private class Merger(private val local: BackupData, private val incoming: Backup
                 articles = articles.inserted.values.toList(),
                 items = items.inserted.values.toList(),
                 movements = movements.inserted.values.toList(),
+                reviews = reviews.inserted.values.toList(),
+                reviewLines = reviewLines.inserted.values.toList(),
             ),
             updates = BackupData(
                 categories = categories.updated.values.toList(),
@@ -196,6 +206,8 @@ private class Merger(private val local: BackupData, private val incoming: Backup
                 locations = locations.updated.values.toList(),
                 articles = articles.updated.values.toList(),
                 items = items.updated.values.toList(),
+                reviews = reviews.updated.values.toList(),
+                reviewLines = reviewLines.updated.values.toList(),
             ),
             itemLocationFixes = fixes,
             conflicts = conflicts.toList(),
@@ -356,6 +368,17 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             }
             serials.replace(previous, candidate)
             if (previous == null) table.insert(candidate) else table.update(candidate)
+        }
+        return table
+    }
+
+    /** Rows without unique columns: added when new, replaced when the incoming one is newer. */
+    private fun <T> mergeRows(localRows: List<T>, incomingRows: List<T>, id: (T) -> String, updatedAt: (T) -> Long): Table<T> {
+        val table = Table(localRows, id)
+        for (row in incomingRows.sortedBy(id)) {
+            val previous = table.final[id(row)]
+            if (!newer(row, previous, updatedAt)) continue
+            if (previous == null) table.insert(row) else table.update(row)
         }
         return table
     }

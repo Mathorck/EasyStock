@@ -8,7 +8,11 @@ import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.data.model.ReviewResult
+import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.data.model.StockReview
+import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.data.model.Tracking
 
 /** Rows for the device tests (commonTest fixtures are not visible here). */
@@ -68,6 +72,20 @@ object DeviceFixtures {
             movement("m3", "drill", "van", 1000, item = "i1", at = 7),
             movement("m4", "bolt", "shelf", 25_500, at = 8),
         ),
+        reviews = listOf(
+            StockReview(id = "r1", locationId = "room", status = ReviewStatus.FINISHED, startedAt = 8, finishedAt = 9, createdAt = 8, updatedAt = 9),
+        ),
+        reviewLines = listOf(
+            StockReviewLine(
+                id = "rl1", reviewId = "r1", articleId = "drill", itemId = "i1", locationId = "shelf", expectedMilli = 1000,
+                result = ReviewResult.ELSEWHERE, foundLocationId = "van", infoFlagged = true, note = "label",
+                checkedAt = 8, createdAt = 8, updatedAt = 8,
+            ),
+            StockReviewLine(
+                id = "rl2", reviewId = "r1", articleId = "bolt", locationId = "shelf", expectedMilli = 25_500,
+                countedMilli = 25_000, result = ReviewResult.COUNTED, checkedAt = 8, createdAt = 8, updatedAt = 8,
+            ),
+        ),
     )
 
     /** Same content whatever the row order. */
@@ -79,5 +97,7 @@ object DeviceFixtures {
         articles = articles.sortedBy { it.id },
         items = items.sortedBy { it.id },
         movements = movements.sortedBy { it.id },
+        reviews = reviews.sortedBy { it.id },
+        reviewLines = reviewLines.sortedBy { it.id },
     )
 }

@@ -9,7 +9,11 @@ import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.data.model.ReviewResult
+import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.data.model.StockReview
+import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.data.model.Tracking
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -52,6 +56,15 @@ object BackupFixtures {
             reason = MovementReason.PURCHASE, occurredAt = at, createdAt = at,
         )
 
+    fun review(id: String, location: String, at: Long = 10, status: ReviewStatus = ReviewStatus.OPEN) =
+        StockReview(id = id, locationId = location, status = status, startedAt = 1, createdAt = 1, updatedAt = at)
+
+    fun reviewLine(id: String, review: String, article: String, location: String, item: String? = null, at: Long = 10) =
+        StockReviewLine(
+            id = id, reviewId = review, articleId = article, itemId = item, locationId = location,
+            expectedMilli = 1000, createdAt = 1, updatedAt = at,
+        )
+
     /** One row of every kind, every column set, with a soft-deleted row. */
     fun full(): BackupData = BackupData(
         categories = listOf(category("c1", "Tools"), category("c2", "Old", deletedAt = 20, at = 20)),
@@ -87,6 +100,23 @@ object BackupFixtures {
             StockMovement(
                 id = "m2", articleId = "art1", itemId = "i1", locationId = "shelf", quantityMilli = -1000,
                 reason = MovementReason.LOAN, occurredAt = 7, createdAt = 8,
+            ),
+        ),
+        reviews = listOf(
+            StockReview(
+                id = "r1", locationId = "room", status = ReviewStatus.FINISHED, startedAt = 3, finishedAt = 9,
+                createdAt = 3, updatedAt = 9,
+            ),
+        ),
+        reviewLines = listOf(
+            StockReviewLine(
+                id = "rl1", reviewId = "r1", articleId = "art1", itemId = "i1", locationId = "shelf",
+                expectedMilli = 1000, countedMilli = null, result = ReviewResult.ELSEWHERE, foundLocationId = "room",
+                infoFlagged = true, note = "label faded", checkedAt = 4, createdAt = 3, updatedAt = 4, deletedAt = null,
+            ),
+            StockReviewLine(
+                id = "rl2", reviewId = "r1", articleId = "art2", locationId = "room", expectedMilli = 2500,
+                countedMilli = 2000, result = ReviewResult.COUNTED, checkedAt = 4, createdAt = 3, updatedAt = 4,
             ),
         ),
     )

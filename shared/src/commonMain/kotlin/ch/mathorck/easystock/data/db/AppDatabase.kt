@@ -14,13 +14,15 @@ import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.data.model.StockReview
+import ch.mathorck.easystock.data.model.StockReviewLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 const val DATABASE_NAME = "easystock.db"
 
 /** Current schema version. Also written in backups (see backup/BackupManifest). */
-const val DB_VERSION = 4
+const val DB_VERSION = 5
 
 @Database(
     entities = [
@@ -31,6 +33,8 @@ const val DB_VERSION = 4
         Location::class,
         Item::class,
         StockMovement::class,
+        StockReview::class,
+        StockReviewLine::class,
     ],
     version = DB_VERSION,
     autoMigrations = [
@@ -40,6 +44,8 @@ const val DB_VERSION = 4
         AutoMigration(from = 2, to = 3),
         // location.icon, location.color
         AutoMigration(from = 3, to = 4),
+        // stock_review, stock_review_line
+        AutoMigration(from = 4, to = 5),
     ],
     exportSchema = true,
 )
@@ -55,6 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun stockActionDao(): StockActionDao
     abstract fun attributeDao(): AttributeDao
     abstract fun backupDao(): BackupDao
+    abstract fun reviewDao(): ReviewDao
 }
 
 // Implemented by the Room compiler on each platform

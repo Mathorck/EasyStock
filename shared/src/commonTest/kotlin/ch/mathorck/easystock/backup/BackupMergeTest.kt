@@ -7,6 +7,9 @@ import ch.mathorck.easystock.backup.BackupFixtures.item
 import ch.mathorck.easystock.backup.BackupFixtures.link
 import ch.mathorck.easystock.backup.BackupFixtures.location
 import ch.mathorck.easystock.backup.BackupFixtures.movement
+import ch.mathorck.easystock.backup.BackupFixtures.review
+import ch.mathorck.easystock.backup.BackupFixtures.reviewLine
+import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.composables.attributes.MeasureUnits
 import ch.mathorck.easystock.composables.attributes.MeasureValue
 import ch.mathorck.easystock.composables.attributes.readMeasure
@@ -20,6 +23,43 @@ import kotlin.test.assertTrue
 
 class BackupMergeTest {
     private fun conflictTypes(plan: MergePlan) = plan.conflicts.map { it.type }
+
+    @Test
+    fun reviewsAndLinesMergeByIdNewerWins() {
+        val base = BackupData(locations = listOf(location("room")), articles = listOf(article("a")))
+        val local = base.copy(
+            reviews = listOf(review("r1", "room", at = 10)),
+            reviewLines = listOf(reviewLine("l1", "r1", "a", "room", at = 10)),
+        )
+        val incoming = base.copy(
+            reviews = listOf(review("r1", "room", at = 20, status = ReviewStatus.FINISHED), review("r2", "room")),
+            reviewLines = listOf(reviewLine("l1", "r1", "a", "room", at = 5), reviewLine("l2", "r2", "a", "room")),
+        )
+
+        val plan = planMerge(local, incoming)
+
+        assertEquals(listOf("r2"), plan.inserts.reviews.map { it.id })
+        assertEquals(ReviewStatus.FINISHED, plan.updates.reviews.single().status)
+        assertEquals(listOf("l2"), plan.inserts.reviewLines.map { it.id })
+        assertTrue(plan.updates.reviewLines.isEmpty())
+        assertEquals(setOf("l1", "l2"), plan.result.reviewLines.map { it.id }.toSet())
+        assertTrue(plan.inserts.movements.isEmpty())
+    }
+
+    @Test
+    fun backupWithoutReviewsKeepsTheLocalOnes() {
+        val local = BackupData(
+            locations = listOf(location("room")), articles = listOf(article("a")),
+            reviews = listOf(review("r1", "room")), reviewLines = listOf(reviewLine("l1", "r1", "a", "room")),
+        )
+        val incoming = BackupData(locations = listOf(location("room")), articles = listOf(article("a")))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.isEmpty)
+        assertEquals(1, plan.result.reviews.size)
+        assertEquals(1, plan.result.reviewLines.size)
+    }
 
     @Test
     fun rowsOnOneSideOnlyAreAdded() {

@@ -8,6 +8,8 @@ import ch.mathorck.easystock.data.model.CategoryAttribute
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.data.model.StockReview
+import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.images.isValidImagePath
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -49,6 +51,8 @@ enum class BackupTable(val tableName: String) {
     ARTICLE("article"),
     ITEM("item"),
     STOCK_MOVEMENT("stock_movement"),
+    STOCK_REVIEW("stock_review"),
+    STOCK_REVIEW_LINE("stock_review_line"),
     ;
 
     val entryName: String get() = "$TABLES_DIR/$tableName.json"
@@ -76,6 +80,9 @@ data class BackupData(
     @SerialName("article") val articles: List<Article> = emptyList(),
     @SerialName("item") val items: List<Item> = emptyList(),
     @SerialName("stock_movement") val movements: List<StockMovement> = emptyList(),
+    /** Schema 5+. Older backups have none. */
+    @SerialName("stock_review") val reviews: List<StockReview> = emptyList(),
+    @SerialName("stock_review_line") val reviewLines: List<StockReviewLine> = emptyList(),
 ) {
     fun counts(): Map<String, Int> = mapOf(
         BackupTable.CATEGORY.tableName to categories.size,
@@ -85,6 +92,8 @@ data class BackupData(
         BackupTable.ARTICLE.tableName to articles.size,
         BackupTable.ITEM.tableName to items.size,
         BackupTable.STOCK_MOVEMENT.tableName to movements.size,
+        BackupTable.STOCK_REVIEW.tableName to reviews.size,
+        BackupTable.STOCK_REVIEW_LINE.tableName to reviewLines.size,
     )
 
     /** Photo files referenced by the articles, deleted articles included (photos are kept on soft delete). */
@@ -185,6 +194,8 @@ object BackupCodec {
         BackupTable.ARTICLE -> encode(Article.serializer(), data.articles)
         BackupTable.ITEM -> encode(Item.serializer(), data.items)
         BackupTable.STOCK_MOVEMENT -> encode(StockMovement.serializer(), data.movements)
+        BackupTable.STOCK_REVIEW -> encode(StockReview.serializer(), data.reviews)
+        BackupTable.STOCK_REVIEW_LINE -> encode(StockReviewLine.serializer(), data.reviewLines)
     }
 
     /** [read] returns the JSON of a table, or null when the archive has no file for it (empty table). */
@@ -199,6 +210,8 @@ object BackupCodec {
             articles = table(BackupTable.ARTICLE, Article.serializer()),
             items = table(BackupTable.ITEM, Item.serializer()),
             movements = table(BackupTable.STOCK_MOVEMENT, StockMovement.serializer()),
+            reviews = table(BackupTable.STOCK_REVIEW, StockReview.serializer()),
+            reviewLines = table(BackupTable.STOCK_REVIEW_LINE, StockReviewLine.serializer()),
         )
     }
 
@@ -240,6 +253,8 @@ fun validateBackup(data: BackupData) {
     val articles = ids(data.articles, { it.id }, "article")
     val items = ids(data.items, { it.id }, "item")
     ids(data.movements, { it.id }, "stock_movement")
+    val reviews = ids(data.reviews, { it.id }, "stock_review")
+    ids(data.reviewLines, { it.id }, "stock_review_line")
 
     // Database unique indexes are case-sensitive; these are the exact values
     unique(data.categories, { it.name }, "category name")
@@ -264,6 +279,12 @@ fun validateBackup(data: BackupData) {
     data.movements.forEach {
         if (it.articleId !in articles || it.locationId !in locations) damaged("Unknown movement reference")
         if (it.itemId != null && it.itemId !in items) damaged("Unknown movement item")
+    }
+    data.reviews.forEach { if (it.locationId !in locations) damaged("Unknown review location") }
+    data.reviewLines.forEach {
+        if (it.reviewId !in reviews || it.articleId !in articles || it.locationId !in locations) damaged("Unknown review line reference")
+        if (it.itemId != null && it.itemId !in items) damaged("Unknown review line item")
+        if (it.foundLocationId != null && it.foundLocationId !in locations) damaged("Unknown review line location")
     }
     if (locationCycle(data.locations) != null) damaged("Location cycle")
 }

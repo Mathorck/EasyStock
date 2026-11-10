@@ -155,6 +155,8 @@ import easystock.shared.generated.resources.backup_table_item
 import easystock.shared.generated.resources.backup_table_location
 import easystock.shared.generated.resources.backup_table_photos
 import easystock.shared.generated.resources.backup_table_stock_movement
+import easystock.shared.generated.resources.backup_table_stock_review
+import easystock.shared.generated.resources.backup_table_stock_review_line
 import easystock.shared.generated.resources.backup_title
 import easystock.shared.generated.resources.backup_unlock
 import easystock.shared.generated.resources.backup_unlock_message
@@ -623,6 +625,8 @@ private fun BackupTable.label(): StringResource = when (this) {
     BackupTable.ARTICLE -> Res.string.backup_table_article
     BackupTable.ITEM -> Res.string.backup_table_item
     BackupTable.STOCK_MOVEMENT -> Res.string.backup_table_stock_movement
+    BackupTable.STOCK_REVIEW -> Res.string.backup_table_stock_review
+    BackupTable.STOCK_REVIEW_LINE -> Res.string.backup_table_stock_review_line
 }
 
 internal fun BackupError.message(): StringResource = when (this) {

@@ -141,3 +141,48 @@ Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or
     created_at
   }
 }
+
+// ---------- Stock review (physical inventory audit) ----------
+
+Table stock_review [headercolor: #6a1b9a, note: 'A physical count of a location and all its active descendants. Nothing changes the stock until it is finished: the corrections are then added as new stock_movement rows (reason inventory, transfer, return or loss)'] {
+  id uuid [pk]
+  location_id uuid [not null, ref: > location.id, note: 'Root of the scope: this location and all its active descendants']
+  status varchar(20) [not null, default: 'open', note: 'open | finished | cancelled. At most one open review per location_id (checked by the app)']
+  started_at timestamp [not null]
+  finished_at timestamp [note: 'Set when finished (corrections applied) or cancelled']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    location_id
+    updated_at
+  }
+}
+
+Table stock_review_line [headercolor: #6a1b9a, note: 'One position to check: an article at a location (tracking = quantity) or one serial unit'] {
+  id uuid [pk]
+  review_id uuid [not null, ref: > stock_review.id]
+  article_id uuid [not null, ref: > article.id]
+  item_id uuid [ref: > item.id, note: 'Set for a serial unit']
+  location_id uuid [not null, ref: > location.id, note: 'Where the position is expected, or where an unexpected unit was found']
+  expected_quantity decimal(12,3) [not null, note: 'SUM(quantity) at the location when the line was last checked (when created before). 0 for a position found here unexpectedly']
+  counted_quantity decimal(12,3) [note: 'Counted quantity, null while not counted. Correction on finish = counted - expected, added to the stock of that moment']
+  result varchar(20) [not null, default: 'unchecked', note: 'unchecked | counted | present | missing | elsewhere']
+  found_location_id uuid [ref: > location.id, note: 'Where the unit was found when result = elsewhere']
+  info_flagged boolean [not null, default: false, note: 'The article or unit info needs fixing (see note). Independent of result']
+  note text
+  checked_at timestamp [note: 'Last time the result was set']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    review_id
+    article_id
+    item_id
+    location_id
+    found_location_id
+    updated_at
+  }
+}

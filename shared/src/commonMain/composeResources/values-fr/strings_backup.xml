@@ -85,6 +85,8 @@
     <string name="backup_table_article">Articles</string>
     <string name="backup_table_item">Unités</string>
     <string name="backup_table_stock_movement">Mouvements</string>
+    <string name="backup_table_stock_review">Révisions de stock</string>
+    <string name="backup_table_stock_review_line">Lignes de révision</string>
     <string name="backup_table_photos">Photos</string>
     <string name="backup_count">%1$s : %2$d</string>
 

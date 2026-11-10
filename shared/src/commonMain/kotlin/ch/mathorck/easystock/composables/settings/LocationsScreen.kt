@@ -104,6 +104,14 @@ import easystock.shared.generated.resources.locations_parent_none
 import easystock.shared.generated.resources.locations_stock_articles
 import easystock.shared.generated.resources.locations_stock_none
 import easystock.shared.generated.resources.locations_title
+import easystock.shared.generated.resources.ic_fact_check
+import easystock.shared.generated.resources.review_last_reviewed
+import easystock.shared.generated.resources.review_location_action
+import ch.mathorck.easystock.composables.review.ReviewScreen
+import ch.mathorck.easystock.composables.review.rememberReviewLauncher
+import ch.mathorck.easystock.viewmodels.formatDateTime
+import ch.mathorck.easystock.viewmodels.lastReviewedByLocation
+import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -114,6 +122,17 @@ fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val db = rememberAppDatabase()
     val viewModel = viewModel(key = "settings-locations") { LocationListViewModel(db.locationDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val reviewDao = db.reviewDao()
+    val reviewed by remember(reviewDao) { reviewDao.observeLastReviewed() }.collectAsStateWithLifecycle(emptyList())
+    val lastReviewed = remember(reviewed, state.rows) {
+        lastReviewedByLocation(state.rows.map { it.location }, reviewed.associate { it.locationId to it.finishedAt })
+    }
+    val review = rememberReviewLauncher(reviewDao)
+    val openReview = review.open
+    if (openReview != null) {
+        ReviewScreen(reviewId = openReview, onBack = review.close, modifier = modifier)
+        return
+    }
     val back = {
         viewModel.cancel()
         onBack()
@@ -131,6 +150,8 @@ fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         onCancel = viewModel::cancel,
         onMessageShown = viewModel::consumeMessage,
         modifier = modifier,
+        lastReviewed = lastReviewed,
+        onReview = { review.start(it.id) },
     )
     state.dialog?.let { dialog ->
         LocationDialog(
@@ -154,6 +175,9 @@ fun LocationsContent(
     onCancel: () -> Unit,
     onMessageShown: () -> Unit = {},
     modifier: Modifier = Modifier,
+    /** Last finished review covering each location (its own or an ancestor's), epoch millis UTC. */
+    lastReviewed: Map<String, Long> = emptyMap(),
+    onReview: ((Location) -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val messageText = state.message?.let { it.text() }
@@ -178,7 +202,14 @@ fun LocationsContent(
             }
             LazyColumn {
                 items(state.rows, key = { it.location.id }) { row ->
-                    LocationRowItem(row, onEdit = onEdit, onAddSub = onAddSub, onDelete = onDelete)
+                    LocationRowItem(
+                        row,
+                        lastReviewed = lastReviewed[row.location.id],
+                        onEdit = onEdit,
+                        onAddSub = onAddSub,
+                        onDelete = onDelete,
+                        onReview = onReview,
+                    )
                 }
             }
         }
@@ -213,25 +244,33 @@ private fun LocationMessage.text(): String = when (this) {
 @Composable
 private fun LocationRowItem(
     row: LocationRow,
+    lastReviewed: Long?,
     onEdit: (Location) -> Unit,
     onAddSub: (Location) -> Unit,
     onDelete: (Location) -> Unit,
+    onReview: ((Location) -> Unit)?,
 ) {
     val location = row.location
+    val timeZone = remember { TimeZone.currentSystemDefault() }
     ListItem(
         headlineContent = { Text(location.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
-            Text(
-                if (row.articleCount == 0) {
-                    stringResource(Res.string.locations_stock_none)
-                } else {
-                    pluralStringResource(Res.plurals.locations_stock_articles, row.articleCount, row.articleCount)
-                },
-            )
+            val stock = if (row.articleCount == 0) {
+                stringResource(Res.string.locations_stock_none)
+            } else {
+                pluralStringResource(Res.plurals.locations_stock_articles, row.articleCount, row.articleCount)
+            }
+            val reviewed = lastReviewed?.let { "\n" + stringResource(Res.string.review_last_reviewed, formatDateTime(it, timeZone)) } ?: ""
+            Text(stock + reviewed)
         },
         leadingContent = { LocationIcon(location.icon, location.color) },
         trailingContent = {
             Row {
+                if (onReview != null) {
+                    IconButton(onClick = { onReview(location) }) {
+                        Icon(painterResource(Res.drawable.ic_fact_check), contentDescription = stringResource(Res.string.review_location_action))
+                    }
+                }
                 IconButton(onClick = { onAddSub(location) }) {
                     Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.locations_add_sub))
                 }

@@ -85,6 +85,8 @@
     <string name="backup_table_article">Artikel</string>
     <string name="backup_table_item">Einheiten</string>
     <string name="backup_table_stock_movement">Bewegungen</string>
+    <string name="backup_table_stock_review">Inventuren</string>
+    <string name="backup_table_stock_review_line">Inventurzeilen</string>
     <string name="backup_table_photos">Fotos</string>
     <string name="backup_count">%1$s: %2$d</string>
 

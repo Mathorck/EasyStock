@@ -4,6 +4,8 @@ import androidx.room.TypeConverter
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.data.model.ReviewResult
+import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.data.model.Tracking
 import ch.mathorck.easystock.data.model.dbValue
 import ch.mathorck.easystock.data.model.enumFromDb
@@ -27,6 +29,12 @@ class Converters {
 
     @TypeConverter fun fromMovementReason(value: MovementReason): String = value.dbValue
     @TypeConverter fun toMovementReason(value: String): MovementReason = enumFromDb(value)
+
+    @TypeConverter fun fromReviewStatus(value: ReviewStatus): String = value.dbValue
+    @TypeConverter fun toReviewStatus(value: String): ReviewStatus = enumFromDb(value)
+
+    @TypeConverter fun fromReviewResult(value: ReviewResult): String = value.dbValue
+    @TypeConverter fun toReviewResult(value: String): ReviewResult = enumFromDb(value)
 
     @TypeConverter fun fromJsonObject(value: JsonObject?): String? = value?.toString()
     @TypeConverter fun toJsonObject(value: String?): JsonObject? =

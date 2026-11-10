@@ -31,6 +31,8 @@ fun BackupData.rowCount(table: BackupTable): Int = when (table) {
     BackupTable.ARTICLE -> articles.size
     BackupTable.ITEM -> items.size
     BackupTable.STOCK_MOVEMENT -> movements.size
+    BackupTable.STOCK_REVIEW -> reviews.size
+    BackupTable.STOCK_REVIEW_LINE -> reviewLines.size
 }
 
 private fun BackupData.perTable(): Map<BackupTable, Int> =
