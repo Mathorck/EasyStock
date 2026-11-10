@@ -84,8 +84,8 @@ fun ReviewsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     }
     LaunchedEffect(message) {
         if (message == ReviewMessage.FAILED) {
-            viewModel.consumeMessage()
             snackbar.showSnackbar(getString(Res.string.review_msg_failed))
+            viewModel.consumeMessage()
         }
     }
 

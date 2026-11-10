@@ -10,8 +10,8 @@
     <string name="review_list_empty">No reviews yet. Start one to count a location.</string>
     <string name="review_status_open">Open</string>
     <string name="review_status_finished">Finished</string>
-    <string name="review_list_counts">%1$d / %2$d checked · %3$d discrepancies</string>
-    <string name="review_list_flagged">%1$d info to fix</string>
+    <string name="review_list_counts">%1$d / %2$d checked · discrepancies: %3$d</string>
+    <string name="review_list_flagged">info to fix: %1$d</string>
     <string name="review_list_started">Started %1$s</string>
     <string name="review_list_finished">Finished %1$s</string>
     <string name="review_location_deleted">Deleted location</string>

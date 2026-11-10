@@ -10,8 +10,8 @@
     <string name="review_list_empty">Aucune révision. Commencez-en une pour compter un emplacement.</string>
     <string name="review_status_open">En cours</string>
     <string name="review_status_finished">Terminée</string>
-    <string name="review_list_counts">%1$d / %2$d vérifiées · %3$d écarts</string>
-    <string name="review_list_flagged">%1$d infos à corriger</string>
+    <string name="review_list_counts">%1$d / %2$d vérifiées · écarts : %3$d</string>
+    <string name="review_list_flagged">infos à corriger : %1$d</string>
     <string name="review_list_started">Commencée le %1$s</string>
     <string name="review_list_finished">Terminée le %1$s</string>
     <string name="review_location_deleted">Emplacement supprimé</string>

@@ -180,7 +180,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
     }
     LaunchedEffect(message) {
         val current = message ?: return@LaunchedEffect
-        viewModel.consumeMessage()
+        // Consume after showing: consuming first changes the key and cancels this effect
         snackbar.showSnackbar(
             getString(
                 when (current) {
@@ -193,6 +193,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
                 },
             ),
         )
+        viewModel.consumeMessage()
     }
     LaunchedEffect(jumpTo, state.groups) {
         val lineId = jumpTo ?: return@LaunchedEffect

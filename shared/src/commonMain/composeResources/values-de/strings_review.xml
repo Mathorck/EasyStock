@@ -10,8 +10,8 @@
     <string name="review_list_empty">Noch keine Inventur. Starten Sie eine, um einen Lagerort zu zählen.</string>
     <string name="review_status_open">Offen</string>
     <string name="review_status_finished">Abgeschlossen</string>
-    <string name="review_list_counts">%1$d / %2$d geprüft · %3$d Abweichungen</string>
-    <string name="review_list_flagged">%1$d Angaben zu korrigieren</string>
+    <string name="review_list_counts">%1$d / %2$d geprüft · Abweichungen: %3$d</string>
+    <string name="review_list_flagged">zu korrigieren: %1$d</string>
     <string name="review_list_started">Begonnen am %1$s</string>
     <string name="review_list_finished">Abgeschlossen am %1$s</string>
     <string name="review_location_deleted">Gelöschter Lagerort</string>
