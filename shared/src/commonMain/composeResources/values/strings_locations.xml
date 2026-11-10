@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_locations">Locations</string>
+    <string name="settings_locations_summary">Rooms, shelves and bins where stock is kept</string>
+    <string name="locations_title">Locations</string>
+    <string name="locations_add">Add location</string>
+    <string name="locations_add_sub">Add sub-location</string>
+    <string name="locations_empty">No locations yet. Add a room, then shelves and bins inside it.</string>
+    <string name="locations_new_title">New location</string>
+    <string name="locations_edit_title">Edit location</string>
+    <string name="locations_name">Name *</string>
+    <string name="locations_parent">Inside</string>
+    <string name="locations_parent_none">Top level</string>
+    <string name="locations_error_duplicate">A location with this name already exists here</string>
+    <string name="locations_error_save">Could not save. Try again.</string>
+    <string name="locations_stock_none">No stock</string>
+    <string name="locations_delete_title">Delete location?</string>
+    <string name="locations_delete_message">“%1$s” will be deleted.</string>
+    <string name="locations_blocked_stock">“%1$s” or a sub-location still holds stock. Move the stock first.</string>
+    <string name="locations_delete_failed">Could not delete. Try again.</string>
+    <plurals name="locations_stock_articles">
+        <item quantity="one">%1$d article in stock</item>
+        <item quantity="other">%1$d articles in stock</item>
+    </plurals>
+    <plurals name="locations_delete_children_message">
+        <item quantity="one">“%2$s” and its %1$d sub-location will be deleted.</item>
+        <item quantity="other">“%2$s” and its %1$d sub-locations will be deleted.</item>
+    </plurals>
+    <plurals name="locations_deleted">
+        <item quantity="one">%1$d location deleted</item>
+        <item quantity="other">%1$d locations deleted</item>
+    </plurals>
+</resources>

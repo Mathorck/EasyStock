@@ -43,6 +43,7 @@ const val DATABASE_NAME = "easystock.db"
 abstract class AppDatabase : RoomDatabase() {
     abstract fun articleDao(): ArticleDao
     abstract fun stockDao(): StockDao
+    abstract fun locationDao(): LocationDao
     abstract fun categoryDao(): CategoryDao
     abstract fun articleFormDao(): ArticleFormDao
     abstract fun articleDetailDao(): ArticleDetailDao

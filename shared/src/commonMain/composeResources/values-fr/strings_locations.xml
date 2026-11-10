@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_locations">Emplacements</string>
+    <string name="settings_locations_summary">Pièces, étagères et bacs où le stock est rangé</string>
+    <string name="locations_title">Emplacements</string>
+    <string name="locations_add">Ajouter un emplacement</string>
+    <string name="locations_add_sub">Ajouter un sous-emplacement</string>
+    <string name="locations_empty">Aucun emplacement. Ajoutez une pièce, puis des étagères et des bacs à l’intérieur.</string>
+    <string name="locations_new_title">Nouvel emplacement</string>
+    <string name="locations_edit_title">Modifier l’emplacement</string>
+    <string name="locations_name">Nom *</string>
+    <string name="locations_parent">Dans</string>
+    <string name="locations_parent_none">Niveau supérieur</string>
+    <string name="locations_error_duplicate">Un emplacement portant ce nom existe déjà ici</string>
+    <string name="locations_error_save">Enregistrement impossible. Réessayez.</string>
+    <string name="locations_stock_none">Aucun stock</string>
+    <string name="locations_delete_title">Supprimer l’emplacement ?</string>
+    <string name="locations_delete_message">« %1$s » sera supprimé.</string>
+    <string name="locations_blocked_stock">« %1$s » ou un sous-emplacement contient encore du stock. Déplacez d’abord le stock.</string>
+    <string name="locations_delete_failed">Suppression impossible. Réessayez.</string>
+    <plurals name="locations_stock_articles">
+        <item quantity="one">%1$d article en stock</item>
+        <item quantity="other">%1$d articles en stock</item>
+    </plurals>
+    <plurals name="locations_delete_children_message">
+        <item quantity="one">« %2$s » et son %1$d sous-emplacement seront supprimés.</item>
+        <item quantity="other">« %2$s » et ses %1$d sous-emplacements seront supprimés.</item>
+    </plurals>
+    <plurals name="locations_deleted">
+        <item quantity="one">%1$d emplacement supprimé</item>
+        <item quantity="other">%1$d emplacements supprimés</item>
+    </plurals>
+</resources>

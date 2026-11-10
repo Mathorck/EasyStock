@@ -1,0 +1,313 @@
+package ch.mathorck.easystock.composables.settings
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import ch.mathorck.easystock.data.db.rememberAppDatabase
+import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.viewmodels.LocationDialogState
+import ch.mathorck.easystock.viewmodels.LocationError
+import ch.mathorck.easystock.viewmodels.LocationForm
+import ch.mathorck.easystock.viewmodels.LocationListUiState
+import ch.mathorck.easystock.viewmodels.LocationListViewModel
+import ch.mathorck.easystock.viewmodels.LocationMessage
+import ch.mathorck.easystock.viewmodels.LocationRow
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.attributes_cancel
+import easystock.shared.generated.resources.attributes_delete
+import easystock.shared.generated.resources.attributes_error_too_long
+import easystock.shared.generated.resources.attributes_save
+import easystock.shared.generated.resources.ic_add
+import easystock.shared.generated.resources.ic_delete
+import easystock.shared.generated.resources.ic_location
+import easystock.shared.generated.resources.locations_add
+import easystock.shared.generated.resources.locations_add_sub
+import easystock.shared.generated.resources.locations_blocked_stock
+import easystock.shared.generated.resources.locations_delete_children_message
+import easystock.shared.generated.resources.locations_delete_failed
+import easystock.shared.generated.resources.locations_delete_message
+import easystock.shared.generated.resources.locations_delete_title
+import easystock.shared.generated.resources.locations_deleted
+import easystock.shared.generated.resources.locations_edit_title
+import easystock.shared.generated.resources.locations_empty
+import easystock.shared.generated.resources.locations_error_duplicate
+import easystock.shared.generated.resources.locations_error_save
+import easystock.shared.generated.resources.locations_name
+import easystock.shared.generated.resources.locations_new_title
+import easystock.shared.generated.resources.locations_parent
+import easystock.shared.generated.resources.locations_parent_none
+import easystock.shared.generated.resources.locations_stock_articles
+import easystock.shared.generated.resources.locations_stock_none
+import easystock.shared.generated.resources.locations_title
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/** Settings > Locations. [onBack] runs on the arrow and the system back. */
+@Composable
+fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val db = rememberAppDatabase()
+    val viewModel = viewModel(key = "settings-locations") { LocationListViewModel(db.locationDao()) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val back = {
+        viewModel.cancel()
+        onBack()
+    }
+    NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = back)
+
+    LocationsContent(
+        state = state,
+        onBack = back,
+        onAdd = { viewModel.startCreate() },
+        onAddSub = viewModel::startCreate,
+        onEdit = viewModel::startEdit,
+        onDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onCancel = viewModel::cancel,
+        onMessageShown = viewModel::consumeMessage,
+        modifier = modifier,
+    )
+    state.dialog?.let { dialog ->
+        LocationDialog(
+            state = dialog,
+            onFormChange = viewModel::updateForm,
+            onDismiss = viewModel::cancel,
+            onSave = viewModel::save,
+        )
+    }
+}
+
+@Composable
+fun LocationsContent(
+    state: LocationListUiState,
+    onBack: () -> Unit,
+    onAdd: () -> Unit,
+    onAddSub: (Location) -> Unit,
+    onEdit: (Location) -> Unit,
+    onDelete: (Location) -> Unit,
+    onConfirmDelete: () -> Unit,
+    onCancel: () -> Unit,
+    onMessageShown: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val snackbar = remember { SnackbarHostState() }
+    val messageText = state.message?.let { it.text() }
+    LaunchedEffect(state.message) {
+        if (messageText != null) {
+            snackbar.showSnackbar(messageText)
+            onMessageShown()
+        }
+    }
+    Box(modifier) {
+        SettingsSubpage(
+            title = stringResource(Res.string.locations_title),
+            onBack = onBack,
+            actions = {
+                IconButton(onClick = onAdd) {
+                    Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.locations_add))
+                }
+            },
+        ) {
+            if (!state.loading && state.rows.isEmpty()) {
+                EmptyListHint(stringResource(Res.string.locations_empty))
+            }
+            LazyColumn {
+                items(state.rows, key = { it.location.id }) { row ->
+                    LocationRowItem(row, onEdit = onEdit, onAddSub = onAddSub, onDelete = onDelete)
+                }
+            }
+        }
+        SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    state.pendingDelete?.let { request ->
+        ConfirmDeleteDialog(
+            title = stringResource(Res.string.locations_delete_title),
+            message = if (request.descendantCount > 0) {
+                pluralStringResource(
+                    Res.plurals.locations_delete_children_message,
+                    request.descendantCount,
+                    request.descendantCount,
+                    request.location.name,
+                )
+            } else {
+                stringResource(Res.string.locations_delete_message, request.location.name)
+            },
+            onConfirm = onConfirmDelete,
+            onDismiss = onCancel,
+        )
+    }
+}
+
+@Composable
+private fun LocationMessage.text(): String = when (this) {
+    is LocationMessage.HasStock -> stringResource(Res.string.locations_blocked_stock, name)
+    is LocationMessage.Deleted -> pluralStringResource(Res.plurals.locations_deleted, count, count)
+    LocationMessage.DeleteFailed -> stringResource(Res.string.locations_delete_failed)
+}
+
+@Composable
+private fun LocationRowItem(
+    row: LocationRow,
+    onEdit: (Location) -> Unit,
+    onAddSub: (Location) -> Unit,
+    onDelete: (Location) -> Unit,
+) {
+    val location = row.location
+    ListItem(
+        headlineContent = { Text(location.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Text(
+                if (row.articleCount == 0) {
+                    stringResource(Res.string.locations_stock_none)
+                } else {
+                    pluralStringResource(Res.plurals.locations_stock_articles, row.articleCount, row.articleCount)
+                },
+            )
+        },
+        leadingContent = { Icon(painterResource(Res.drawable.ic_location), contentDescription = null) },
+        trailingContent = {
+            Row {
+                IconButton(onClick = { onAddSub(location) }) {
+                    Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.locations_add_sub))
+                }
+                IconButton(onClick = { onDelete(location) }) {
+                    Icon(painterResource(Res.drawable.ic_delete), contentDescription = stringResource(Res.string.attributes_delete))
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier
+            .clickable { onEdit(location) }
+            .padding(start = (row.depth.coerceAtMost(8) * 20).dp),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocationDialog(
+    state: LocationDialogState,
+    onFormChange: ((LocationForm) -> LocationForm) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+) {
+    val form = state.form
+    val isNew = state.editing == null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (isNew) Res.string.locations_new_title else Res.string.locations_edit_title)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                val nameError = when (state.error) {
+                    LocationError.TOO_LONG -> stringResource(Res.string.attributes_error_too_long)
+                    LocationError.DUPLICATE -> stringResource(Res.string.locations_error_duplicate)
+                    else -> null
+                }
+                OutlinedTextField(
+                    value = form.name,
+                    onValueChange = { value -> onFormChange { it.copy(name = value) } },
+                    label = { Text(stringResource(Res.string.locations_name)) },
+                    isError = nameError != null,
+                    supportingText = nameError?.let { { Text(it) } },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ParentDropdown(state, onSelected = { parentId -> onFormChange { it.copy(parentId = parentId) } })
+                if (state.saveFailed) {
+                    Text(
+                        stringResource(Res.string.locations_error_save),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSave, enabled = state.canSave) { Text(stringResource(Res.string.attributes_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.attributes_cancel)) }
+        },
+    )
+}
+
+/** Parent picker: top level, then the tree indented. The location itself and its descendants are not offered. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ParentDropdown(state: LocationDialogState, onSelected: (String?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val none = stringResource(Res.string.locations_parent_none)
+    val selected = state.parents.firstOrNull { it.location.id == state.form.parentId }?.location?.name ?: none
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(Res.string.locations_parent)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            singleLine = true,
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(none) },
+                onClick = {
+                    expanded = false
+                    onSelected(null)
+                },
+                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+            )
+            state.parents.forEach { node ->
+                DropdownMenuItem(
+                    text = { Text(node.location.name, modifier = Modifier.padding(start = (node.depth.coerceAtMost(8) * 16).dp)) },
+                    onClick = {
+                        expanded = false
+                        onSelected(node.location.id)
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                )
+            }
+        }
+    }
+}

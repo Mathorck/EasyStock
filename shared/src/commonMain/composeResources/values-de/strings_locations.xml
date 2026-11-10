@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_locations">Standorte</string>
+    <string name="settings_locations_summary">Räume, Regale und Boxen, in denen der Bestand lagert</string>
+    <string name="locations_title">Standorte</string>
+    <string name="locations_add">Standort hinzufügen</string>
+    <string name="locations_add_sub">Unterstandort hinzufügen</string>
+    <string name="locations_empty">Noch keine Standorte. Füge einen Raum hinzu, dann Regale und Boxen darin.</string>
+    <string name="locations_new_title">Neuer Standort</string>
+    <string name="locations_edit_title">Standort bearbeiten</string>
+    <string name="locations_name">Name *</string>
+    <string name="locations_parent">In</string>
+    <string name="locations_parent_none">Oberste Ebene</string>
+    <string name="locations_error_duplicate">Ein Standort mit diesem Namen existiert hier bereits</string>
+    <string name="locations_error_save">Speichern nicht möglich. Versuche es erneut.</string>
+    <string name="locations_stock_none">Kein Bestand</string>
+    <string name="locations_delete_title">Standort löschen?</string>
+    <string name="locations_delete_message">„%1$s“ wird gelöscht.</string>
+    <string name="locations_blocked_stock">„%1$s“ oder ein Unterstandort enthält noch Bestand. Verschiebe zuerst den Bestand.</string>
+    <string name="locations_delete_failed">Löschen nicht möglich. Versuche es erneut.</string>
+    <plurals name="locations_stock_articles">
+        <item quantity="one">%1$d Artikel auf Lager</item>
+        <item quantity="other">%1$d Artikel auf Lager</item>
+    </plurals>
+    <plurals name="locations_delete_children_message">
+        <item quantity="one">„%2$s“ und sein %1$d Unterstandort werden gelöscht.</item>
+        <item quantity="other">„%2$s“ und seine %1$d Unterstandorte werden gelöscht.</item>
+    </plurals>
+    <plurals name="locations_deleted">
+        <item quantity="one">%1$d Standort gelöscht</item>
+        <item quantity="other">%1$d Standorte gelöscht</item>
+    </plurals>
+</resources>

@@ -14,7 +14,7 @@ interface StockDao {
     suspend fun insertLocation(location: Location)
 
     /** All locations (flat list, use parentId for the hierarchy), sorted by name. */
-    @Query("SELECT * FROM location WHERE deleted_at IS NULL ORDER BY name")
+    @Query("SELECT * FROM location WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE, id")
     fun observeLocations(): Flow<List<Location>>
 
     /** A transfer is two movements: one negative, one positive. */

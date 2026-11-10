@@ -33,11 +33,15 @@ import ch.mathorck.easystock.applyAppLanguage
 import ch.mathorck.easystock.currentAppLanguage
 import ch.mathorck.easystock.composables.settings.AttributesScreen
 import ch.mathorck.easystock.composables.settings.CategoriesScreen
+import ch.mathorck.easystock.composables.settings.LocationsScreen
 import ch.mathorck.easystock.enums.AppLanguage
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_category
 import easystock.shared.generated.resources.ic_chevron_right
 import easystock.shared.generated.resources.ic_label
+import easystock.shared.generated.resources.ic_location
+import easystock.shared.generated.resources.settings_locations
+import easystock.shared.generated.resources.settings_locations_summary
 import easystock.shared.generated.resources.ic_language
 import easystock.shared.generated.resources.settings_attributes
 import easystock.shared.generated.resources.settings_attributes_summary
@@ -57,7 +61,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Full-screen subpages opened from the settings list. */
-enum class SettingsSubpageId { Attributes, Categories }
+enum class SettingsSubpageId { Attributes, Categories, Locations }
 
 @Composable
 fun SettingsPage() {
@@ -67,6 +71,7 @@ fun SettingsPage() {
     when (subpage) {
         SettingsSubpageId.Attributes -> AttributesScreen(onBack = { subpage = null })
         SettingsSubpageId.Categories -> CategoriesScreen(onBack = { subpage = null })
+        SettingsSubpageId.Locations -> LocationsScreen(onBack = { subpage = null })
         null -> SettingsContent(
             language = language,
             onLanguageSelected = {
@@ -110,6 +115,12 @@ fun SettingsContent(
             summary = stringResource(Res.string.settings_categories_summary),
             icon = Res.drawable.ic_category,
             onClick = { onOpen(SettingsSubpageId.Categories) },
+        )
+        SubpageItem(
+            title = stringResource(Res.string.settings_locations),
+            summary = stringResource(Res.string.settings_locations_summary),
+            icon = Res.drawable.ic_location,
+            onClick = { onOpen(SettingsSubpageId.Locations) },
         )
     }
 
