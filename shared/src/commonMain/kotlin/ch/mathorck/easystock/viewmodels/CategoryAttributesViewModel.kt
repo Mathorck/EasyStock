@@ -233,7 +233,7 @@ class CategoryAttributesViewModel(
                 )
                 draft.value = null
                 templateDraft.value = TemplateDraft()
-                status.value = DraftStatus(renamed = renamed)
+                status.value = DraftStatus(renamed = renamed.takeIf { it > 0 })
             } catch (e: CancellationException) {
                 throw e
             } catch (e: AttributeNotFoundException) {

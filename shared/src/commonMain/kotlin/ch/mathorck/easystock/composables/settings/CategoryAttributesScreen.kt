@@ -179,19 +179,7 @@ fun CategoryAttributesContent(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
-        state.renamedCount?.let { count ->
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    pluralStringResource(Res.plurals.category_template_renamed, count, count),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onRenamedSeen) {
-                    Icon(painterResource(Res.drawable.ic_close), contentDescription = null)
-                }
-            }
-        }
+        state.renamedCount?.let { RenamedArticlesMessage(it, onRenamedSeen) }
         LazyColumn {
             if (state.rows.isEmpty()) {
                 item(key = "empty") { EmptyListHint(stringResource(Res.string.attributes_category_linked_empty)) }
@@ -297,6 +285,22 @@ private fun AddAttributeButton(state: CategoryAttributesUiState, onAdd: (String)
     }
 }
 
+/** "N articles renamed" after a save, with a close button. */
+@Composable
+internal fun RenamedArticlesMessage(count: Int, onDismiss: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            pluralStringResource(Res.plurals.category_template_renamed, count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onDismiss) {
+            Icon(painterResource(Res.drawable.ic_close), contentDescription = stringResource(Res.string.attributes_cancel))
+        }
+    }
+}
+
 /** Name template field, its keys (tap to insert at the cursor), the error or a preview. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -307,9 +311,20 @@ private fun NameTemplateSection(
     onTemplateChange: (String) -> Unit,
     onApplyToAllChange: (Boolean) -> Unit,
 ) {
-    // Local value for the cursor; follows the state when it changes from outside (load, save, discard)
+    // Local value for the cursor. The state comes back a frame later: follow it only when it changed from
+    // outside (load, save, discard), not when it echoes what was typed.
     var field by remember { mutableStateOf(TextFieldValue(template.text, TextRange(template.text.length))) }
-    if (field.text != template.text) field = TextFieldValue(template.text, TextRange(template.text.length))
+    var lastSent by remember { mutableStateOf(template.text) }
+    LaunchedEffect(template.text) {
+        if (template.text != lastSent && template.text != field.text) {
+            field = TextFieldValue(template.text, TextRange(template.text.length))
+            lastSent = template.text
+        }
+    }
+    val send = { text: String ->
+        lastSent = text
+        onTemplateChange(text)
+    }
 
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(Res.string.category_template_title), style = MaterialTheme.typography.titleMedium)
@@ -323,7 +338,7 @@ private fun NameTemplateSection(
             onValueChange = { v ->
                 val value = if (v.text.length > MAX_NAME_TEMPLATE_LENGTH) field else v
                 field = value
-                if (value.text != template.text) onTemplateChange(value.text)
+                if (value.text != lastSent) send(value.text)
             },
             label = { Text(stringResource(Res.string.category_template_label)) },
             isError = template.error != null,
@@ -352,7 +367,7 @@ private fun NameTemplateSection(
                             val (text, cursor) = insertPlaceholder(field.text, field.selection.min, field.selection.max, key)
                             if (text.length <= MAX_NAME_TEMPLATE_LENGTH) {
                                 field = TextFieldValue(text, TextRange(cursor))
-                                onTemplateChange(text)
+                                send(text)
                             }
                         },
                         label = { Text("{$key}") },
