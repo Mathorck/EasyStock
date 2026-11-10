@@ -9,4 +9,13 @@
     <string name="article_image_loading">Adding the photo…</string>
     <string name="article_image_error">The photo could not be added.</string>
     <string name="article_image_no_camera">No camera app found.</string>
+    <string name="article_image_crop">Crop</string>
+    <string name="article_image_crop_title">Crop photo</string>
+    <string name="article_image_crop_free">Free</string>
+    <string name="article_image_crop_square">Square</string>
+    <string name="article_image_crop_rotate">Rotate</string>
+    <string name="article_image_crop_confirm">Done</string>
+    <string name="article_image_crop_cancel">Cancel</string>
+    <string name="article_image_crop_saving">Saving the photo…</string>
+    <string name="article_image_crop_area">Crop area: drag the corners, edges or the inside</string>
 </resources>
