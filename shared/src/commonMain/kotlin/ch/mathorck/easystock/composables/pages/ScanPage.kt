@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables.pages
 
+import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
@@ -13,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,6 +43,13 @@ import ch.mathorck.easystock.enums.ScanState
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_scan
 import easystock.shared.generated.resources.ic_scan_off
+import easystock.shared.generated.resources.scan_hint_error
+import easystock.shared.generated.resources.scan_hint_nfc_disabled
+import easystock.shared.generated.resources.scan_hint_nfc_unavailable
+import easystock.shared.generated.resources.scan_hint_not_found
+import easystock.shared.generated.resources.scan_hint_reading
+import easystock.shared.generated.resources.scan_hint_ready
+import easystock.shared.generated.resources.scan_hint_success
 import easystock.shared.generated.resources.scan_state_error
 import easystock.shared.generated.resources.scan_state_nfc_disabled
 import easystock.shared.generated.resources.scan_state_nfc_unavailable
@@ -58,7 +68,23 @@ fun ScanPage(state: ScanState = ScanState.Ready) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        ScanCircle(state = state, modifier = Modifier.size(min(min(maxWidth, maxHeight) * 0.9f, 460.dp)))
+        val circleSize = min(min(maxWidth, maxHeight * 0.75f), 460.dp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            ScanCircle(state = state, modifier = Modifier.size(circleSize))
+            // More detail about the state, under the circle
+            AnimatedContent(
+                targetState = state,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+            ) { target ->
+                Text(
+                    text = stringResource(target.hint()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = 320.dp),
+                )
+            }
+        }
     }
 }
 
@@ -166,6 +192,16 @@ private fun ScanState.icon(): DrawableResource = when (this) {
     else -> Res.drawable.ic_scan
 }
 
+private fun ScanState.hint(): StringResource = when (this) {
+    ScanState.Ready -> Res.string.scan_hint_ready
+    ScanState.Reading -> Res.string.scan_hint_reading
+    ScanState.Success -> Res.string.scan_hint_success
+    ScanState.NotFound -> Res.string.scan_hint_not_found
+    ScanState.Error -> Res.string.scan_hint_error
+    ScanState.NfcDisabled -> Res.string.scan_hint_nfc_disabled
+    ScanState.NfcUnavailable -> Res.string.scan_hint_nfc_unavailable
+}
+
 private fun ScanState.label(): StringResource = when (this) {
     ScanState.Ready -> Res.string.scan_state_ready
     ScanState.Reading -> Res.string.scan_state_reading
@@ -179,7 +215,7 @@ private fun ScanState.label(): StringResource = when (this) {
 @Preview(showBackground = true)
 @Composable
 private fun ScanPagePreview() {
-    MaterialTheme {
+    EasyStockTheme {
         ScanPage()
     }
 }
@@ -187,7 +223,7 @@ private fun ScanPagePreview() {
 @Preview(showBackground = true)
 @Composable
 private fun ScanPageReadingPreview() {
-    MaterialTheme {
+    EasyStockTheme {
         ScanPage(ScanState.Reading)
     }
 }
@@ -195,7 +231,7 @@ private fun ScanPageReadingPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun ScanPageSuccessPreview() {
-    MaterialTheme {
+    EasyStockTheme {
         ScanPage(ScanState.Success)
     }
 }
@@ -203,7 +239,7 @@ private fun ScanPageSuccessPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun ScanPageErrorPreview() {
-    MaterialTheme {
+    EasyStockTheme {
         ScanPage(ScanState.Error)
     }
 }
@@ -211,7 +247,17 @@ private fun ScanPageErrorPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun ScanPageNfcDisabledPreview() {
-    MaterialTheme {
+    EasyStockTheme {
         ScanPage(ScanState.NfcDisabled)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScanPageDarkPreview() {
+    EasyStockTheme(darkTheme = true) {
+        Box(Modifier.background(MaterialTheme.colorScheme.primaryContainer)) {
+            ScanPage()
+        }
     }
 }

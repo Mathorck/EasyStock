@@ -9,4 +9,11 @@
     <string name="scan_state_error">Could not read the tag, try again</string>
     <string name="scan_state_nfc_disabled">NFC is turned off. Enable it in your settings</string>
     <string name="scan_state_nfc_unavailable">This device does not support NFC</string>
+    <string name="scan_hint_ready">Hold the back of your phone against the NFC tag on the article.</string>
+    <string name="scan_hint_reading">Keep the phone still until the tag is read.</string>
+    <string name="scan_hint_success">Opening the article.</string>
+    <string name="scan_hint_not_found">This tag is not linked to an article yet. You can link it to one.</string>
+    <string name="scan_hint_error">Move the phone slowly over the tag. Its NFC antenna is usually near the camera.</string>
+    <string name="scan_hint_nfc_disabled">Scanning needs NFC. Turn it on, then come back to this page.</string>
+    <string name="scan_hint_nfc_unavailable">You can still manage your stock from the Stock page.</string>
 </resources>
