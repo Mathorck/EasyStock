@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="add_stock_title">Ajouter du stock</string>
+    <string name="add_stock_section_article">Article</string>
+    <string name="add_stock_section_location">Emplacement</string>
+    <string name="add_stock_section_entry">Entrée</string>
+    <string name="add_stock_mode_existing">Existant</string>
+    <string name="add_stock_mode_new">Nouveau</string>
+    <string name="add_stock_article_search">Rechercher par nom ou référence</string>
+    <string name="add_stock_article_empty">Aucun article. Créez-en un nouveau.</string>
+    <string name="add_stock_article_no_match">Aucun article ne correspond à « %1$s »</string>
+    <string name="add_stock_article_create">Créer « %1$s »</string>
+    <string name="add_stock_article_more">%1$d de plus, affinez la recherche</string>
+    <string name="add_stock_change">Changer</string>
+    <string name="add_stock_name">Nom *</string>
+    <string name="add_stock_sku">Référence *</string>
+    <string name="add_stock_unit">Unité *</string>
+    <string name="add_stock_category">Catégorie</string>
+    <string name="add_stock_category_none">Aucune</string>
+    <string name="add_stock_category_new">Nouvelle catégorie…</string>
+    <string name="add_stock_category_name">Nom de la catégorie *</string>
+    <string name="add_stock_threshold">Alerte de stock bas à</string>
+    <string name="add_stock_threshold_hint">Facultatif. Avertit quand le stock descend à ce niveau.</string>
+    <string name="add_stock_location">Emplacement *</string>
+    <string name="add_stock_location_empty">Aucun emplacement. Créez-en un nouveau.</string>
+    <string name="add_stock_location_name">Nom de l’emplacement *</string>
+    <string name="add_stock_location_parent">Dans</string>
+    <string name="add_stock_location_top_level">Niveau principal</string>
+    <string name="add_stock_quantity">Quantité *</string>
+    <string name="add_stock_reason">Motif</string>
+    <string name="add_stock_reason_purchase">Achat</string>
+    <string name="add_stock_reason_return">Retour</string>
+    <string name="add_stock_reason_inventory">Inventaire</string>
+    <string name="add_stock_comment">Commentaire</string>
+    <string name="add_stock_cancel">Annuler</string>
+    <string name="add_stock_save">Enregistrer</string>
+    <string name="add_stock_error_required">Obligatoire</string>
+    <string name="add_stock_error_too_long">Trop long</string>
+    <string name="add_stock_error_sku_taken">Cette référence est déjà utilisée, peut-être par un article supprimé</string>
+    <string name="add_stock_error_category_deleted">Une catégorie supprimée porte déjà ce nom</string>
+    <string name="add_stock_error_quantity">Entrez un nombre avec 3 décimales au plus</string>
+    <string name="add_stock_error_not_positive">Doit être supérieur à 0</string>
+    <string name="add_stock_error_save">Impossible d’enregistrer l’entrée. Réessayez.</string>
+</resources>
