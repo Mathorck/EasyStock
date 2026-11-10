@@ -9,4 +9,13 @@
     <string name="article_image_loading">Ajout de la photo…</string>
     <string name="article_image_error">La photo n’a pas pu être ajoutée.</string>
     <string name="article_image_no_camera">Aucune application appareil photo trouvée.</string>
+    <string name="article_image_crop">Recadrer</string>
+    <string name="article_image_crop_title">Recadrer la photo</string>
+    <string name="article_image_crop_free">Libre</string>
+    <string name="article_image_crop_square">Carré</string>
+    <string name="article_image_crop_rotate">Pivoter</string>
+    <string name="article_image_crop_confirm">Terminé</string>
+    <string name="article_image_crop_cancel">Annuler</string>
+    <string name="article_image_crop_saving">Enregistrement de la photo…</string>
+    <string name="article_image_crop_area">Zone de recadrage : faites glisser les coins, les bords ou l’intérieur</string>
 </resources>

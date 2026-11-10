@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,10 +39,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
+import ch.mathorck.easystock.images.CropSource
 import ch.mathorck.easystock.images.ImageError
 import ch.mathorck.easystock.images.rememberArticleImageStore
 import ch.mathorck.easystock.images.rememberImagePicker
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.article_image_crop
 import easystock.shared.generated.resources.article_image_description
 import easystock.shared.generated.resources.article_image_error
 import easystock.shared.generated.resources.article_image_loading
@@ -49,10 +53,12 @@ import easystock.shared.generated.resources.article_image_none
 import easystock.shared.generated.resources.article_image_pick
 import easystock.shared.generated.resources.article_image_remove
 import easystock.shared.generated.resources.article_image_take
+import easystock.shared.generated.resources.ic_crop
 import easystock.shared.generated.resources.ic_delete
 import easystock.shared.generated.resources.ic_image
 import easystock.shared.generated.resources.ic_photo_camera
 import easystock.shared.generated.resources.ic_photo_library
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -107,8 +113,9 @@ fun ArticleThumbnail(path: String?, modifier: Modifier = Modifier, size: Dp = 40
 }
 
 /**
- * Photo of an article with its actions: take a photo, pick one from the gallery, remove it.
- * [onImported] receives the path of the new file, see [rememberImagePicker].
+ * Photo of an article with its actions: take a photo, pick one from the gallery (both open the
+ * crop screen first), crop the current photo, remove it.
+ * [onImported] receives the path of the new file once the crop is saved.
  */
 @Composable
 fun ArticleImageEditor(
@@ -119,13 +126,37 @@ fun ArticleImageEditor(
     height: Dp = 200.dp,
 ) {
     var error by remember { mutableStateOf<ImageError?>(null) }
+    // What is being cropped: "" for the image just picked, else the stored path. Survives rotation of the device.
+    var cropKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val store = rememberArticleImageStore()
+    val scope = rememberCoroutineScope()
     val picker = rememberImagePicker(
-        onImported = {
+        onPicked = {
             error = null
-            onImported(it)
+            cropKey = (it as? CropSource.Stored)?.path ?: ""
         },
         onError = { error = it },
     )
+    cropKey?.let { key ->
+        val source = if (key.isEmpty()) CropSource.Pending else CropSource.Stored(key)
+        fun close(discard: Boolean) {
+            cropKey = null
+            if (discard) scope.launch { store.discardCrop(source) }
+        }
+        CropDialog(
+            source = source,
+            onCancel = { close(discard = true) },
+            onSaved = {
+                close(discard = false)
+                error = null
+                onImported(it)
+            },
+            onError = {
+                close(discard = true)
+                error = ImageError.FAILED
+            },
+        )
+    }
     val loadingText = stringResource(Res.string.article_image_loading)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier.fillMaxWidth()) {
         Box(
@@ -164,6 +195,10 @@ fun ArticleImageEditor(
                 picker.pickFromGallery()
             }
             if (path != null) {
+                ActionButton(Res.drawable.ic_crop, stringResource(Res.string.article_image_crop), enabled = !picker.busy) {
+                    error = null
+                    cropKey = path
+                }
                 TextButton(onClick = onRemove, enabled = !picker.busy) {
                     Icon(painterResource(Res.drawable.ic_delete), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))

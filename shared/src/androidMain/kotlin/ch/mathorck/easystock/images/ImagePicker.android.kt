@@ -22,43 +22,41 @@ import java.io.InputStream
 // manifest doesn't declare it. Gallery: the system photo picker, no storage permission needed.
 
 @Composable
-actual fun rememberImagePicker(onImported: (String) -> Unit, onError: (ImageError) -> Unit): ImagePicker {
+actual fun rememberImagePicker(onPicked: (CropSource) -> Unit, onError: (ImageError) -> Unit): ImagePicker {
     // Previews have no activity to launch from. Constant for a given composition, so the branch is safe.
     if (LocalInspectionMode.current) return PreviewImagePicker
     val context = LocalContext.current.applicationContext
     val store = rememberAndroidImageStore()
     val scope = rememberCoroutineScope()
-    val imported by rememberUpdatedState(onImported)
+    val picked by rememberUpdatedState(onPicked)
     val failed by rememberUpdatedState(onError)
     val busy = remember { mutableStateOf(false) }
 
-    fun import(open: () -> InputStream?, cleanup: () -> Unit = {}) {
+    // The image waits in temporary storage for the crop screen, which saves or discards it.
+    // The camera already wrote to that file.
+    fun pending(open: (() -> InputStream?)?) {
         busy.value = true
         scope.launch {
-            // Not cancellable: the copy finishes and is reported even if the screen is left meanwhile,
-            // so the caller can delete an unused file instead of leaving it behind.
             withContext(NonCancellable) {
-                val path = try {
-                    store.import(open)
+                val ok = try {
+                    if (open != null) store.copyToPending(open)
+                    true
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    null
-                } finally {
-                    cleanup()
+                    false
                 }
                 busy.value = false
-                if (path != null) imported(path) else failed(ImageError.FAILED)
+                if (ok) picked(CropSource.Pending) else failed(ImageError.FAILED)
             }
         }
     }
 
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
-        val file = store.captureFile()
-        if (saved) import(open = { file.inputStream() }, cleanup = { file.delete() }) else file.delete()
+        if (saved) pending(open = null) else store.captureFile().delete()
     }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) import(open = { context.contentResolver.openInputStream(uri) })
+        if (uri != null) pending(open = { context.contentResolver.openInputStream(uri) })
     }
 
     return remember(camera, gallery, store) {
