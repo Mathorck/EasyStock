@@ -16,4 +16,9 @@
     <string name="scan_hint_error">Déplacez lentement le téléphone sur le tag. Son antenne NFC se trouve souvent près de la caméra.</string>
     <string name="scan_hint_nfc_disabled">Le scan nécessite le NFC. Activez-le, puis revenez sur cette page.</string>
     <string name="scan_hint_nfc_unavailable">Vous pouvez toujours gérer votre stock depuis la page Stock.</string>
+    <string name="stock_search_hint">Rechercher par nom ou référence</string>
+    <string name="stock_empty_title">Aucun article</string>
+    <string name="stock_empty_hint">Les articles ajoutés apparaîtront ici avec leur stock.</string>
+    <string name="stock_no_results">Aucun article ne correspond à « %1$s »</string>
+    <string name="stock_low">Stock bas</string>
 </resources>

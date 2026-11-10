@@ -16,4 +16,9 @@
     <string name="scan_hint_error">Bewegen Sie das Telefon langsam über den Tag. Die NFC-Antenne befindet sich meist bei der Kamera.</string>
     <string name="scan_hint_nfc_disabled">Zum Scannen wird NFC benötigt. Aktivieren Sie es und kehren Sie dann zu dieser Seite zurück.</string>
     <string name="scan_hint_nfc_unavailable">Sie können Ihren Bestand weiterhin über die Seite Lager verwalten.</string>
+    <string name="stock_search_hint">Nach Name oder Artikelnummer suchen</string>
+    <string name="stock_empty_title">Noch keine Artikel</string>
+    <string name="stock_empty_hint">Hinzugefügte Artikel erscheinen hier mit ihrem Bestand.</string>
+    <string name="stock_no_results">Kein Artikel passt zu „%1$s“</string>
+    <string name="stock_low">Niedriger Bestand</string>
 </resources>
