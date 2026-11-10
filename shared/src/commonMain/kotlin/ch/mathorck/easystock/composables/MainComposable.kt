@@ -24,7 +24,7 @@ fun MainComposable() {
     var page by rememberSaveable { mutableStateOf(Page.Scan) }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = { NavBarComposable(currentPage = page, onPageSelected = { page = it }) },
     ) { innerPadding ->
         Box(
