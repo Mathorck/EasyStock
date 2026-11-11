@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "8ff402cbd380bb8536e5cb502be8196c",
+    "identityHash": "86b4ecac63daec2861fbfff90c241011",
     "entities": [
       {
         "tableName": "category",
@@ -881,7 +881,7 @@
       },
       {
         "tableName": "stock_review_line",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `review_id` TEXT NOT NULL, `article_id` TEXT NOT NULL, `item_id` TEXT, `location_id` TEXT NOT NULL, `expected_quantity` INTEGER NOT NULL, `counted_quantity` INTEGER, `result` TEXT NOT NULL DEFAULT 'unchecked', `found_location_id` TEXT, `info_flagged` INTEGER NOT NULL DEFAULT 0, `note` TEXT, `pending_item` TEXT, `checked_at` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`review_id`) REFERENCES `stock_review`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`article_id`) REFERENCES `article`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`item_id`) REFERENCES `item`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`location_id`) REFERENCES `location`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`found_location_id`) REFERENCES `location`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `review_id` TEXT NOT NULL, `article_id` TEXT NOT NULL, `item_id` TEXT, `location_id` TEXT NOT NULL, `expected_quantity` INTEGER NOT NULL, `counted_quantity` INTEGER, `result` TEXT NOT NULL DEFAULT 'unchecked', `found_location_id` TEXT, `info_flagged` INTEGER NOT NULL DEFAULT 0, `note` TEXT, `checked_at` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`review_id`) REFERENCES `stock_review`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`article_id`) REFERENCES `article`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`item_id`) REFERENCES `item`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`location_id`) REFERENCES `location`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`found_location_id`) REFERENCES `location`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
         "fields": [
           {
             "fieldPath": "id",
@@ -945,11 +945,6 @@
           {
             "fieldPath": "note",
             "columnName": "note",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "pendingItem",
-            "columnName": "pending_item",
             "affinity": "TEXT"
           },
           {
@@ -1098,7 +1093,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8ff402cbd380bb8536e5cb502be8196c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '86b4ecac63daec2861fbfff90c241011')"
     ]
   }
 }
