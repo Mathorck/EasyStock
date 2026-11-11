@@ -44,7 +44,7 @@
 
 ## About EasyStock
 
-EasyStock is a free, open-source Android app to manage a physical stock with NFC tags. Scan the tag on a shelf or bin to see the article, update the quantity on the spot, and get notified when stock drops below a threshold.
+EasyStock is a free, open-source Android app to manage a physical stock with NFC tags. Scan the tag on a shelf or bin to see the article, update the quantity on the spot, and see at a glance when stock drops below a threshold.
 
 It is built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Everything works offline on the phone: no server, no account, no tracking. Data stays on the device, which keeps personal data minimal and local, in line with the Swiss nFADP and the GDPR.
 
@@ -107,7 +107,7 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 - Hierarchy (room > shelf > bin), with an icon and a color per location.
 
 ### Low stock
-- Threshold per article, with a notification. Not applied to serial-tracked articles.
+- Threshold per article: a badge on the article and a "low stock" filter. Not applied to serial-tracked articles.
 
 ### Stock review
 - Go through a location, tick off what is there, and see the gaps in a summary.
@@ -123,7 +123,7 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 
 ## Roadmap
 
-- Server mode (multiple users, movement history). Optional: standalone stays the default.
+- Server mode (multiple users, movement history, low-stock notifications). Optional: standalone stays the default.
 
 ---
 
