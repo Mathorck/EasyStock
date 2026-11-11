@@ -147,13 +147,37 @@ Roles in the app
 * The server still checks everything, so the hidden buttons are for comfort, not for security.
 * Guests do not see the movement history section on the article screen, nor the Reviews screen.
 * Viewers see the history with the author's display name taken from `server_user`.
+* The author line is shown only when `created_by` matches a `server_user` row. Standalone movements have no author, so no line.
 * If a role changes while offline, the app updates the buttons at the next `GET /me`.
-* The roles and their rights below are an assumption, to confirm with the server spec (`auth/Permissions.kt`):
+* The app reads the role from `sync_state.role` (`SessionDao.observeRole`). No row means standalone: everything allowed.
+* The UI gets the rights from `LocalPermissions` (`auth/AppPermissions.kt`), the rules are in `auth/Permissions.kt`.
+* The roles and their rights below are confirmed by the user:
   * Admin: everything, the admin screens included.
   * Editor: stock actions, edit, delete, tag linking, reviews, settings screens, history, alerts. No admin screens.
   * Viewer: reads the stock, the history and the reviews, can turn alerts on. Changes nothing, pushes nothing.
   * Guest: reads the stock only. No history, no reviews, no alerts.
   * A role unknown to the app version (newer server) gets the Guest rights.
+
+What each role sees
+
+| Element | Admin | Editor | Viewer | Guest |
+|---|---|---|---|---|
+| Stock list, article screen, location contents | yes | yes | yes | yes |
+| New article button, edit icon, photo change | yes | yes | no | no |
+| Stock actions (add, remove, move, unit actions) | yes | yes | no | no |
+| NFC tag link and remove on the article, link or create from an unknown tag | yes | yes | no | no |
+| Movement history | yes | yes | yes, with author | no |
+| Info to fix cards on the article | yes | yes | yes | no |
+| "Fixed" button on an info card (needs edit) | yes | yes | no | no |
+| Reviews entry in Settings | yes | yes | yes, read-only | no |
+| Start, count, finish, cancel a review | yes | yes | no | no |
+| Settings: attributes, categories, locations, tags, backup and restore | yes | yes | no | no |
+| Settings: reset data | yes | yes | no | no |
+| Settings: language, app info | yes | yes | yes | yes |
+
+* The tag of an article stays visible to Viewers and Guests when it has one, without the buttons.
+* An unknown tag scanned by a Viewer or Guest shows a short message, no action.
+* The app has no article delete button: delete exists only in the catalogue settings, which need the settings right.
 
 Rejected changes screen
 
