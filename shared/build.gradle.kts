@@ -56,6 +56,8 @@ kotlin {
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.camera.view)
             implementation(libs.zxing.core)
+            // Server mode: HTTP engine
+            implementation(libs.ktor.client.okhttp)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -72,6 +74,12 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
+            // Server mode (optional): API client and session store
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.ktor.client.auth)
+            implementation(libs.ktor.serialization.kotlinxJson)
+            implementation(libs.androidx.datastore.preferencesCore)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

@@ -7,12 +7,14 @@ androidx-activity = "1.13.0"
 androidx-appcompat = "1.8.0"
 androidx-camera = "1.6.2"
 androidx-core = "1.19.1"
+androidx-datastore = "1.3.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.11.0"
 androidx-testExt = "1.3.0"
 androidx-testRunner = "1.7.0"
 composeMultiplatform = "1.12.2"
 junit = "4.13.2"
+ktor = "3.6.1"
 kotlin = "2.4.21"
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
@@ -58,6 +60,14 @@ androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.r
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "androidx-camera" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "androidx-camera" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+
+# Server mode (optional, never used in standalone mode)
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
+ktor-serialization-kotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+androidx-datastore-preferencesCore = { module = "androidx.datastore:datastore-preferences-core", version.ref = "androidx-datastore" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
