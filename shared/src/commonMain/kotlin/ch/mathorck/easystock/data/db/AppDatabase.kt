@@ -21,13 +21,15 @@ import ch.mathorck.easystock.data.model.OutboxEntry
 import ch.mathorck.easystock.data.model.ServerUser
 import ch.mathorck.easystock.data.model.LowStockAlert
 import ch.mathorck.easystock.data.model.RejectedChange
+import ch.mathorck.easystock.data.model.ImageHash
+import ch.mathorck.easystock.data.model.PendingPush
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 const val DATABASE_NAME = "easystock.db"
 
 /** Current schema version. Also written in backups (see backup/BackupManifest). */
-const val DB_VERSION = 9
+const val DB_VERSION = 10
 
 @Database(
     entities = [
@@ -46,6 +48,8 @@ const val DB_VERSION = 9
         ServerUser::class,
         LowStockAlert::class,
         RejectedChange::class,
+        ImageHash::class,
+        PendingPush::class,
     ],
     version = DB_VERSION,
     autoMigrations = [
@@ -64,6 +68,8 @@ const val DB_VERSION = 9
         // stock_review_line.info_fixed_at
         AutoMigration(from = 7, to = 8),
         // 8 to 9 (server mode tables, movement author, outbox triggers): manual, see MIGRATION_8_9
+        // image_hash, pending_push (sync engine, app only)
+        AutoMigration(from = 9, to = 10),
     ],
     exportSchema = true,
 )
@@ -83,6 +89,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
     abstract fun appInfoDao(): AppInfoDao
     abstract fun sessionDao(): SessionDao
+
+    abstract fun syncDao(): SyncDao
 }
 
 // Implemented by the Room compiler on each platform

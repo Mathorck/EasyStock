@@ -244,3 +244,19 @@ Table rejected_change [headercolor: #455a64, note: 'App only. A local change the
   rejected_at timestamp [not null]
   seen_at timestamp [note: 'When the user saw it in the list. Null = counted in the Settings badge']
 }
+
+Table image_hash [headercolor: #455a64, note: 'App only (v10). SHA-256 of the photo file of an article, as the server knows it (the server stores photos by hash, `article.image_sha256`). Written when a photo is pushed or pulled. A row whose file is missing is a photo still to download'] {
+  image_path varchar(64) [pk, note: 'Same value as article.image_path (images/<uuid>.jpg)']
+  sha256 char(64) [not null, note: 'Lowercase hex']
+
+  indexes {
+    sha256
+  }
+}
+
+Table pending_push [headercolor: #455a64, note: 'App only (v10). The push batch sent but not answered yet (at most one row). After a network failure the same batch ID and body are sent again, so the server answers it once'] {
+  id integer [pk, note: 'Always 1']
+  batch_id uuid [not null]
+  body text [not null, note: 'The exact JSON request body sent']
+  created_at timestamp [not null]
+}

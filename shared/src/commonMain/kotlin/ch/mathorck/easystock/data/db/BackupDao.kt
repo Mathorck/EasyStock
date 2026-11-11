@@ -74,6 +74,9 @@ abstract class BackupDao {
     @Query("DELETE FROM server_user") protected abstract suspend fun deleteServerUsers()
     @Query("DELETE FROM low_stock_alert") protected abstract suspend fun deleteLowStockAlerts()
     @Query("DELETE FROM rejected_change") protected abstract suspend fun deleteRejectedChanges()
+    @Query("DELETE FROM image_hash") protected abstract suspend fun deleteImageHashes()
+    @Query("DELETE FROM pending_push") protected abstract suspend fun deletePendingPush()
+    @Query("UPDATE sync_state SET applying = :applying") protected abstract suspend fun setApplying(applying: Boolean)
 
     // Frees unique values before the updates, so two rows can swap a value (name, SKU, tag, serial)
     @Query("UPDATE category SET name = :name WHERE id = :id") protected abstract suspend fun renameCategory(id: String, name: String)
@@ -119,7 +122,7 @@ abstract class BackupDao {
 
     /**
      * [wipeAll] plus the server mode tables (`sync_state`, `outbox`, `server_user`, `low_stock_alert`,
-     * `rejected_change`): the phone is as after a fresh install. For the reset of all data.
+     * `rejected_change`, `image_hash`, `pending_push`): the phone is as after a fresh install. For the reset of all data.
      */
     @Transaction
     open suspend fun wipeEverything() {
@@ -129,6 +132,8 @@ abstract class BackupDao {
         deleteServerUsers()
         deleteLowStockAlerts()
         deleteRejectedChanges()
+        deleteImageHashes()
+        deletePendingPush()
         wipeAll()
     }
 
@@ -182,6 +187,10 @@ abstract class BackupDao {
         updateReviews(updates.reviews)
         insertReviewLines(plan.inserts.reviewLines)
         updateReviewLines(updates.reviewLines)
+        // A cache recomputed from the movements, never sent: every phone recomputes it. With
+        // `applying` on the outbox triggers skip these updates (no-op in standalone: no sync_state row)
+        setApplying(true)
         plan.itemLocationFixes.forEach { (id, location) -> setItemLocation(id, location) }
+        setApplying(false)
     }
 }

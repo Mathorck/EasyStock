@@ -77,3 +77,32 @@ data class RejectedChange(
     /** When the user saw it, null = counted in the Settings badge. */
     @ColumnInfo(name = "seen_at") val seenAt: Long? = null,
 )
+
+/**
+ * SHA-256 of an article photo file, as the server knows it (v10). Written when a photo is pushed or
+ * pulled: the server stores photos by hash (`article.image_sha256`), the phone by path. A row whose
+ * file is missing is a photo still to download.
+ */
+@Entity(tableName = "image_hash", indices = [Index(value = ["sha256"])])
+data class ImageHash(
+    /** Same value as `article.image_path` (`images/<uuid>.jpg`). */
+    @PrimaryKey @ColumnInfo(name = "image_path") val imagePath: String,
+    /** Lowercase hex. */
+    val sha256: String,
+)
+
+/** Id of the single [PendingPush] row. */
+const val PENDING_PUSH_ID = 1
+
+/**
+ * The push batch sent and not answered yet (v10, at most one row). After a network failure the same
+ * [batchId] and [body] are sent again, so the server applies the batch once and gives the same answer.
+ */
+@Entity(tableName = "pending_push")
+data class PendingPush(
+    @PrimaryKey val id: Int = PENDING_PUSH_ID,
+    @ColumnInfo(name = "batch_id") val batchId: String,
+    /** The exact JSON request body. */
+    val body: String,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
