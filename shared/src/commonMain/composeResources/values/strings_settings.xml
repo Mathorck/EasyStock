@@ -15,7 +15,4 @@
     <string name="settings_section_data">Data</string>
     <string name="settings_backup">Backup and transfer</string>
     <string name="settings_backup_summary">Save your data or move it to another phone</string>
-    <string name="settings_section_general_summary">Language: %1$s</string>
-    <string name="settings_section_catalogue_summary">Attributes, categories, locations, NFC tags</string>
-    <string name="settings_section_data_summary">Stock reviews, backup and transfer</string>
 </resources>

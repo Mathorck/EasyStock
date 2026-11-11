@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -28,22 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ch.mathorck.easystock.applyAppLanguage
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.composables.settings.AppInfoScreen
-import ch.mathorck.easystock.composables.settings.SettingsSubpage
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
-import easystock.shared.generated.resources.ic_folder_open
-import easystock.shared.generated.resources.ic_settings
-import easystock.shared.generated.resources.ic_stock
-import easystock.shared.generated.resources.settings_section_catalogue_summary
-import easystock.shared.generated.resources.settings_section_data_summary
-import easystock.shared.generated.resources.settings_section_general_summary
 import ch.mathorck.easystock.viewmodels.BackupStep
 import ch.mathorck.easystock.viewmodels.BackupViewModel
 import kotlinx.coroutines.delay
@@ -101,14 +93,10 @@ import org.jetbrains.compose.resources.stringResource
 /** Full-screen subpages opened from the settings list. */
 enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo }
 
-/** The groups of the settings home, each opening its own list (like the Android settings). */
-enum class SettingsSectionId { General, Catalogue, Data }
-
 @Composable
 fun SettingsPage() {
     val service = rememberBackupService()
     var language by remember { mutableStateOf(currentAppLanguage()) }
-    var section by rememberSaveable { mutableStateOf<SettingsSectionId?>(null) }
     var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
     // Same view model as the backup screen: a Wi-Fi share goes on when that screen is closed
     val backup = viewModel(key = "settings-backup") { BackupViewModel(service) }
@@ -123,15 +111,12 @@ fun SettingsPage() {
         SettingsSubpageId.Reviews -> ReviewsScreen(onBack = { subpage = null })
         SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
         SettingsSubpageId.AppInfo -> AppInfoScreen(onBack = { subpage = null })
-        // Closing a subpage goes back to the section it was opened from
         null -> SettingsContent(
             language = language,
             onLanguageSelected = {
                 language = it
                 applyAppLanguage(it)
             },
-            section = section,
-            onOpenSection = { section = it },
             onOpen = { subpage = it },
             wifiShareDeadline = share,
             onStopWifiShare = backup::reset,
@@ -139,16 +124,11 @@ fun SettingsPage() {
     }
 }
 
-/**
- * Stateless settings, previewable without platform code: the home list of sections ([section] null),
- * or the items of one section.
- */
+/** Stateless settings list, previewable without platform code. */
 @Composable
 fun SettingsContent(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
-    section: SettingsSectionId? = null,
-    onOpenSection: (SettingsSectionId?) -> Unit = {},
     onOpen: (SettingsSubpageId) -> Unit = {},
     /** Set while a Wi-Fi backup share runs: shows a row to get back to it. */
     wifiShareDeadline: ComparableTimeMark? = null,
@@ -157,7 +137,7 @@ fun SettingsContent(
     // Not saveable: the activity recreates on a language change, the dialog must not reopen
     var showLanguageDialog by remember { mutableStateOf(false) }
 
-    val banner: @Composable () -> Unit = {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         if (wifiShareDeadline != null) {
             WifiShareBanner(
                 deadline = wifiShareDeadline,
@@ -165,98 +145,61 @@ fun SettingsContent(
                 onStop = onStopWifiShare,
             )
         }
-    }
+        SectionHeader(stringResource(Res.string.settings_section_general))
+        ListItem(
+            headlineContent = { Text(stringResource(Res.string.settings_language)) },
+            supportingContent = { Text(stringResource(language.label())) },
+            leadingContent = { Icon(painterResource(Res.drawable.ic_language), contentDescription = null) },
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+            modifier = Modifier.clickable { showLanguageDialog = true },
+        )
 
-    when (section) {
-        null -> Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            banner()
-            SubpageItem(
-                title = stringResource(Res.string.settings_section_general),
-                summary = stringResource(Res.string.settings_section_general_summary, stringResource(language.label())),
-                icon = Res.drawable.ic_settings,
-                onClick = { onOpenSection(SettingsSectionId.General) },
-            )
-            SubpageItem(
-                title = stringResource(Res.string.settings_section_catalogue),
-                summary = stringResource(Res.string.settings_section_catalogue_summary),
-                icon = Res.drawable.ic_stock,
-                onClick = { onOpenSection(SettingsSectionId.Catalogue) },
-            )
-            SubpageItem(
-                title = stringResource(Res.string.settings_section_data),
-                summary = stringResource(Res.string.settings_section_data_summary),
-                icon = Res.drawable.ic_folder_open,
-                onClick = { onOpenSection(SettingsSectionId.Data) },
-            )
-            SubpageItem(
-                title = stringResource(Res.string.settings_app_info),
-                summary = stringResource(Res.string.settings_app_info_summary),
-                icon = Res.drawable.ic_info,
-                onClick = { onOpen(SettingsSubpageId.AppInfo) },
-            )
-        }
-        else -> {
-            NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = { onOpenSection(null) })
-            val title = when (section) {
-                SettingsSectionId.General -> Res.string.settings_section_general
-                SettingsSectionId.Catalogue -> Res.string.settings_section_catalogue
-                SettingsSectionId.Data -> Res.string.settings_section_data
-            }
-            SettingsSubpage(title = stringResource(title), onBack = { onOpenSection(null) }) {
-                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    when (section) {
-                        SettingsSectionId.General -> ListItem(
-                            headlineContent = { Text(stringResource(Res.string.settings_language)) },
-                            supportingContent = { Text(stringResource(language.label())) },
-                            leadingContent = { Icon(painterResource(Res.drawable.ic_language), contentDescription = null) },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-                            modifier = Modifier.clickable { showLanguageDialog = true },
-                        )
-                        SettingsSectionId.Catalogue -> {
-                            SubpageItem(
-                                title = stringResource(Res.string.settings_attributes),
-                                summary = stringResource(Res.string.settings_attributes_summary),
-                                icon = Res.drawable.ic_label,
-                                onClick = { onOpen(SettingsSubpageId.Attributes) },
-                            )
-                            SubpageItem(
-                                title = stringResource(Res.string.settings_categories),
-                                summary = stringResource(Res.string.settings_categories_summary),
-                                icon = Res.drawable.ic_category,
-                                onClick = { onOpen(SettingsSubpageId.Categories) },
-                            )
-                            SubpageItem(
-                                title = stringResource(Res.string.settings_locations),
-                                summary = stringResource(Res.string.settings_locations_summary),
-                                icon = Res.drawable.ic_location,
-                                onClick = { onOpen(SettingsSubpageId.Locations) },
-                            )
-                            SubpageItem(
-                                title = stringResource(Res.string.settings_tags),
-                                summary = stringResource(Res.string.settings_tags_summary),
-                                icon = Res.drawable.ic_nfc,
-                                onClick = { onOpen(SettingsSubpageId.Tags) },
-                            )
-                        }
-                        SettingsSectionId.Data -> {
-                            banner()
-                            SubpageItem(
-                                title = stringResource(Res.string.settings_reviews),
-                                summary = stringResource(Res.string.settings_reviews_summary),
-                                icon = Res.drawable.ic_fact_check,
-                                onClick = { onOpen(SettingsSubpageId.Reviews) },
-                            )
-                            SubpageItem(
-                                title = stringResource(Res.string.settings_backup),
-                                summary = stringResource(Res.string.settings_backup_summary),
-                                icon = Res.drawable.ic_backup,
-                                onClick = { onOpen(SettingsSubpageId.Backup) },
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        SectionHeader(stringResource(Res.string.settings_section_catalogue))
+        SubpageItem(
+            title = stringResource(Res.string.settings_attributes),
+            summary = stringResource(Res.string.settings_attributes_summary),
+            icon = Res.drawable.ic_label,
+            onClick = { onOpen(SettingsSubpageId.Attributes) },
+        )
+        SubpageItem(
+            title = stringResource(Res.string.settings_categories),
+            summary = stringResource(Res.string.settings_categories_summary),
+            icon = Res.drawable.ic_category,
+            onClick = { onOpen(SettingsSubpageId.Categories) },
+        )
+        SubpageItem(
+            title = stringResource(Res.string.settings_locations),
+            summary = stringResource(Res.string.settings_locations_summary),
+            icon = Res.drawable.ic_location,
+            onClick = { onOpen(SettingsSubpageId.Locations) },
+        )
+        SubpageItem(
+            title = stringResource(Res.string.settings_tags),
+            summary = stringResource(Res.string.settings_tags_summary),
+            icon = Res.drawable.ic_nfc,
+            onClick = { onOpen(SettingsSubpageId.Tags) },
+        )
+
+        SectionHeader(stringResource(Res.string.settings_section_data))
+        SubpageItem(
+            title = stringResource(Res.string.settings_reviews),
+            summary = stringResource(Res.string.settings_reviews_summary),
+            icon = Res.drawable.ic_fact_check,
+            onClick = { onOpen(SettingsSubpageId.Reviews) },
+        )
+        SubpageItem(
+            title = stringResource(Res.string.settings_backup),
+            summary = stringResource(Res.string.settings_backup_summary),
+            icon = Res.drawable.ic_backup,
+            onClick = { onOpen(SettingsSubpageId.Backup) },
+        )
+
+        SubpageItem(
+            title = stringResource(Res.string.settings_app_info),
+            summary = stringResource(Res.string.settings_app_info_summary),
+            icon = Res.drawable.ic_info,
+            onClick = { onOpen(SettingsSubpageId.AppInfo) },
+        )
     }
 
     if (showLanguageDialog) {
@@ -300,6 +243,16 @@ private fun SubpageItem(title: String, summary: String, icon: DrawableResource, 
         trailingContent = { Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
     )
 }
 
