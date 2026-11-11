@@ -173,6 +173,7 @@ Table stock_review_line [headercolor: #6a1b9a, note: 'One position to check: an 
   found_location_id uuid [ref: > location.id, note: 'Where the unit was found when result = elsewhere']
   info_flagged boolean [not null, default: false, note: 'The article or unit info needs fixing (see note). Independent of result']
   note text
+  pending_item json [note: 'New unit of a serial article found during the review, not created yet: {serial_number, status, attributes}. item_id is null until the review is finished, then the unit and its inventory movement are created and this is cleared']
   checked_at timestamp [note: 'Last time the result was set']
   created_at timestamp [not null]
   updated_at timestamp [not null]
