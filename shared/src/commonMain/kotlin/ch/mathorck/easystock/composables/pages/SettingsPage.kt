@@ -182,7 +182,7 @@ fun SettingsPage(
             onBack = close,
             onJoinCode = { code ->
                 // A server code scanned in the backup screen: the connect screen takes it from there
-                if (syncLoad?.state == null) connect.start(code)
+                if (syncLoad?.state == null) connect.offer(code)
                 returnTo = null
                 subpage = SettingsSubpageId.Server
             },

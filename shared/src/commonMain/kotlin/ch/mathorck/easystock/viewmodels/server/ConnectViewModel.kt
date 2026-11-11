@@ -53,6 +53,9 @@ sealed interface ConnectStep {
     /** HTTPS gave no answer: offer plain HTTP ([httpUrl]), after the warning. */
     data class HttpsFailed(val target: ConnectTarget, val httpUrl: String) : ConnectStep
 
+    /** A code scanned outside this screen (backup): nothing is sent before the user confirms. */
+    data class ConfirmCode(val target: ConnectTarget) : ConnectStep
+
     /** Before the first call over plain HTTP: the user must accept it. */
     data class HttpWarning(val target: ConnectTarget) : ConnectStep
 
@@ -193,6 +196,22 @@ class ConnectViewModel(
     fun start(code: JoinCode) {
         _state.update { ConnectUiState(address = it.address) }
         open(ConnectTarget(ServerConnection(code.serverUrl, code.fingerprint), code))
+    }
+
+    /**
+     * A join code scanned in the backup screen: the user did not tap Connect yet, so it waits for
+     * [confirmCode] (HTTP codes wait in the HTTP warning) before any call.
+     */
+    fun offer(code: JoinCode) {
+        _state.update { ConnectUiState(address = it.address) }
+        val target = ConnectTarget(ServerConnection(code.serverUrl, code.fingerprint), code)
+        go(if (target.connection.isHttps) ConnectStep.ConfirmCode(target) else ConnectStep.HttpWarning(target))
+    }
+
+    /** The user confirms the code offered by [offer]. */
+    fun confirmCode() {
+        val step = _state.value.step as? ConnectStep.ConfirmCode ?: return
+        check(step.target)
     }
 
     private fun open(target: ConnectTarget) {

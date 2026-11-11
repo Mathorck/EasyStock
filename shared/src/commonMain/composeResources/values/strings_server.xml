@@ -22,6 +22,8 @@
     <string name="server_https_failed_title">No secure connection</string>
     <string name="server_https_failed_message">%1$s did not answer over HTTPS. You can try an unencrypted connection (HTTP), but only on a network you trust.</string>
     <string name="server_try_http">Try HTTP</string>
+    <string name="server_confirm_code_title">Connect to this server?</string>
+    <string name="server_confirm_code_message">This code connects the phone to %1$s. Nothing is sent before you tap Connect.</string>
     <string name="server_http_warning_title">Unsecured connection</string>
     <string name="server_http_warning_message">%1$s uses HTTP: your password and the stock data travel unencrypted. Only continue on a network you trust, such as your home or company network.</string>
     <string name="server_http_continue">Continue with HTTP</string>

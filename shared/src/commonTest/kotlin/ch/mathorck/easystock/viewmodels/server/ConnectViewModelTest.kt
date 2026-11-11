@@ -438,4 +438,26 @@ class ConnectViewModelTest {
         assertEquals(ConnectStep.Choose, vm.state.value.step)
         assertTrue(apis.isEmpty())
     }
+
+    @Test
+    fun aCodeFromTheBackupScreenWaitsForConnect() {
+        val vm = vm()
+        vm.offer(JoinCode.parse("easystock://join?u=https%3A%2F%2Fnas.example&k=invite&t=tok"))
+        assertIs<ConnectStep.ConfirmCode>(vm.state.value.step)
+        assertTrue(apis.isEmpty())
+        vm.confirmCode()
+        assertEquals(FormMode.INVITE, assertIs<ConnectStep.Form>(vm.state.value.step).mode)
+        assertEquals(1, apis.size)
+    }
+
+    @Test
+    fun anHttpCodeFromTheBackupScreenWaitsInTheWarning() {
+        val vm = vm()
+        vm.offer(JoinCode.parse("easystock://join?u=http%3A%2F%2F192.168.1.20%3A8080&k=invite&t=tok"))
+        assertIs<ConnectStep.HttpWarning>(vm.state.value.step)
+        assertTrue(apis.isEmpty())
+        vm.cancel()
+        assertEquals(ConnectStep.Choose, vm.state.value.step)
+        assertTrue(apis.isEmpty())
+    }
 }

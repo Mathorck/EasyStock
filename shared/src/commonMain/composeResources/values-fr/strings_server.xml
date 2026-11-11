@@ -22,6 +22,8 @@
     <string name="server_https_failed_title">Pas de connexion sécurisée</string>
     <string name="server_https_failed_message">%1$s n’a pas répondu en HTTPS. Vous pouvez essayer une connexion non chiffrée (HTTP), mais seulement sur un réseau de confiance.</string>
     <string name="server_try_http">Essayer en HTTP</string>
+    <string name="server_confirm_code_title">Se connecter à ce serveur ?</string>
+    <string name="server_confirm_code_message">Ce code connecte le téléphone à %1$s. Rien n’est envoyé avant que vous touchiez Se connecter.</string>
     <string name="server_http_warning_title">Connexion non sécurisée</string>
     <string name="server_http_warning_message">%1$s utilise HTTP : votre mot de passe et les données du stock circulent sans chiffrement. Ne continuez que sur un réseau de confiance, comme celui de votre domicile ou de votre entreprise.</string>
     <string name="server_http_continue">Continuer en HTTP</string>

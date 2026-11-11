@@ -22,6 +22,8 @@
     <string name="server_https_failed_title">Keine sichere Verbindung</string>
     <string name="server_https_failed_message">%1$s hat über HTTPS nicht geantwortet. Sie können eine unverschlüsselte Verbindung (HTTP) versuchen, aber nur in einem vertrauenswürdigen Netzwerk.</string>
     <string name="server_try_http">HTTP versuchen</string>
+    <string name="server_confirm_code_title">Mit diesem Server verbinden?</string>
+    <string name="server_confirm_code_message">Dieser Code verbindet das Telefon mit %1$s. Es wird nichts gesendet, bevor Sie auf Verbinden tippen.</string>
     <string name="server_http_warning_title">Unsichere Verbindung</string>
     <string name="server_http_warning_message">%1$s verwendet HTTP: Ihr Passwort und die Lagerdaten werden unverschlüsselt übertragen. Fahren Sie nur in einem vertrauenswürdigen Netzwerk fort, etwa zu Hause oder im Firmennetz.</string>
     <string name="server_http_continue">Mit HTTP fortfahren</string>

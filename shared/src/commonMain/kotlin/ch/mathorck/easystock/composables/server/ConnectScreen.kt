@@ -64,6 +64,9 @@ import easystock.shared.generated.resources.ic_visibility
 import easystock.shared.generated.resources.ic_visibility_off
 import easystock.shared.generated.resources.ic_warning
 import easystock.shared.generated.resources.server_cancel
+import easystock.shared.generated.resources.server_confirm_code_message
+import easystock.shared.generated.resources.server_confirm_code_title
+import easystock.shared.generated.resources.server_connect_button
 import easystock.shared.generated.resources.server_checking
 import easystock.shared.generated.resources.server_connect_address
 import easystock.shared.generated.resources.server_connect_address_hint
@@ -125,6 +128,7 @@ internal class ConnectActions(
     val cancel: () -> Unit = {},
     val tryHttp: () -> Unit = {},
     val acceptHttp: () -> Unit = {},
+    val confirmCode: () -> Unit = {},
     val askErase: () -> Unit = {},
     val cancelErase: () -> Unit = {},
     val confirmErase: () -> Unit = {},
@@ -153,6 +157,7 @@ fun ConnectScreen(vm: ConnectViewModel, onBack: () -> Unit, onOpenBackup: () -> 
         cancel = vm::cancel,
         tryHttp = vm::tryHttp,
         acceptHttp = vm::acceptHttp,
+        confirmCode = vm::confirmCode,
         askErase = vm::askErase,
         cancelErase = vm::cancelErase,
         confirmErase = vm::confirmErase,
@@ -202,6 +207,7 @@ internal fun ConnectContent(state: ConnectUiState, actions: ConnectActions, onBa
                 // The dialog below asks; behind it, the server being reached
                 is ConnectStep.HttpsFailed -> CheckingStep(step.target.connection, actions.cancel, running = false)
                 is ConnectStep.HttpWarning -> CheckingStep(step.target.connection, actions.cancel, running = false)
+                is ConnectStep.ConfirmCode -> CheckingStep(step.target.connection, actions.cancel, running = false)
                 is ConnectStep.NotEmpty -> NotEmptyStep(step.target.connection, step.info, actions)
                 is ConnectStep.EraseConfirm -> NotEmptyStep(step.target.connection, step.info, actions)
                 is ConnectStep.Erasing -> NotEmptyStep(step.target.connection, step.info, actions)
@@ -218,6 +224,13 @@ internal fun ConnectContent(state: ConnectUiState, actions: ConnectActions, onBa
             title = { Text(stringResource(Res.string.server_https_failed_title)) },
             text = { Text(stringResource(Res.string.server_https_failed_message, step.target.connection.host())) },
             confirmButton = { TextButton(onClick = actions.tryHttp) { Text(stringResource(Res.string.server_try_http)) } },
+            dismissButton = { TextButton(onClick = actions.cancel) { Text(stringResource(Res.string.server_cancel)) } },
+        )
+        is ConnectStep.ConfirmCode -> AlertDialog(
+            onDismissRequest = actions.cancel,
+            title = { Text(stringResource(Res.string.server_confirm_code_title)) },
+            text = { Text(stringResource(Res.string.server_confirm_code_message, step.target.connection.host())) },
+            confirmButton = { TextButton(onClick = actions.confirmCode) { Text(stringResource(Res.string.server_connect_button)) } },
             dismissButton = { TextButton(onClick = actions.cancel) { Text(stringResource(Res.string.server_cancel)) } },
         )
         is ConnectStep.HttpWarning -> AlertDialog(
