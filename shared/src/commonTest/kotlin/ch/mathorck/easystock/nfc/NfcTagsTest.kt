@@ -30,6 +30,20 @@ class TagIdTest {
         assertNull(normalizeTagId("04A"))
         assertNull(normalizeTagId("XYZ1"))
     }
+
+    @Test
+    fun idIsShownAsColonSeparatedBytes() {
+        assertEquals("DE:AD:BE:EF:01", formatTagId("DEADBEEF01"))
+        assertEquals("FF", formatTagId("FF"))
+        assertEquals("", formatTagId(""))
+    }
+
+    @Test
+    fun searchKeyDropsSeparatorsAndIgnoresCase() {
+        assertEquals("DEADBE", tagIdSearchKey("de:ad-be"))
+        assertEquals("BEEF", tagIdSearchKey("be ef"))
+        assertEquals("", tagIdSearchKey(" : "))
+    }
 }
 
 class NfcTagsTest {

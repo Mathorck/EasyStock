@@ -40,8 +40,6 @@ import ch.mathorck.easystock.enums.ScanState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,14 +48,14 @@ import ch.mathorck.easystock.composables.article.ArticleFormDialog
 import ch.mathorck.easystock.composables.nfc.TagMoveDialog
 import ch.mathorck.easystock.composables.attributes.AttributeCatalog
 import ch.mathorck.easystock.composables.nfc.TagPickerSheet
+import ch.mathorck.easystock.composables.nfc.UnknownTagActions
+import ch.mathorck.easystock.nfc.formatTagId
 import kotlinx.coroutines.flow.combine
 import ch.mathorck.easystock.data.db.asTagStore
 import ch.mathorck.easystock.composables.location.LocationContentsScreen
 import ch.mathorck.easystock.composables.settings.LocationDialog
 import ch.mathorck.easystock.viewmodels.LocationListViewModel
 import ch.mathorck.easystock.viewmodels.TagPickerType
-import easystock.shared.generated.resources.nfc_create_location_with_tag
-import easystock.shared.generated.resources.nfc_link_existing_location
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.images.rememberArticleImageStore
 import ch.mathorck.easystock.nfc.NfcTagListener
@@ -66,9 +64,6 @@ import ch.mathorck.easystock.nfc.appNfcTags
 import ch.mathorck.easystock.nfc.rememberOpenNfcSettings
 import ch.mathorck.easystock.viewmodels.NewArticleViewModel
 import ch.mathorck.easystock.viewmodels.ScanViewModel
-import easystock.shared.generated.resources.nfc_cancel
-import easystock.shared.generated.resources.nfc_create_with_tag
-import easystock.shared.generated.resources.nfc_link_existing
 import easystock.shared.generated.resources.nfc_open_settings
 import easystock.shared.generated.resources.nfc_tag_id
 import easystock.shared.generated.resources.nfc_try_again
@@ -236,24 +231,18 @@ fun ScanContent(
                 ScanState.NotFound -> {
                     tagId?.let {
                         Text(
-                            stringResource(Res.string.nfc_tag_id, it),
+                            stringResource(Res.string.nfc_tag_id, formatTagId(it)),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Button(onClick = onLinkExisting, modifier = Modifier.widthIn(min = 280.dp)) {
-                        Text(stringResource(Res.string.nfc_link_existing))
-                    }
-                    OutlinedButton(onClick = onCreateWithTag, modifier = Modifier.widthIn(min = 280.dp)) {
-                        Text(stringResource(Res.string.nfc_create_with_tag))
-                    }
-                    Button(onClick = onLinkExistingLocation, modifier = Modifier.widthIn(min = 280.dp)) {
-                        Text(stringResource(Res.string.nfc_link_existing_location))
-                    }
-                    OutlinedButton(onClick = onCreateLocationWithTag, modifier = Modifier.widthIn(min = 280.dp)) {
-                        Text(stringResource(Res.string.nfc_create_location_with_tag))
-                    }
-                    TextButton(onClick = onCancel) { Text(stringResource(Res.string.nfc_cancel)) }
+                    UnknownTagActions(
+                        onLinkArticle = onLinkExisting,
+                        onCreateArticle = onCreateWithTag,
+                        onLinkLocation = onLinkExistingLocation,
+                        onCreateLocation = onCreateLocationWithTag,
+                        onCancel = onCancel,
+                    )
                 }
                 else -> Unit
             }

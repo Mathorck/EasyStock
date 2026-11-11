@@ -62,6 +62,9 @@ class FakeTagStore(vararg articles: Article) : TagStore {
     override fun observeUntaggedArticles(): Flow<List<Article>> =
         articles.map { list -> list.filter { it.barcode == null && !it.archived }.sortedBy { it.name.lowercase() } }
 
+    override fun observeTaggedArticles(): Flow<List<Article>> =
+        articles.map { list -> list.filter { it.barcode != null }.sortedBy { it.name.lowercase() } }
+
     override fun observeLocations(): Flow<List<Location>> = locations.map { list -> list.sortedBy { it.name.lowercase() } }
 
     override suspend fun link(target: TagTarget, tagId: String, confirmedOwner: TagTarget?, now: Long): TagLinkResult {

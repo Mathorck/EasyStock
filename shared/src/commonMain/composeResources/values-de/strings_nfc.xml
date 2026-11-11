@@ -47,4 +47,45 @@
     <string name="nfc_sheet_replace_location_hint">Der neue Tag ersetzt %1$s, der diesen Standort danach nicht mehr anzeigt.</string>
     <string name="nfc_new_location_tag">Der neue Standort erhält den NFC-Tag %1$s</string>
     <string name="nfc_location_tag_hint">Das Scannen des Tags zeigt, was der Standort enthält.</string>
+    <string name="settings_tags">NFC-Tags</string>
+    <string name="settings_tags_summary">Alle Tags und wem sie zugeordnet sind</string>
+    <string name="nfc_tags_title">NFC-Tags</string>
+    <string name="nfc_tags_search">Nach Name oder Tag-ID suchen</string>
+    <string name="nfc_tags_filter_all">Alle</string>
+    <string name="nfc_tags_filter_articles">Artikel</string>
+    <string name="nfc_tags_filter_locations">Standorte</string>
+    <plurals name="nfc_tags_count">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tags</item>
+    </plurals>
+    <plurals name="nfc_tags_count_articles">
+        <item quantity="one">%1$d Artikel</item>
+        <item quantity="other">%1$d Artikel</item>
+    </plurals>
+    <plurals name="nfc_tags_count_locations">
+        <item quantity="one">%1$d Standort</item>
+        <item quantity="other">%1$d Standorte</item>
+    </plurals>
+    <string name="nfc_tags_count_format">%1$s: %2$s, %3$s</string>
+    <string name="nfc_tags_scan_hint">Scannen Sie einen Tag, um ihn in der Liste zu finden.</string>
+    <string name="nfc_tags_empty_title">Noch kein Tag zugeordnet</string>
+    <string name="nfc_tags_empty_hint">Um einen Tag zuzuordnen, öffnen Sie einen Artikel oder Standort und tippen Sie auf „Tag zuordnen“. Sie können auch hier oder auf der Scan-Seite einen unbekannten Tag scannen.</string>
+    <string name="nfc_tags_no_results">Kein Tag passt zu „%1$s“</string>
+    <string name="nfc_tags_no_results_filter">Kein Tag dieser Art</string>
+    <string name="nfc_tags_actions">Tag-Aktionen</string>
+    <string name="nfc_tags_open">Öffnen</string>
+    <string name="nfc_tags_unlink">Zuordnung aufheben</string>
+    <string name="nfc_tags_move_to_article">Zu einem anderen Artikel verschieben</string>
+    <string name="nfc_tags_move_to_location">Zu einem anderen Standort verschieben</string>
+    <string name="nfc_tags_unlink_title">Zuordnung des Tags %1$s aufheben?</string>
+    <string name="nfc_tags_unlinked">Zuordnung aufgehoben</string>
+    <string name="nfc_tags_lookup_failed">Der Tag konnte nicht gesucht werden. Bitte erneut versuchen.</string>
+    <string name="nfc_tags_unknown_title">Unbekannter Tag</string>
+    <string name="nfc_tags_unknown_message">Kein Artikel und kein Standort hat den Tag %1$s.</string>
+    <string name="nfc_tags_archived">Archiviert</string>
+    <string name="nfc_tags_sort">Sortieren</string>
+    <string name="nfc_tags_sort_name">Nach Name</string>
+    <string name="nfc_tags_sort_tag">Nach Tag-ID</string>
+    <string name="nfc_tags_type_article">Artikel</string>
+    <string name="nfc_tags_type_location">Standort</string>
 </resources>

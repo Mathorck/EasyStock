@@ -47,4 +47,45 @@
     <string name="nfc_sheet_replace_location_hint">Le nouveau tag remplace %1$s, qui n’affichera plus cet emplacement.</string>
     <string name="nfc_new_location_tag">Le nouvel emplacement reçoit le tag NFC %1$s</string>
     <string name="nfc_location_tag_hint">Scanner le tag affiche ce que contient l’emplacement.</string>
+    <string name="settings_tags">Tags NFC</string>
+    <string name="settings_tags_summary">Chaque tag et ce à quoi il est lié</string>
+    <string name="nfc_tags_title">Tags NFC</string>
+    <string name="nfc_tags_search">Rechercher par nom ou ID de tag</string>
+    <string name="nfc_tags_filter_all">Tous</string>
+    <string name="nfc_tags_filter_articles">Articles</string>
+    <string name="nfc_tags_filter_locations">Emplacements</string>
+    <plurals name="nfc_tags_count">
+        <item quantity="one">%1$d tag</item>
+        <item quantity="other">%1$d tags</item>
+    </plurals>
+    <plurals name="nfc_tags_count_articles">
+        <item quantity="one">%1$d article</item>
+        <item quantity="other">%1$d articles</item>
+    </plurals>
+    <plurals name="nfc_tags_count_locations">
+        <item quantity="one">%1$d emplacement</item>
+        <item quantity="other">%1$d emplacements</item>
+    </plurals>
+    <string name="nfc_tags_count_format">%1$s : %2$s, %3$s</string>
+    <string name="nfc_tags_scan_hint">Scannez un tag pour le trouver dans la liste.</string>
+    <string name="nfc_tags_empty_title">Aucun tag lié</string>
+    <string name="nfc_tags_empty_hint">Pour lier un tag, ouvrez un article ou un emplacement et touchez « Lier un tag ». Vous pouvez aussi scanner un tag inconnu ici ou sur la page Scan.</string>
+    <string name="nfc_tags_no_results">Aucun tag ne correspond à « %1$s »</string>
+    <string name="nfc_tags_no_results_filter">Aucun tag de ce type</string>
+    <string name="nfc_tags_actions">Actions du tag</string>
+    <string name="nfc_tags_open">Ouvrir</string>
+    <string name="nfc_tags_unlink">Délier</string>
+    <string name="nfc_tags_move_to_article">Déplacer sur un autre article</string>
+    <string name="nfc_tags_move_to_location">Déplacer sur un autre emplacement</string>
+    <string name="nfc_tags_unlink_title">Délier le tag %1$s ?</string>
+    <string name="nfc_tags_unlinked">Tag délié</string>
+    <string name="nfc_tags_lookup_failed">Impossible de rechercher le tag. Réessayez.</string>
+    <string name="nfc_tags_unknown_title">Tag inconnu</string>
+    <string name="nfc_tags_unknown_message">Aucun article ni emplacement n’a le tag %1$s.</string>
+    <string name="nfc_tags_archived">Archivé</string>
+    <string name="nfc_tags_sort">Trier</string>
+    <string name="nfc_tags_sort_name">Par nom</string>
+    <string name="nfc_tags_sort_tag">Par ID de tag</string>
+    <string name="nfc_tags_type_article">Article</string>
+    <string name="nfc_tags_type_location">Emplacement</string>
 </resources>

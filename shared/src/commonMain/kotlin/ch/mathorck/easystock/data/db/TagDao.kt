@@ -89,6 +89,10 @@ abstract class TagDao {
     @Query("SELECT * FROM article WHERE deleted_at IS NULL AND archived = 0 AND barcode IS NULL ORDER BY name COLLATE NOCASE")
     abstract fun observeUntaggedArticles(): Flow<List<Article>>
 
+    /** Active articles holding an NFC tag, archived ones included (a scan still opens them), by name. */
+    @Query("SELECT * FROM article WHERE deleted_at IS NULL AND barcode IS NOT NULL ORDER BY name COLLATE NOCASE, id")
+    abstract fun observeTaggedArticles(): Flow<List<Article>>
+
     /** All active locations, tagged or not (the paths need the parents), by name. */
     @Query("SELECT * FROM location WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE, id")
     abstract fun observeLocations(): Flow<List<Location>>

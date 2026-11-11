@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables.settings
 
+import ch.mathorck.easystock.nfc.formatTagId
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -398,7 +399,7 @@ fun LocationDialog(
                 state.tagId?.let { tagId ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(painterResource(Res.drawable.ic_nfc), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Text(stringResource(Res.string.nfc_new_location_tag, tagId), style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(Res.string.nfc_new_location_tag, formatTagId(tagId)), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 tagSection?.invoke()

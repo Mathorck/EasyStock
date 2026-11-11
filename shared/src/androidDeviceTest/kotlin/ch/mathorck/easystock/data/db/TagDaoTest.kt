@@ -179,6 +179,18 @@ class TagDaoTest {
     }
 
     @Test
+    fun taggedListsActiveArticlesWithATagByName() = runBlocking {
+        dao.insert(article("b", barcode = "0B").copy(name = "bolt"))
+        dao.insert(article("a", barcode = "0A").copy(name = "Anchor"))
+        dao.insert(article("archived", barcode = "0C", archived = true).copy(name = "Clamp"))
+        dao.insert(article("untagged").copy(name = "Drill"))
+        // A deleted row still holding a tag (older data): not listed
+        dao.insert(article("deleted", barcode = "0D", deletedAt = 1_500).copy(name = "Eraser"))
+
+        assertEquals(listOf("a", "b", "archived"), tags.observeTaggedArticles().first().map { it.id })
+    }
+
+    @Test
     fun createdArticleGetsItsTag() = runBlocking {
         form.createArticle(article("a1", barcode = tag), newCategory = null)
 

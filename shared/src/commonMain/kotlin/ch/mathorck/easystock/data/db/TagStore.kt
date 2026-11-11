@@ -12,6 +12,9 @@ interface TagStore {
     /** Active, non-archived articles without a tag, sorted by name. */
     fun observeUntaggedArticles(): Flow<List<Article>>
 
+    /** Active articles holding a tag (archived ones included), sorted by name. */
+    fun observeTaggedArticles(): Flow<List<Article>>
+
     /** All active locations (tagged or not, for the paths), sorted by name. */
     fun observeLocations(): Flow<List<Location>>
 
@@ -25,6 +28,7 @@ interface TagStore {
 fun TagDao.asTagStore(): TagStore = object : TagStore {
     override suspend fun findOwner(tagId: String): TagOwner? = this@asTagStore.findOwner(tagId)
     override fun observeUntaggedArticles(): Flow<List<Article>> = this@asTagStore.observeUntaggedArticles()
+    override fun observeTaggedArticles(): Flow<List<Article>> = this@asTagStore.observeTaggedArticles()
     override fun observeLocations(): Flow<List<Location>> = this@asTagStore.observeLocations()
     override suspend fun link(target: TagTarget, tagId: String, confirmedOwner: TagTarget?, now: Long): TagLinkResult =
         linkTag(target, tagId, confirmedOwner, now)

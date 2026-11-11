@@ -31,3 +31,15 @@ fun normalizeTagId(text: String): String? {
     if (hex.isEmpty() || hex.length % 2 != 0 || hex.length > MAX_TAG_ID_BYTES * 2) return null
     return hex.takeIf { id -> id.all { it in HEX } }
 }
+
+/**
+ * How a tag ID is shown to the user: the bytes separated by colons, e.g. "DEADBEEF01" -> "DE:AD:BE:EF:01".
+ * Display only: storage, lookups and links keep the plain [tagIdOf] format. Every screen showing a tag uses this.
+ */
+fun formatTagId(tagId: String): String = tagId.chunked(2).joinToString(":")
+
+/**
+ * The hex digits of a partly typed tag ID, for a "contains" search: separators removed, uppercase.
+ * Unlike [normalizeTagId], any length is kept ("DE:A" -> "DEA"). Empty when [text] has no hex digit left.
+ */
+fun tagIdSearchKey(text: String): String = text.filterNot { it == ' ' || it == ':' || it == '-' }.uppercase()

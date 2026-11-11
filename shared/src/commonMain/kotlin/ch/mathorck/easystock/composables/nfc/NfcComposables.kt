@@ -37,7 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Button
 import ch.mathorck.easystock.nfc.NfcAvailability
+import ch.mathorck.easystock.nfc.formatTagId
+import easystock.shared.generated.resources.nfc_create_location_with_tag
+import easystock.shared.generated.resources.nfc_create_with_tag
+import easystock.shared.generated.resources.nfc_link_existing
+import easystock.shared.generated.resources.nfc_link_existing_location
 import ch.mathorck.easystock.nfc.NfcTagListener
 import ch.mathorck.easystock.nfc.TagEvent
 import ch.mathorck.easystock.nfc.TagPriority
@@ -241,7 +248,7 @@ fun ArticleTagSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        tagId ?: stringResource(Res.string.nfc_tag_none),
+                        tagId?.let(::formatTagId) ?: stringResource(Res.string.nfc_tag_none),
                         style = MaterialTheme.typography.bodyLarge,
                         color = if (tagId != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -319,7 +326,7 @@ fun TagLinkSheet(
             CenteredText(stringResource(Res.string.nfc_sheet_hint))
             if (forLocation) CenteredText(stringResource(Res.string.nfc_location_tag_hint))
             currentTagId?.let {
-                CenteredText(stringResource(if (forLocation) Res.string.nfc_sheet_replace_location_hint else Res.string.nfc_sheet_replace_hint, it))
+                CenteredText(stringResource(if (forLocation) Res.string.nfc_sheet_replace_location_hint else Res.string.nfc_sheet_replace_hint, formatTagId(it)))
             }
             when (availability) {
                 NfcAvailability.Disabled -> {
@@ -335,6 +342,32 @@ fun TagLinkSheet(
         }
     }
     state.moveRequest?.let { TagMoveDialog(it, targetName, onConfirm = onConfirmMove, onDismiss = onCancelMove) }
+}
+
+/** What to do with a tag nobody holds: link it to an untagged article or location, or create one with it. */
+@Composable
+fun UnknownTagActions(
+    onLinkArticle: () -> Unit,
+    onCreateArticle: () -> Unit,
+    onLinkLocation: () -> Unit,
+    onCreateLocation: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = onLinkArticle, modifier = Modifier.widthIn(min = 280.dp)) {
+            Text(stringResource(Res.string.nfc_link_existing))
+        }
+        OutlinedButton(onClick = onCreateArticle, modifier = Modifier.widthIn(min = 280.dp)) {
+            Text(stringResource(Res.string.nfc_create_with_tag))
+        }
+        Button(onClick = onLinkLocation, modifier = Modifier.widthIn(min = 280.dp)) {
+            Text(stringResource(Res.string.nfc_link_existing_location))
+        }
+        OutlinedButton(onClick = onCreateLocation, modifier = Modifier.widthIn(min = 280.dp)) {
+            Text(stringResource(Res.string.nfc_create_location_with_tag))
+        }
+        TextButton(onClick = onCancel) { Text(stringResource(Res.string.nfc_cancel)) }
+    }
 }
 
 @Composable

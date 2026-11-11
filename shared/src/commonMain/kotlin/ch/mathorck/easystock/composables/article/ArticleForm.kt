@@ -2,6 +2,7 @@
 
 package ch.mathorck.easystock.composables.article
 
+import ch.mathorck.easystock.nfc.formatTagId
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -313,7 +314,7 @@ private fun NfcTagNote(tagId: String) {
     ) {
         Icon(painterResource(Res.drawable.ic_nfc), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Text(
-            stringResource(Res.string.nfc_new_article_tag, tagId),
+            stringResource(Res.string.nfc_new_article_tag, formatTagId(tagId)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
