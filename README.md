@@ -1,22 +1,50 @@
-# EasyStock
+<p align="center">
+  <img src="docs/images/icon.png" alt="EasyStock icon" width="96">
+</p>
 
-Free, open-source Android app to manage a physical stock with NFC tags. Scan the tag on a shelf or bin to see the article, update the quantity on the spot, and get notified when stock drops below a threshold. Built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Works offline on the phone: no server, no account.
+<h1 align="center">EasyStock</h1>
+
+<p align="center">Manage a physical stock with NFC tags. Free, open source, offline, no account.</p>
+
+<p align="center">
+  <a href="https://github.com/Mathorck/EasyStock/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mathorck/EasyStock"></a>
+  <a href="https://github.com/Mathorck/EasyStock/actions/workflows/release.yml"><img alt="Release workflow" src="https://img.shields.io/github/actions/workflow/status/Mathorck/EasyStock/release.yml?label=release"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <img alt="Platform: Android" src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white">
+  <img alt="Min API 26" src="https://img.shields.io/badge/min%20API-26-brightgreen">
+  <img alt="Kotlin 2.4.21" src="https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white">
+  <img alt="Compose Multiplatform 1.12.2" src="https://img.shields.io/badge/Compose%20Multiplatform-1.12.2-4285F4?logo=jetpackcompose&logoColor=white">
+  <img alt="Offline first, no account" src="https://img.shields.io/badge/offline%20first-no%20account-485C43">
+  <a href="https://github.com/Mathorck/EasyStock/releases/latest"><img alt="Download APK" src="https://img.shields.io/badge/Download-APK-485C43?logo=android&logoColor=white"></a>
+</p>
+
+EasyStock is an Android app to manage a physical stock with NFC tags. Scan the tag on a shelf or bin to see the article, update the quantity on the spot, and get notified when stock drops below a threshold. It is built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Everything works offline on the phone: no server, no account, data stays on the device.
 
 School project (TIP, CPNE-TI, 2026-2027). Target hardware budget: 100 CHF.
 
 ## Features
 
-Planned scope, in priority order:
-
-1. Scan an NFC tag to open the article and see its stock
-2. Browse the article list, edit quantities
-3. Low-stock notification (per-article threshold)
-4. Stock review: scan tags one by one, compare counts, show the gaps
-5. Locations (room > shelf > bin)
-6. Backup file to transfer or restore the stock, QR code for small stocks
-7. Optional, if time allows: server mode (multiple users, history)
+- **NFC scan:** scan a tag to open its article. Scanning a location tag: _to be confirmed_.
+- **Stock list:** quantities per article, filters, search across names and attributes, add or remove stock in one tap.
+- **Article photos:** take a picture or pick one from the gallery, then crop it.
+- **Categories and attributes:** custom attributes per category (text, number, measurement with a unit chosen per value).
+- **Name templates:** build the article name from its attributes.
+- **Serial units and consumables:** track tools one by one (each unit has its own properties and location) or count consumables as a quantity.
+- **Locations:** hierarchy (room > shelf > bin) with an icon and a color per location.
+- **Low-stock threshold:** per article, with a notification (not for serial-tracked articles).
+- **Stock review:** go through a location, tick off what is there and see the gaps in a summary.
+- **Backup and transfer:** export to a file, a QR code or over the local Wi-Fi; optional password; merge into or replace the existing data.
+- **Languages:** English, French, German.
 
 3D-printable NFC tag holders will be published separately.
+
+## Screenshots
+
+<!-- Filled in with the screenshots in docs/images/screenshots -->
+
+## Roadmap
+
+- Server mode (multiple users, movement history). Optional, standalone stays the default.
 
 ## Prerequisites
 
