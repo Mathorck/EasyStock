@@ -121,6 +121,8 @@ fun AppInfoScreen(
     modifier: Modifier = Modifier,
     onOpenBackup: () -> Unit = {},
     onResetDone: () -> Unit = {},
+    /** False when the role cannot change data (server mode): no "Reset all data" row. */
+    canReset: Boolean = true,
 ) {
     val db = rememberAppDatabase()
     val dataReset = rememberDataReset()
@@ -243,7 +245,7 @@ fun AppInfoScreen(
                         stringResource(Res.string.app_info_photos),
                         stringResource(Res.string.app_info_photos_value, p.photoCount.toString(), formatBytes(p.photoBytes)),
                     )
-                    ResetRow { showReset = true }
+                    if (canReset) ResetRow { showReset = true }
                 }
                 AppInfoSection.Device -> {
                     InfoRow(stringResource(Res.string.app_info_os), p.os)
@@ -266,7 +268,7 @@ fun AppInfoScreen(
         }
     }
 
-    if (showReset) {
+    if (showReset && canReset) {
         ResetDataDialog(
             running = resetRunning,
             failed = resetFailed,

@@ -33,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ch.mathorck.easystock.applyAppLanguage
+import ch.mathorck.easystock.auth.AppPermissions
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.SettingsGates
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.composables.settings.AppInfoScreen
@@ -102,8 +105,10 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
     val backup = viewModel(key = "settings-backup") { BackupViewModel(service) }
     val backupState by backup.state.collectAsStateWithLifecycle()
     val share = (backupState.step as? BackupStep.SendingWifi)?.takeIf { it.state.isActive() }?.deadline
-    // Each subpage composes its own back handler, only while it is open
-    when (subpage) {
+    val gates = SettingsGates.of(LocalPermissions.current)
+    // Each subpage composes its own back handler, only while it is open. A subpage the role
+    // can no longer open (role changed) shows the list instead.
+    when (subpage?.takeIf { it in gates.subpages }) {
         SettingsSubpageId.Attributes -> AttributesScreen(onBack = { subpage = null })
         SettingsSubpageId.Categories -> CategoriesScreen(onBack = { subpage = null })
         SettingsSubpageId.Locations -> LocationsScreen(onBack = { subpage = null })
@@ -113,6 +118,7 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
         SettingsSubpageId.AppInfo -> AppInfoScreen(
             onBack = { subpage = null },
             onOpenBackup = { subpage = SettingsSubpageId.Backup },
+            canReset = gates.resetData,
             onResetDone = {
                 // Stops a Wi-Fi share and drops the temporary backup files of the erased data
                 backup.reset()
@@ -127,6 +133,7 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
                 applyAppLanguage(it)
             },
             onOpen = { subpage = it },
+            gates = gates,
             wifiShareDeadline = share,
             onStopWifiShare = backup::reset,
         )
@@ -139,6 +146,8 @@ fun SettingsContent(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
     onOpen: (SettingsSubpageId) -> Unit = {},
+    /** Entries the role can open, all of them in standalone mode. */
+    gates: SettingsGates = SettingsGates.of(AppPermissions.Standalone),
     /** Set while a Wi-Fi backup share runs: shows a row to get back to it. */
     wifiShareDeadline: ComparableTimeMark? = null,
     onStopWifiShare: () -> Unit = {},
@@ -147,7 +156,7 @@ fun SettingsContent(
     var showLanguageDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        if (wifiShareDeadline != null) {
+        if (wifiShareDeadline != null && SettingsSubpageId.Backup in gates.subpages) {
             WifiShareBanner(
                 deadline = wifiShareDeadline,
                 onOpen = { onOpen(SettingsSubpageId.Backup) },
@@ -163,45 +172,57 @@ fun SettingsContent(
             modifier = Modifier.clickable { showLanguageDialog = true },
         )
 
-        SectionHeader(stringResource(Res.string.settings_section_catalogue))
-        SubpageItem(
-            title = stringResource(Res.string.settings_attributes),
-            summary = stringResource(Res.string.settings_attributes_summary),
-            icon = Res.drawable.ic_label,
-            onClick = { onOpen(SettingsSubpageId.Attributes) },
-        )
-        SubpageItem(
-            title = stringResource(Res.string.settings_categories),
-            summary = stringResource(Res.string.settings_categories_summary),
-            icon = Res.drawable.ic_category,
-            onClick = { onOpen(SettingsSubpageId.Categories) },
-        )
-        SubpageItem(
-            title = stringResource(Res.string.settings_locations),
-            summary = stringResource(Res.string.settings_locations_summary),
-            icon = Res.drawable.ic_location,
-            onClick = { onOpen(SettingsSubpageId.Locations) },
-        )
-        SubpageItem(
-            title = stringResource(Res.string.settings_tags),
-            summary = stringResource(Res.string.settings_tags_summary),
-            icon = Res.drawable.ic_nfc,
-            onClick = { onOpen(SettingsSubpageId.Tags) },
-        )
+        if (gates.catalogue) SectionHeader(stringResource(Res.string.settings_section_catalogue))
+        if (SettingsSubpageId.Attributes in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.settings_attributes),
+                summary = stringResource(Res.string.settings_attributes_summary),
+                icon = Res.drawable.ic_label,
+                onClick = { onOpen(SettingsSubpageId.Attributes) },
+            )
+        }
+        if (SettingsSubpageId.Categories in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.settings_categories),
+                summary = stringResource(Res.string.settings_categories_summary),
+                icon = Res.drawable.ic_category,
+                onClick = { onOpen(SettingsSubpageId.Categories) },
+            )
+        }
+        if (SettingsSubpageId.Locations in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.settings_locations),
+                summary = stringResource(Res.string.settings_locations_summary),
+                icon = Res.drawable.ic_location,
+                onClick = { onOpen(SettingsSubpageId.Locations) },
+            )
+        }
+        if (SettingsSubpageId.Tags in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.settings_tags),
+                summary = stringResource(Res.string.settings_tags_summary),
+                icon = Res.drawable.ic_nfc,
+                onClick = { onOpen(SettingsSubpageId.Tags) },
+            )
+        }
 
-        SectionHeader(stringResource(Res.string.settings_section_data))
-        SubpageItem(
-            title = stringResource(Res.string.settings_reviews),
-            summary = stringResource(Res.string.settings_reviews_summary),
-            icon = Res.drawable.ic_fact_check,
-            onClick = { onOpen(SettingsSubpageId.Reviews) },
-        )
-        SubpageItem(
-            title = stringResource(Res.string.settings_backup),
-            summary = stringResource(Res.string.settings_backup_summary),
-            icon = Res.drawable.ic_backup,
-            onClick = { onOpen(SettingsSubpageId.Backup) },
-        )
+        if (gates.data) SectionHeader(stringResource(Res.string.settings_section_data))
+        if (SettingsSubpageId.Reviews in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.settings_reviews),
+                summary = stringResource(Res.string.settings_reviews_summary),
+                icon = Res.drawable.ic_fact_check,
+                onClick = { onOpen(SettingsSubpageId.Reviews) },
+            )
+        }
+        if (SettingsSubpageId.Backup in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.settings_backup),
+                summary = stringResource(Res.string.settings_backup_summary),
+                icon = Res.drawable.ic_backup,
+                onClick = { onOpen(SettingsSubpageId.Backup) },
+            )
+        }
 
         SubpageItem(
             title = stringResource(Res.string.settings_app_info),
@@ -320,6 +341,30 @@ private fun SettingsPageDarkPreview() {
         Column(Modifier.background(MaterialTheme.colorScheme.background)) {
             SettingsContent(language = AppLanguage.French, onLanguageSelected = {})
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsPageViewerPreview() {
+    EasyStockTheme {
+        SettingsContent(
+            language = AppLanguage.System,
+            onLanguageSelected = {},
+            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.VIEWER)),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsPageGuestPreview() {
+    EasyStockTheme {
+        SettingsContent(
+            language = AppLanguage.System,
+            onLanguageSelected = {},
+            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.GUEST)),
+        )
     }
 }
 

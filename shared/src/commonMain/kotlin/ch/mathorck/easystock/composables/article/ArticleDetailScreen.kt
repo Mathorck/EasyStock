@@ -44,6 +44,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import ch.mathorck.easystock.composables.attributes.AttributeRow
+import ch.mathorck.easystock.auth.AppPermissions
+import ch.mathorck.easystock.auth.ArticleDetailGates
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.Role
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import easystock.shared.generated.resources.article_history_author
+import easystock.shared.generated.resources.article_image_description
 import ch.mathorck.easystock.composables.nfc.ArticleTagSection
 import ch.mathorck.easystock.composables.nfc.TagLinkSheet
 import ch.mathorck.easystock.data.db.TagTarget
@@ -137,6 +147,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     val actionState by actions.sheet.collectAsStateWithLifecycle()
     val tagLink = viewModel(key = "tag-link-$articleId") { TagLinkViewModel(TagTarget.OfArticle(articleId), db.tagDao().asTagStore()) }
     val tagState by tagLink.state.collectAsStateWithLifecycle()
+    val gates = ArticleDetailGates.of(LocalPermissions.current)
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) onBack()
@@ -157,9 +168,11 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         onRemoveTag = tagLink::removeTag,
         onMarkInfoFixed = viewModel::markInfoFixed,
         modifier = modifier,
+        gates = gates,
     )
 
-    if (tagState.waiting) {
+    // Also checked here: the role can change while a sheet is open
+    if (tagState.waiting && gates.linkTag) {
         TagLinkSheet(
             state = tagState,
             currentTagId = state.article?.barcode,
@@ -173,7 +186,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
 
     val unit = state.article?.unit
     val sheet = actionState
-    if (sheet != null && unit != null) {
+    if (sheet != null && unit != null && gates.stockActions) {
         StockActionSheet(
             state = sheet,
             unit = unit,
@@ -183,7 +196,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         )
     }
 
-    editState?.let { edit ->
+    editState?.takeIf { gates.edit }?.let { edit ->
         ArticleEditSheet(
             state = edit,
             onFormChange = viewModel::updateEdit,
@@ -209,6 +222,8 @@ fun ArticleDetailContent(
     onLinkTag: () -> Unit = {},
     onRemoveTag: () -> Unit = {},
     onMarkInfoFixed: (lineId: String) -> Unit = {},
+    /** What the role can see and do, everything in standalone mode. */
+    gates: ArticleDetailGates = ArticleDetailGates.of(AppPermissions.Standalone),
 ) {
     val article = state.article
     // Line id of the flag waiting for the "mark as fixed" confirmation
@@ -222,7 +237,7 @@ fun ArticleDetailContent(
                 }
             },
             actions = {
-                if (article != null) {
+                if (article != null && gates.edit) {
                     IconButton(onClick = onEdit) {
                         Icon(painterResource(Res.drawable.ic_edit), contentDescription = stringResource(Res.string.article_edit))
                     }
@@ -234,29 +249,39 @@ fun ArticleDetailContent(
         )
         if (article == null) return@Column
         LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-            item(key = "image") {
-                ArticleImageEditor(
-                    path = article.imagePath,
-                    onImported = onImageChange,
-                    onRemove = { onImageChange(null) },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+            if (gates.edit) {
+                item(key = "image") {
+                    ArticleImageEditor(
+                        path = article.imagePath,
+                        onImported = onImageChange,
+                        onRemove = { onImageChange(null) },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+            } else if (article.imagePath != null) {
+                item(key = "image") { ReadOnlyImage(article.imagePath) }
             }
             item(key = "header") { Header(article, state.categoryName) }
-            items(state.infoFlags, key = { "info-flag-${it.lineId}" }) { flag ->
-                InfoFlagCard(flag, onFixed = { confirmFixed = flag.lineId })
+            if (gates.infoFlags) {
+                items(state.infoFlags, key = { "info-flag-${it.lineId}" }) { flag ->
+                    InfoFlagCard(flag, onFixed = if (gates.markInfoFixed) ({ confirmFixed = flag.lineId }) else null)
+                }
             }
             if (state.properties.isNotEmpty()) {
                 item(key = "properties") { PropertiesSection(state.properties) }
             }
             item(key = "total") { TotalStock(state, article.unit) }
-            item(key = "tag") {
-                ArticleTagSection(
-                    tagId = article.barcode,
-                    removeFailed = tagRemoveFailed,
-                    onLink = onLinkTag,
-                    onRemove = onRemoveTag,
-                )
+            // Without the right to link, the tag is shown only when there is one
+            if (gates.linkTag || article.barcode != null) {
+                item(key = "tag") {
+                    ArticleTagSection(
+                        tagId = article.barcode,
+                        removeFailed = tagRemoveFailed,
+                        onLink = onLinkTag,
+                        onRemove = onRemoveTag,
+                        editable = gates.linkTag,
+                    )
+                }
             }
 
             if (article.tracking == Tracking.SERIAL) {
@@ -270,12 +295,16 @@ fun ArticleDetailContent(
                             onEdit = { onEditUnit(unit) },
                             onMove = { onStockAction(StockActionForm(kind = StockActionKind.MOVE_UNIT, itemId = unit.itemId)) },
                             onAction = { action -> onUnitAction(unit, action) },
+                            canEdit = gates.edit,
+                            canAct = gates.stockActions,
                         )
                     }
                 }
-                item(key = "units-add") {
-                    StockActionButton(stringResource(Res.string.stock_action_add_unit)) {
-                        onStockAction(StockActionForm(kind = StockActionKind.ADD_UNIT))
+                if (gates.stockActions) {
+                    item(key = "units-add") {
+                        StockActionButton(stringResource(Res.string.stock_action_add_unit)) {
+                            onStockAction(StockActionForm(kind = StockActionKind.ADD_UNIT))
+                        }
                     }
                 }
             } else {
@@ -290,27 +319,33 @@ fun ArticleDetailContent(
                             onMove = { onStockAction(StockActionForm(kind = StockActionKind.MOVE, sourceLocationId = row.locationId)) },
                             onRemove = { onStockAction(StockActionForm(kind = StockActionKind.REMOVE, sourceLocationId = row.locationId)) },
                             onAdd = { onStockAction(StockActionForm(kind = StockActionKind.ADD, sourceLocationId = row.locationId)) },
+                            actions = gates.stockActions,
                         )
                     }
                 }
-                item(key = "locations-add") {
-                    StockActionButton(stringResource(Res.string.stock_action_add_to_location)) {
-                        onStockAction(StockActionForm(kind = StockActionKind.ADD))
+                if (gates.stockActions) {
+                    item(key = "locations-add") {
+                        StockActionButton(stringResource(Res.string.stock_action_add_to_location)) {
+                            onStockAction(StockActionForm(kind = StockActionKind.ADD))
+                        }
                     }
                 }
             }
 
-            item(key = "history-title") { SectionTitle(stringResource(Res.string.article_section_history)) }
-            if (state.history.isEmpty()) {
-                item(key = "history-empty") { EmptyHint(stringResource(Res.string.article_history_empty)) }
-            } else {
-                items(state.history, key = { it.key }) { row ->
-                    when (row) {
-                        is HistoryRow.Movement -> MovementItem(row.movement, article.unit)
-                        is HistoryRow.InfoFlagged -> InfoHistoryItem(row.at, row.flag, fixed = false)
-                        is HistoryRow.InfoFixed -> InfoHistoryItem(row.at, row.flag, fixed = true)
+            // Guests: no history section
+            if (gates.history) {
+                item(key = "history-title") { SectionTitle(stringResource(Res.string.article_section_history)) }
+                if (state.history.isEmpty()) {
+                    item(key = "history-empty") { EmptyHint(stringResource(Res.string.article_history_empty)) }
+                } else {
+                    items(state.history, key = { it.key }) { row ->
+                        when (row) {
+                            is HistoryRow.Movement -> MovementItem(row.movement, article.unit)
+                            is HistoryRow.InfoFlagged -> InfoHistoryItem(row.at, row.flag, fixed = false)
+                            is HistoryRow.InfoFixed -> InfoHistoryItem(row.at, row.flag, fixed = true)
+                        }
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     }
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
             }
         }
@@ -334,9 +369,32 @@ fun ArticleDetailContent(
     }
 }
 
-/** An open "info to fix" flag from a finished review: the note, where and when it was raised, and a "fixed" button. */
+/** The photo without the change buttons, when the role cannot edit the article. */
 @Composable
-private fun InfoFlagCard(flag: InfoFlagRow, onFixed: () -> Unit) {
+private fun ReadOnlyImage(path: String) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        ArticleImage(
+            path = path,
+            contentDescription = stringResource(Res.string.article_image_description),
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Fit,
+        )
+    }
+}
+
+/**
+ * An open "info to fix" flag from a finished review: the note, where and when it was raised, and a "fixed" button
+ * (none when [onFixed] is null: the role cannot change the article).
+ */
+@Composable
+private fun InfoFlagCard(flag: InfoFlagRow, onFixed: (() -> Unit)?) {
     Surface(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -360,7 +418,7 @@ private fun InfoFlagCard(flag: InfoFlagRow, onFixed: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            TextButton(onClick = onFixed) { Text(stringResource(Res.string.article_info_fixed_action)) }
+            if (onFixed != null) TextButton(onClick = onFixed) { Text(stringResource(Res.string.article_info_fixed_action)) }
         }
     }
 }
@@ -496,6 +554,10 @@ private fun MovementItem(movement: MovementRow, unit: String) {
         supportingContent = {
             Column {
                 Text(movement.location)
+                // Server mode only: standalone movements have no author
+                movement.author?.let {
+                    Text(stringResource(Res.string.article_history_author, it), style = MaterialTheme.typography.bodySmall)
+                }
                 movement.comment?.let {
                     Spacer(Modifier.height(2.dp))
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -556,6 +618,38 @@ private fun ArticleDetailPreview(dark: Boolean) {
             ArticleDetailContent(state = previewState, onBack = {}, onEdit = {})
         }
     }
+}
+
+/** The article screen as a server [role] sees it. */
+@Composable
+private fun ArticleDetailRolePreview(role: Role) {
+    EasyStockTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            val authored = previewState.copy(
+                history = previewState.history.map { row ->
+                    if (row is HistoryRow.Movement) HistoryRow.Movement(row.movement.copy(author = "Anna")) else row
+                },
+            )
+            ArticleDetailContent(
+                state = authored,
+                onBack = {},
+                onEdit = {},
+                gates = ArticleDetailGates.of(AppPermissions.connectedAs(role)),
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ArticleDetailViewerPreview() {
+    ArticleDetailRolePreview(Role.VIEWER)
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ArticleDetailGuestPreview() {
+    ArticleDetailRolePreview(Role.GUEST)
 }
 
 @Preview(showBackground = true)

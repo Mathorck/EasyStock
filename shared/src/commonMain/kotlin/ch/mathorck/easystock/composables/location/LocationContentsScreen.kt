@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.composables.location
 
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.StockListGates
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
@@ -96,6 +98,7 @@ fun LocationContentsScreen(locationId: String, onBack: () -> Unit, modifier: Mod
     val state by viewModel.state.collectAsStateWithLifecycle()
     var openArticleId by rememberSaveable { mutableStateOf<String?>(null) }
     var action by remember { mutableStateOf<ContentsAction?>(null) }
+    val stockActions = StockListGates.of(LocalPermissions.current).stockActions
 
     openArticleId?.let {
         ArticleDetailScreen(articleId = it, onBack = { openArticleId = null }, modifier = modifier)
@@ -112,8 +115,9 @@ fun LocationContentsScreen(locationId: String, onBack: () -> Unit, modifier: Mod
         onOpenArticle = { openArticleId = it.id },
         onAction = { article, form -> action = ContentsAction(article, form) },
         modifier = modifier,
+        stockActions = stockActions,
     )
-    action?.let { StockActionHost(it, onClose = { action = null }) }
+    action?.takeIf { stockActions }?.let { StockActionHost(it, onClose = { action = null }) }
 }
 
 /** Opens the stock action sheet of the article; [onClose] when it closes (saved or dismissed). */
@@ -151,6 +155,8 @@ fun LocationContentsContent(
     onOpenArticle: (Article) -> Unit,
     onAction: (Article, StockActionForm) -> Unit,
     modifier: Modifier = Modifier,
+    /** False when the role cannot change the stock: no add, remove or move buttons. */
+    stockActions: Boolean = true,
 ) {
     val location = state.location
     SettingsSubpage(
@@ -193,6 +199,7 @@ fun LocationContentsContent(
                             row = row,
                             onOpen = { onOpenArticle(row.article) },
                             onAction = { form -> onAction(row.article, form) },
+                            actions = stockActions,
                         )
                     }
                 }
@@ -261,7 +268,7 @@ private fun SubLocationRow(sub: ContentsSubLocation, onClick: () -> Unit) {
 
 /** An article at one location: tap opens it; move, remove and add act on the stock there. */
 @Composable
-private fun ArticleRow(row: ContentsArticleRow, onOpen: () -> Unit, onAction: (StockActionForm) -> Unit) {
+private fun ArticleRow(row: ContentsArticleRow, onOpen: () -> Unit, onAction: (StockActionForm) -> Unit, actions: Boolean) {
     val article = row.article
     Column {
         ListItem(
@@ -273,7 +280,7 @@ private fun ArticleRow(row: ContentsArticleRow, onOpen: () -> Unit, onAction: (S
                     if (attributes.isNotEmpty()) Text(attributes, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             },
-            trailingContent = {
+            trailingContent = if (!actions) null else ({
                 Row {
                     if (row.isSerial) {
                         RoundAction(Res.drawable.ic_add, Res.string.stock_action_add) {
@@ -291,7 +298,7 @@ private fun ArticleRow(row: ContentsArticleRow, onOpen: () -> Unit, onAction: (S
                         }
                     }
                 }
-            },
+            }),
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
             modifier = Modifier.clickable(onClick = onOpen),
         )
@@ -303,14 +310,14 @@ private fun ArticleRow(row: ContentsArticleRow, onOpen: () -> Unit, onAction: (S
                 modifier = Modifier.padding(start = 32.dp, end = 16.dp),
             )
             row.units.forEach { unit ->
-                UnitLine(unit, onMove = { onAction(StockActionForm(kind = StockActionKind.MOVE_UNIT, itemId = unit.id)) })
+                UnitLine(unit, onMove = { onAction(StockActionForm(kind = StockActionKind.MOVE_UNIT, itemId = unit.id)) }, canMove = actions)
             }
         }
     }
 }
 
 @Composable
-private fun UnitLine(unit: Item, onMove: () -> Unit) {
+private fun UnitLine(unit: Item, onMove: () -> Unit, canMove: Boolean) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(start = 32.dp, end = 8.dp),
@@ -320,8 +327,10 @@ private fun UnitLine(unit: Item, onMove: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onMove) {
-            Icon(painterResource(Res.drawable.ic_swap_horiz), contentDescription = stringResource(Res.string.stock_action_move))
+        if (canMove) {
+            IconButton(onClick = onMove) {
+                Icon(painterResource(Res.drawable.ic_swap_horiz), contentDescription = stringResource(Res.string.stock_action_move))
+            }
         }
     }
 }

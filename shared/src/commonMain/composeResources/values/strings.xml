@@ -13,6 +13,7 @@
     <string name="scan_hint_reading">Keep the phone still until the tag is read.</string>
     <string name="scan_hint_success">Opening the article.</string>
     <string name="scan_hint_not_found">This tag is not linked yet. Link it to an article or a location, or create one with it.</string>
+    <string name="scan_hint_not_found_read_only">This tag is not linked to anything yet.</string>
     <string name="scan_hint_error">Move the phone slowly over the tag. Its NFC antenna is usually near the camera.</string>
     <string name="scan_hint_nfc_disabled">Scanning needs NFC. Turn it on, then come back to this page.</string>
     <string name="scan_hint_nfc_unavailable">You can still manage your stock from the Stock page.</string>

@@ -13,6 +13,7 @@
     <string name="scan_hint_reading">Halten Sie das Telefon still, bis der Tag gelesen ist.</string>
     <string name="scan_hint_success">Der Artikel wird geöffnet.</string>
     <string name="scan_hint_not_found">Dieser Tag ist noch nicht zugeordnet. Ordnen Sie ihn einem Artikel oder Standort zu, oder erstellen Sie einen damit.</string>
+    <string name="scan_hint_not_found_read_only">Dieser Tag ist noch nicht zugeordnet.</string>
     <string name="scan_hint_error">Bewegen Sie das Telefon langsam über den Tag. Die NFC-Antenne befindet sich meist bei der Kamera.</string>
     <string name="scan_hint_nfc_disabled">Zum Scannen wird NFC benötigt. Aktivieren Sie es und kehren Sie dann zu dieser Seite zurück.</string>
     <string name="scan_hint_nfc_unavailable">Sie können Ihren Bestand weiterhin über die Seite Lager verwalten.</string>

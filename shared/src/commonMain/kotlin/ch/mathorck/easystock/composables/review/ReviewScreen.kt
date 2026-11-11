@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.composables.review
 
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.ReviewGates
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -169,6 +171,8 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     val timeZone = remember { TimeZone.currentSystemDefault() }
+    // Without the right to run reviews, an open review is shown read-only, like a finished one
+    val editable = state.isOpen && ReviewGates.of(LocalPermissions.current).run
 
     LaunchedEffect(createdArticleId) {
         createdArticleId?.let {
@@ -230,7 +234,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
     // Listens only while no other sheet or screen is on top
     NfcTagListener(
         TagPriority.Lookup,
-        enabled = state.isOpen && preview == null && newArticleState == null,
+        enabled = editable && preview == null && newArticleState == null,
         onEvent = viewModel::onTag,
     )
 
@@ -239,7 +243,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
             title = state.rootName,
             onBack = onBack,
             actions = {
-                if (state.isOpen) {
+                if (editable) {
                     var menu by remember { mutableStateOf(false) }
                     IconButton(onClick = { menu = true }) {
                         Icon(painterResource(Res.drawable.ic_more_vert), contentDescription = stringResource(Res.string.review_more))
@@ -288,7 +292,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
                                 items(group.lines, key = { it.line.id }) { line ->
                                     LineCard(
                                         line = line,
-                                        open = state.isOpen,
+                                        open = editable,
                                         highlighted = line.line.id == jumpTo,
                                         onCount = { countLineId = line.line.id },
                                         onStep = { delta ->
@@ -312,7 +316,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
                             }
                         }
                     }
-                    if (state.isOpen) {
+                    if (editable) {
                         HorizontalDivider()
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),

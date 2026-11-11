@@ -2,6 +2,8 @@
 
 package ch.mathorck.easystock.composables.nfc
 
+import ch.mathorck.easystock.auth.AppPermissions
+import ch.mathorck.easystock.auth.UnknownTagGates
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -237,6 +239,8 @@ fun ArticleTagSection(
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
     forLocation: Boolean = false,
+    /** False when the role cannot link tags: the tag is shown without the buttons. */
+    editable: Boolean = true,
 ) {
     var confirmRemove by rememberSaveable { mutableStateOf(false) }
     Surface(
@@ -264,7 +268,7 @@ fun ArticleTagSection(
                     )
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (editable) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onLink) {
                     Text(stringResource(if (tagId == null) Res.string.nfc_link_tag else Res.string.nfc_replace_tag), maxLines = 1)
                 }
@@ -275,7 +279,7 @@ fun ArticleTagSection(
             if (removeFailed) ErrorText(stringResource(Res.string.nfc_remove_failed))
         }
     }
-    if (confirmRemove) {
+    if (confirmRemove && editable) {
         AlertDialog(
             onDismissRequest = { confirmRemove = false },
             title = { Text(stringResource(Res.string.nfc_remove_title)) },
@@ -362,19 +366,28 @@ fun UnknownTagActions(
     onLinkLocation: () -> Unit,
     onCreateLocation: () -> Unit,
     onCancel: () -> Unit,
+    gates: UnknownTagGates = UnknownTagGates.of(AppPermissions.Standalone),
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onLinkArticle, modifier = Modifier.widthIn(min = 280.dp)) {
-            Text(stringResource(Res.string.nfc_link_existing))
+        if (gates.link) {
+            Button(onClick = onLinkArticle, modifier = Modifier.widthIn(min = 280.dp)) {
+                Text(stringResource(Res.string.nfc_link_existing))
+            }
         }
-        OutlinedButton(onClick = onCreateArticle, modifier = Modifier.widthIn(min = 280.dp)) {
-            Text(stringResource(Res.string.nfc_create_with_tag))
+        if (gates.create) {
+            OutlinedButton(onClick = onCreateArticle, modifier = Modifier.widthIn(min = 280.dp)) {
+                Text(stringResource(Res.string.nfc_create_with_tag))
+            }
         }
-        Button(onClick = onLinkLocation, modifier = Modifier.widthIn(min = 280.dp)) {
-            Text(stringResource(Res.string.nfc_link_existing_location))
+        if (gates.link) {
+            Button(onClick = onLinkLocation, modifier = Modifier.widthIn(min = 280.dp)) {
+                Text(stringResource(Res.string.nfc_link_existing_location))
+            }
         }
-        OutlinedButton(onClick = onCreateLocation, modifier = Modifier.widthIn(min = 280.dp)) {
-            Text(stringResource(Res.string.nfc_create_location_with_tag))
+        if (gates.create) {
+            OutlinedButton(onClick = onCreateLocation, modifier = Modifier.widthIn(min = 280.dp)) {
+                Text(stringResource(Res.string.nfc_create_location_with_tag))
+            }
         }
         TextButton(onClick = onCancel) { Text(stringResource(Res.string.nfc_cancel)) }
     }

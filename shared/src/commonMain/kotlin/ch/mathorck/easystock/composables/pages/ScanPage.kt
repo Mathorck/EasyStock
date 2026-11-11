@@ -1,5 +1,9 @@
 package ch.mathorck.easystock.composables.pages
 
+import ch.mathorck.easystock.auth.AppPermissions
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.UnknownTagGates
+import easystock.shared.generated.resources.scan_hint_not_found_read_only
 import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -131,6 +135,7 @@ fun ScanPage() {
         }
     }
     val locationDialog = newLocationState.dialog
+    val tagGates = UnknownTagGates.of(LocalPermissions.current)
     NfcTagListener(
         TagPriority.Lookup,
         enabled = state.acceptsTags && newArticleState == null && locationDialog == null,
@@ -152,6 +157,7 @@ fun ScanPage() {
             onLinkExistingLocation = { viewModel.openPicker(TagPickerType.LOCATION) },
             onCreateLocationWithTag = { state.unknownTagId?.let { newLocationViewModel.startCreate(tagId = it) } },
             onCancel = viewModel::reset,
+            tagGates = tagGates,
         )
     }
     locationDialog?.let { dialog ->
@@ -198,6 +204,8 @@ fun ScanContent(
     onLinkExistingLocation: () -> Unit = {},
     onCreateLocationWithTag: () -> Unit = {},
     onCancel: () -> Unit = {},
+    /** What the role can do with an unknown tag, everything in standalone mode. */
+    tagGates: UnknownTagGates = UnknownTagGates.of(AppPermissions.Standalone),
 ) {
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -218,7 +226,7 @@ fun ScanContent(
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
             ) { target ->
                 Text(
-                    text = stringResource(target.hint()),
+                    text = stringResource(target.hint(tagGates.any)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -242,6 +250,7 @@ fun ScanContent(
                         onLinkLocation = onLinkExistingLocation,
                         onCreateLocation = onCreateLocationWithTag,
                         onCancel = onCancel,
+                        gates = tagGates,
                     )
                 }
                 else -> Unit
@@ -344,11 +353,12 @@ private fun ScanState.icon(): DrawableResource = when (this) {
     else -> Res.drawable.ic_scan
 }
 
-private fun ScanState.hint(): StringResource = when (this) {
+/** [canUseUnknownTag] false: the role can neither link nor create, the not-found hint offers nothing. */
+private fun ScanState.hint(canUseUnknownTag: Boolean = true): StringResource = when (this) {
     ScanState.Ready -> Res.string.scan_hint_ready
     ScanState.Reading -> Res.string.scan_hint_reading
     ScanState.Success -> Res.string.scan_hint_success
-    ScanState.NotFound -> Res.string.scan_hint_not_found
+    ScanState.NotFound -> if (canUseUnknownTag) Res.string.scan_hint_not_found else Res.string.scan_hint_not_found_read_only
     ScanState.Error -> Res.string.scan_hint_error
     ScanState.NfcDisabled -> Res.string.scan_hint_nfc_disabled
     ScanState.NfcUnavailable -> Res.string.scan_hint_nfc_unavailable

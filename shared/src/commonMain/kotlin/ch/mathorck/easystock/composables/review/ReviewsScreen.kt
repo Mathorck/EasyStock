@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.composables.review
 
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.ReviewGates
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,6 +73,7 @@ fun ReviewsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     var picking by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val timeZone = remember { TimeZone.currentSystemDefault() }
+    val canRun = ReviewGates.of(LocalPermissions.current).run
 
     LaunchedEffect(opened) {
         opened?.let {
@@ -107,7 +110,7 @@ fun ReviewsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
         }
-        if (state.locations.isNotEmpty()) {
+        if (state.locations.isNotEmpty() && canRun) {
             ExtendedFloatingActionButton(
                 onClick = { picking = true },
                 icon = { Icon(painterResource(Res.drawable.ic_fact_check), contentDescription = null) },
@@ -117,7 +120,7 @@ fun ReviewsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp)) { Snackbar(it) }
     }
-    if (picking) {
+    if (picking && canRun) {
         LocationPickerDialog(
             title = stringResource(Res.string.review_start_title),
             hint = stringResource(Res.string.review_start_hint),

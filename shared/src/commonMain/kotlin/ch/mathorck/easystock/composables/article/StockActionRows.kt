@@ -59,7 +59,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** Stock at one location with move, remove and add buttons. */
+/** Stock at one location with move, remove and add buttons ([actions] false: no buttons, the role cannot change the stock). */
 @Composable
 internal fun LocationActionRow(
     row: LocationStockRow,
@@ -67,6 +67,7 @@ internal fun LocationActionRow(
     onMove: () -> Unit,
     onRemove: () -> Unit,
     onAdd: () -> Unit,
+    actions: Boolean = true,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -81,11 +82,13 @@ internal fun LocationActionRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
-        IconButton(onClick = onMove) {
-            Icon(painterResource(Res.drawable.ic_swap_horiz), contentDescription = stringResource(Res.string.stock_action_move))
+        if (actions) {
+            IconButton(onClick = onMove) {
+                Icon(painterResource(Res.drawable.ic_swap_horiz), contentDescription = stringResource(Res.string.stock_action_move))
+            }
+            RoundAction(Res.drawable.ic_remove, Res.string.stock_action_remove, onRemove)
+            RoundAction(Res.drawable.ic_add, Res.string.stock_action_add, onAdd)
         }
-        RoundAction(Res.drawable.ic_remove, Res.string.stock_action_remove, onRemove)
-        RoundAction(Res.drawable.ic_add, Res.string.stock_action_add, onAdd)
     }
 }
 
@@ -96,14 +99,25 @@ private fun RoundAction(icon: DrawableResource, label: StringResource, onClick: 
     }
 }
 
-/** One serial unit: serial number, location, status chip and an actions menu. */
+/**
+ * One serial unit: serial number, location, status chip and an actions menu.
+ * [canEdit] false: no edit (tap and menu entry), [canAct] false: no move or stock action. No menu without both.
+ */
 @Composable
-internal fun UnitActionRow(unit: UnitRow, onEdit: () -> Unit, onMove: () -> Unit, onAction: (UnitAction) -> Unit) {
+internal fun UnitActionRow(
+    unit: UnitRow,
+    onEdit: () -> Unit,
+    onMove: () -> Unit,
+    onAction: (UnitAction) -> Unit,
+    canEdit: Boolean = true,
+    canAct: Boolean = true,
+) {
     var menu by remember { mutableStateOf(false) }
     val outOfStock = unit.status == ItemStatus.LOST
+    val clickable = if (canEdit) Modifier.clickable(onClick = onEdit) else Modifier
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        modifier = Modifier.fillMaxWidth().then(clickable).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -125,19 +139,21 @@ internal fun UnitActionRow(unit: UnitRow, onEdit: () -> Unit, onMove: () -> Unit
             }
         }
         StatusChip(unit.status)
-        Box {
+        if (canEdit || canAct) Box {
             IconButton(onClick = { menu = true }) {
                 Icon(painterResource(Res.drawable.ic_more_vert), contentDescription = stringResource(Res.string.stock_action_more))
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(Res.string.item_edit_menu)) },
-                    onClick = {
-                        menu = false
-                        onEdit()
-                    },
-                )
-                if (unit.canMove) {
+                if (canEdit) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.item_edit_menu)) },
+                        onClick = {
+                            menu = false
+                            onEdit()
+                        },
+                    )
+                }
+                if (canAct && unit.canMove) {
                     DropdownMenuItem(
                         text = { Text(stringResource(Res.string.stock_action_move)) },
                         onClick = {
@@ -146,7 +162,7 @@ internal fun UnitActionRow(unit: UnitRow, onEdit: () -> Unit, onMove: () -> Unit
                         },
                     )
                 }
-                unit.actions.forEach { action ->
+                if (canAct) unit.actions.forEach { action ->
                     DropdownMenuItem(
                         text = { Text(stringResource(action.label)) },
                         onClick = {

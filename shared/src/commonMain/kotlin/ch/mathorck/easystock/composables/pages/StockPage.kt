@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.composables.pages
 
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.StockListGates
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import ch.mathorck.easystock.composables.article.ArticleDetailScreen
@@ -162,11 +164,13 @@ fun StockPage() {
                 // Keeps the last row above the FAB
                 contentPadding = PaddingValues(bottom = 88.dp),
             )
-            FloatingActionButton(
-                onClick = newArticleViewModel::start,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            ) {
-                Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.stock_add_entry))
+            if (StockListGates.of(LocalPermissions.current).createArticle) {
+                FloatingActionButton(
+                    onClick = newArticleViewModel::start,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                ) {
+                    Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.stock_add_entry))
+                }
             }
         }
     }
