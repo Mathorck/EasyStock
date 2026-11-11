@@ -65,7 +65,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The photo at [path], cropped to fill the box, or [placeholder] while loading or without photo.
+ * The photo at [path], cropped to fill the box by default (or [contentScale]), or [placeholder] while loading or without photo.
  * Decoded off the main thread at about the size of the box.
  */
 @Composable
@@ -73,6 +73,7 @@ fun ArticleImage(
     path: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
     placeholder: @Composable () -> Unit = {},
 ) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
@@ -85,7 +86,7 @@ fun ArticleImage(
         }
         val image = bitmap
         if (image != null) {
-            Image(image, contentDescription, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+            Image(image, contentDescription, contentScale = contentScale, modifier = Modifier.matchParentSize())
         } else {
             placeholder()
         }
@@ -172,6 +173,7 @@ fun ArticleImageEditor(
                 path = path,
                 contentDescription = stringResource(Res.string.article_image_description),
                 modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Fit,
                 placeholder = { if (path == null) NoImage() },
             )
             if (picker.busy) {
