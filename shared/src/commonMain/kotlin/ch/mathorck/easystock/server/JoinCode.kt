@@ -26,7 +26,7 @@ enum class JoinKind(val code: String) {
 /**
  * A scanned server QR code: `easystock://join?u=<server URL>&k=<kind>&t=<token>&fp=<certificate SHA-256>`.
  * [fingerprint] (64 lowercase hex characters) is only given for HTTPS with a self-signed certificate.
- * Not used yet: server mode comes in a later version.
+ * Built by [build] for the admin screens (invite, reset and printed codes), read by [parse] when scanned.
  */
 data class JoinCode(
     val serverUrl: String,
@@ -38,6 +38,18 @@ data class JoinCode(
 
     // The token must not end up in logs
     override fun toString(): String = "JoinCode(serverUrl=$serverUrl, kind=$kind, fingerprint=$fingerprint)"
+
+    /**
+     * The QR code text: `easystock://join?u=...&k=...&t=...` plus `&fp=...` when there is a fingerprint.
+     * Values are percent-encoded, so [parse] gives back the same code.
+     */
+    fun toQrText(): String = buildString {
+        append(JOIN_QR_PREFIX)
+        append("u=").append(percentEncode(serverUrl))
+        append("&k=").append(kind.code)
+        append("&t=").append(percentEncode(token))
+        if (fingerprint != null) append("&fp=").append(fingerprint)
+    }
 
     companion object {
         const val MAX_TEXT_LENGTH = 2048
@@ -80,6 +92,17 @@ data class JoinCode(
             require(fingerprint == null || https) { "Fingerprint on an HTTP address" }
 
             return JoinCode(serverUrl = url.trimEnd('/'), kind = kind, token = token, fingerprint = fingerprint)
+        }
+
+        /**
+         * A join code for [serverUrl] (the `sync_state` address) and [token] given by the server.
+         * Checked like a scanned one: throws [IllegalArgumentException] for an invalid URL, token or
+         * fingerprint, or a fingerprint on an HTTP address.
+         */
+        fun build(serverUrl: String, kind: JoinKind, token: String, fingerprint: String? = null): JoinCode {
+            val code = JoinCode(serverUrl.trimEnd('/'), kind, token, fingerprint?.let(::normalizeFingerprint) ?: fingerprint)
+            // Same rules as a scanned code: what the admin shows can always be scanned
+            return parse(code.toQrText())
         }
     }
 }
@@ -138,6 +161,21 @@ internal fun isValidServerUrl(url: String): Boolean {
     }
     return true
 }
+
+/** RFC 3986 percent-encoding of UTF-8: everything but the unreserved characters `A-Z a-z 0-9 - . _ ~`. */
+internal fun percentEncode(text: String): String = buildString {
+    for (byte in text.encodeToByteArray()) {
+        val b = byte.toInt() and 0xff
+        val c = b.toChar()
+        if (c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c in "-._~") {
+            append(c)
+        } else {
+            append('%').append(HEX[b shr 4]).append(HEX[b and 0x0f])
+        }
+    }
+}
+
+private const val HEX = "0123456789ABCDEF"
 
 /** RFC 3986 percent-decoding to UTF-8. `+` stays a plus. Throws on a bad escape or invalid UTF-8. */
 internal fun percentDecode(text: String): String {

@@ -85,6 +85,8 @@ kotlin {
             implementation(libs.kotlin.test)
             // ViewModel tests: Dispatchers.setMain and virtual time
             implementation(libs.kotlinx.coroutines.test)
+            // Server mode: fake server for the API client tests
+            implementation(libs.ktor.client.mock)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
