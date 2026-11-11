@@ -48,7 +48,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ch.mathorck.easystock.composables.article.ArticleDetailScreen
 import ch.mathorck.easystock.composables.article.ArticleFormDialog
 import ch.mathorck.easystock.composables.nfc.TagMoveDialog
+import ch.mathorck.easystock.composables.attributes.AttributeCatalog
 import ch.mathorck.easystock.composables.nfc.TagPickerSheet
+import kotlinx.coroutines.flow.combine
 import ch.mathorck.easystock.data.db.asTagStore
 import ch.mathorck.easystock.composables.location.LocationContentsScreen
 import ch.mathorck.easystock.composables.settings.LocationDialog
@@ -99,7 +101,14 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ScanPage() {
     val db = rememberAppDatabase()
-    val viewModel = viewModel { ScanViewModel(db.tagDao().asTagStore(), appNfcTags.availability) }
+    val viewModel = viewModel {
+        val attributes = db.attributeDao()
+        ScanViewModel(
+            db.tagDao().asTagStore(),
+            appNfcTags.availability,
+            catalog = combine(attributes.observeDefinitions(), attributes.observeActiveLinks(), ::AttributeCatalog),
+        )
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
     // Keyed: not the instance of the Stock page
