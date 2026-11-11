@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://github.com/Mathorck/EasyStock/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" alt="Get it on GitHub" height="60"></a>
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/Mathorck/EasyStock"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="60"></a>
 </p>
 
 <p align="center">
@@ -180,16 +179,4 @@ Never commit the keystore. Losing it means users can't update the app anymore, k
 
 [MIT](LICENSE) © 2026 EasyStock contributors. Free to use, change and share, as long as the copyright notice is kept.
 
----
 
-## Star History
-
-If EasyStock is useful to you, a star helps others find it.
-
-<a href="https://star-history.com/#Mathorck/EasyStock&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Mathorck/EasyStock&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Mathorck/EasyStock&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Mathorck/EasyStock&type=Date" />
-  </picture>
-</a>
