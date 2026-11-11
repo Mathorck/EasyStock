@@ -5,6 +5,8 @@ package ch.mathorck.easystock.composables.nfc
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -226,6 +228,7 @@ private fun ErrorText(text: String) {
  * The NFC tag of an article (or a location, [forLocation]): the tag ID or "no tag", and the link, replace
  * and remove actions. Removing asks first.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ArticleTagSection(
     tagId: String?,
@@ -261,12 +264,12 @@ fun ArticleTagSection(
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onLink) {
-                    Text(stringResource(if (tagId == null) Res.string.nfc_link_tag else Res.string.nfc_replace_tag))
+                    Text(stringResource(if (tagId == null) Res.string.nfc_link_tag else Res.string.nfc_replace_tag), maxLines = 1)
                 }
                 if (tagId != null) {
-                    TextButton(onClick = { confirmRemove = true }) { Text(stringResource(Res.string.nfc_remove_tag)) }
+                    TextButton(onClick = { confirmRemove = true }) { Text(stringResource(Res.string.nfc_remove_tag), maxLines = 1) }
                 }
             }
             if (removeFailed) ErrorText(stringResource(Res.string.nfc_remove_failed))
