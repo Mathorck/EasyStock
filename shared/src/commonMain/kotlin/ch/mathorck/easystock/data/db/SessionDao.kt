@@ -47,6 +47,10 @@ abstract class SessionDao {
     @Query("UPDATE sync_state SET role = :role")
     abstract suspend fun updateRole(role: String)
 
+    /** A Guest promoted to a member account: new role, and the next sync pulls everything again. */
+    @Query("UPDATE sync_state SET role = :role, since = 0")
+    abstract suspend fun promoted(role: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     protected abstract suspend fun upsertSyncState(state: SyncState)
 
