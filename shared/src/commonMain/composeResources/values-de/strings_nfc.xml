@@ -54,19 +54,6 @@
     <string name="nfc_tags_filter_all">Alle</string>
     <string name="nfc_tags_filter_articles">Artikel</string>
     <string name="nfc_tags_filter_locations">Standorte</string>
-    <plurals name="nfc_tags_count">
-        <item quantity="one">%1$d Tag</item>
-        <item quantity="other">%1$d Tags</item>
-    </plurals>
-    <plurals name="nfc_tags_count_articles">
-        <item quantity="one">%1$d Artikel</item>
-        <item quantity="other">%1$d Artikel</item>
-    </plurals>
-    <plurals name="nfc_tags_count_locations">
-        <item quantity="one">%1$d Standort</item>
-        <item quantity="other">%1$d Standorte</item>
-    </plurals>
-    <string name="nfc_tags_count_format">%1$s: %2$s, %3$s</string>
     <string name="nfc_tags_scan_hint">Scannen Sie einen Tag, um ihn in der Liste zu finden.</string>
     <string name="nfc_tags_empty_title">Noch kein Tag zugeordnet</string>
     <string name="nfc_tags_empty_hint">Um einen Tag zuzuordnen, öffnen Sie einen Artikel oder Standort und tippen Sie auf „Tag zuordnen“. Sie können auch hier oder auf der Scan-Seite einen unbekannten Tag scannen.</string>

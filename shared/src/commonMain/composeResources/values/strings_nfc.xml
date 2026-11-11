@@ -54,19 +54,6 @@
     <string name="nfc_tags_filter_all">All</string>
     <string name="nfc_tags_filter_articles">Articles</string>
     <string name="nfc_tags_filter_locations">Locations</string>
-    <plurals name="nfc_tags_count">
-        <item quantity="one">%1$d tag</item>
-        <item quantity="other">%1$d tags</item>
-    </plurals>
-    <plurals name="nfc_tags_count_articles">
-        <item quantity="one">%1$d article</item>
-        <item quantity="other">%1$d articles</item>
-    </plurals>
-    <plurals name="nfc_tags_count_locations">
-        <item quantity="one">%1$d location</item>
-        <item quantity="other">%1$d locations</item>
-    </plurals>
-    <string name="nfc_tags_count_format">%1$s: %2$s, %3$s</string>
     <string name="nfc_tags_scan_hint">Scan a tag to find it in the list.</string>
     <string name="nfc_tags_empty_title">No tag linked yet</string>
     <string name="nfc_tags_empty_hint">To link a tag, open an article or a location and tap “Link tag”. You can also scan an unknown tag here or on the Scan page.</string>

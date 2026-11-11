@@ -97,10 +97,6 @@ import easystock.shared.generated.resources.nfc_remove_message
 import easystock.shared.generated.resources.nfc_sheet_read_failed
 import easystock.shared.generated.resources.nfc_tags_actions
 import easystock.shared.generated.resources.nfc_tags_archived
-import easystock.shared.generated.resources.nfc_tags_count
-import easystock.shared.generated.resources.nfc_tags_count_articles
-import easystock.shared.generated.resources.nfc_tags_count_format
-import easystock.shared.generated.resources.nfc_tags_count_locations
 import easystock.shared.generated.resources.nfc_tags_empty_hint
 import easystock.shared.generated.resources.nfc_tags_empty_title
 import easystock.shared.generated.resources.nfc_tags_filter_all
@@ -129,7 +125,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** How long a scanned row stays highlighted. */
@@ -352,7 +347,7 @@ fun TagsContent(
                             )
                         }
                     }
-                    CountHeader(state)
+                    ScanHint()
                     if (state.rows.isEmpty()) {
                         val query = state.query.trim()
                         EmptyListHint(
@@ -381,20 +376,10 @@ fun TagsContent(
     }
 }
 
-/** "3 tags: 2 articles, 1 location", and how to find a tag by scanning it. */
+/** How to find a tag by scanning it. */
 @Composable
-private fun CountHeader(state: TagListUiState) {
+private fun ScanHint() {
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)) {
-        Text(
-            stringResource(
-                Res.string.nfc_tags_count_format,
-                pluralStringResource(Res.plurals.nfc_tags_count, state.all.size, state.all.size),
-                pluralStringResource(Res.plurals.nfc_tags_count_articles, state.articleCount, state.articleCount),
-                pluralStringResource(Res.plurals.nfc_tags_count_locations, state.locationCount, state.locationCount),
-            ),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
         Text(
             stringResource(Res.string.nfc_tags_scan_hint),
             style = MaterialTheme.typography.bodySmall,
