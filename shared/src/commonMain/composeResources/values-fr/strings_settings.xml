@@ -15,4 +15,7 @@
     <string name="settings_section_data">Données</string>
     <string name="settings_backup">Sauvegarde et transfert</string>
     <string name="settings_backup_summary">Enregistrer vos données ou les déplacer vers un autre téléphone</string>
+    <string name="settings_section_general_summary">Langue : %1$s</string>
+    <string name="settings_section_catalogue_summary">Attributs, catégories, emplacements, tags NFC</string>
+    <string name="settings_section_data_summary">Révisions de stock, sauvegarde et transfert</string>
 </resources>
