@@ -163,6 +163,7 @@ class BackupFormatTest {
             .filter { it != BackupTable.STOCK_REVIEW && it != BackupTable.STOCK_REVIEW_LINE }
             .associateWith { BackupCodec.encodeTable(data, it) }
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 7))
 
         val decoded = BackupCodec.decodeTables { tables[it] }
 
@@ -252,7 +253,7 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(7, DB_VERSION)
+        assertEquals(8, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
@@ -260,6 +261,7 @@ class BackupFormatTest {
     fun olderSchemaIsAccepted() {
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 1))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 7))
     }
 
     @Test
