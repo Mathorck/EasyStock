@@ -5,6 +5,7 @@ import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.CategoryAttribute
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /** Separator between attribute values in the one-line summary. */
@@ -16,6 +17,9 @@ const val ATTRIBUTE_SUMMARY_SEPARATOR = " · "
  * [measure]: the quantity, for a measure or a number with a known unit, so a search in another unit finds it.
  */
 data class AttributeText(val raw: String, val text: String, val measure: MeasureMagnitude? = null)
+
+/** One attribute of an article for the detail view: its [label] and the formatted [value] ("50 m", "✓" for a bool). */
+data class AttributeRow(val key: String, val label: String, val value: String)
 
 /** The summary line of an article: its values joined by [ATTRIBUTE_SUMMARY_SEPARATOR]. */
 fun List<AttributeText>.summaryLine(): String = joinToString(ATTRIBUTE_SUMMARY_SEPARATOR) { it.text }
@@ -84,15 +88,33 @@ class AttributeCatalog(definitions: List<AttributeDefinition>, links: List<Categ
      * The values of [article], skipping empty ones. Attributes linked to the article's category come first,
      * by sort order, the others after, by label (ignoring case). Keys without active definition are ignored.
      */
-    fun format(article: Article): List<AttributeText> {
-        val values = article.attributes ?: return emptyList()
-        val order = article.categoryId?.let { sortOrders[it] }.orEmpty()
+    fun format(article: Article): List<AttributeText> = ordered(article.categoryId, article.attributes).map { it.second }
+
+    /** Same values and order as [format], with the label of each attribute. A true bool shows "✓". */
+    fun rows(categoryId: String?, values: JsonObject?): List<AttributeRow> = ordered(categoryId, values).map { (definition, text) ->
+        AttributeRow(definition.key, definition.label, if (definition.dataType == AttributeDataType.BOOL) "✓" else text.text)
+    }
+
+    /**
+     * The values a serial unit sets itself: those of [unit] that differ from the article's [inherited] ones.
+     * A unit value equal to the article one is not repeated.
+     */
+    fun unitRows(categoryId: String?, inherited: JsonObject?, unit: JsonObject?): List<AttributeRow> {
+        val own = rows(categoryId, unit)
+        if (own.isEmpty()) return own
+        val base = rows(categoryId, inherited).associate { it.key to it.value }
+        return own.filter { base[it.key] != it.value }
+    }
+
+    private fun ordered(categoryId: String?, values: JsonObject?): List<Pair<AttributeDefinition, AttributeText>> {
+        values ?: return emptyList()
+        val order = categoryId?.let { sortOrders[it] }.orEmpty()
         return values.keys.mapNotNull { byKey[it] }
             .sortedWith(
                 compareBy<AttributeDefinition> { order[it.id] ?: Int.MAX_VALUE }
                     .thenBy { it.label.lowercase() }
                     .thenBy { it.id },
             )
-            .mapNotNull { formatAttributeValue(it, values[it.key]) }
+            .mapNotNull { definition -> formatAttributeValue(definition, values[definition.key])?.let { definition to it } }
     }
 }

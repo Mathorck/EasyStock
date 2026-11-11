@@ -2,6 +2,8 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.AttributeCatalog
+import ch.mathorck.easystock.composables.attributes.AttributeRow
 import ch.mathorck.easystock.data.db.ArticleDetailDao
 import ch.mathorck.easystock.data.db.ArticleNotFoundException
 import ch.mathorck.easystock.data.db.AttributeDao
@@ -118,6 +120,8 @@ data class ArticleDetailUiState(
     val totalMilli: Long = 0,
     val locations: List<LocationStockRow> = emptyList(),
     val movements: List<MovementRow> = emptyList(),
+    /** Attribute values of the article, empty ones skipped, in the category order. */
+    val properties: List<AttributeRow> = emptyList(),
 ) {
     val isDeleted: Boolean get() = !loading && article == null
 
@@ -142,7 +146,8 @@ class ArticleDetailViewModel(
         dao.observeStockByLocation(articleId),
         dao.observeMovements(articleId),
         dao.observeAllLocations(),
-    ) { article, stock, movements, locations ->
+        combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
+    ) { article, stock, movements, locations, catalog ->
         ArticleDetailUiState(
             loading = false,
             article = article?.article,
@@ -150,6 +155,7 @@ class ArticleDetailViewModel(
             totalMilli = stock.sumOf { it.stockMilli },
             locations = locationStockRows(stock, locations),
             movements = movementRows(movements, locations, timeZone),
+            properties = article?.article?.let { catalog.rows(it.categoryId, it.attributes) }.orEmpty(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleDetailUiState())
 
