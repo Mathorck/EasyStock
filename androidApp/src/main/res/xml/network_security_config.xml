@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Server mode: self-hosted servers use any IP address or name, often without a certificate,
+    so plain HTTP is allowed (the app warns before connecting over HTTP).
+    HTTPS keeps the system certificate check, or the fingerprint pin from the QR code
+    (shared/src/androidMain/.../server/FingerprintTrustManager.kt).
+    The standalone mode makes no network call.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
