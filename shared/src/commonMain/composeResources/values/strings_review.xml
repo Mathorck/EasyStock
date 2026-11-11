@@ -83,7 +83,6 @@
     <string name="review_msg_finished">Review finished, stock updated.</string>
     <string name="review_read_only">Finished %1$s. Read-only.</string>
     <string name="review_last_reviewed">Last reviewed %1$s</string>
-    <string name="review_chip">Review</string>
     <string name="review_tag_failed">Could not read the tag. Hold it still and try again.</string>
     <string name="review_tag_unknown">This tag is not linked to an article or a location.</string>
     <string name="review_tag_not_in_review">Not expected here: add it as found item.</string>

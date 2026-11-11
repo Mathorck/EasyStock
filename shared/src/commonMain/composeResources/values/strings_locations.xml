@@ -69,7 +69,6 @@
     <string name="location_contents_here">Directly here</string>
     <string name="location_contents_empty">Nothing is stored here.</string>
     <string name="location_contents_empty_here">Nothing directly here. Include the sub-locations to see what they hold.</string>
-    <string name="location_contents_review">Review this location</string>
     <string name="location_contents_gone">This location no longer exists.</string>
     <string name="location_contents_open">Open contents</string>
     <string name="location_contents_units">Units here</string>

@@ -20,7 +20,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,14 +32,12 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
-import ch.mathorck.easystock.data.db.ReviewDao
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.viewmodels.ReviewListRow
 import ch.mathorck.easystock.viewmodels.ReviewListViewModel
 import ch.mathorck.easystock.viewmodels.ReviewMessage
 import ch.mathorck.easystock.viewmodels.formatDateTime
-import ch.mathorck.easystock.viewmodels.startOrResumeReview
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_fact_check
 import easystock.shared.generated.resources.review_list_counts
@@ -57,7 +54,6 @@ import easystock.shared.generated.resources.review_start_hint
 import easystock.shared.generated.resources.review_start_title
 import easystock.shared.generated.resources.review_status_finished
 import easystock.shared.generated.resources.review_status_open
-import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -158,22 +154,5 @@ private fun ReviewRow(row: ReviewListRow, timeZone: TimeZone, onClick: () -> Uni
         },
         leadingContent = { Icon(painterResource(Res.drawable.ic_fact_check), contentDescription = null) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-/**
- * Starts (or resumes) a review of a location and remembers which one is shown.
- * [open] null = none shown. Used by the location manager and the stock list.
- */
-class ReviewLauncher internal constructor(val open: String?, val start: (String) -> Unit, val close: () -> Unit)
-
-@Composable
-fun rememberReviewLauncher(dao: ReviewDao = rememberAppDatabase().reviewDao()): ReviewLauncher {
-    var open by rememberSaveable { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    return ReviewLauncher(
-        open = open,
-        start = { locationId -> scope.launch { startOrResumeReview(dao, locationId)?.let { open = it } } },
-        close = { open = null },
     )
 }

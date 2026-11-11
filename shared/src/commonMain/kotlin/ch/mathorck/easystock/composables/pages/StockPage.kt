@@ -70,12 +70,8 @@ import ch.mathorck.easystock.data.model.ArticleStock
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.composables.review.ReviewScreen
-import ch.mathorck.easystock.composables.review.rememberReviewLauncher
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import easystock.shared.generated.resources.ic_fact_check
-import easystock.shared.generated.resources.review_chip
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.StockFilters
 import ch.mathorck.easystock.viewmodels.StockLevelFilter
@@ -150,13 +146,9 @@ fun StockPage() {
             newArticleViewModel.consumeCreated()
         }
     }
-    val review = rememberReviewLauncher(db.reviewDao())
     Box(Modifier.fillMaxSize()) {
         val articleId = selectedArticleId
-        val reviewId = review.open
-        if (reviewId != null) {
-            ReviewScreen(reviewId = reviewId, onBack = review.close)
-        } else if (articleId != null) {
+        if (articleId != null) {
             ArticleDetailScreen(articleId = articleId, onBack = { selectedArticleId = null })
         } else {
             StockContent(
@@ -166,7 +158,6 @@ fun StockPage() {
                 onFiltersChange = viewModel::onFiltersChange,
                 onClearFilters = viewModel::onClearFilters,
                 onArticleClick = { selectedArticleId = it },
-                onReviewLocation = review.start,
                 listState = listState,
                 // Keeps the last row above the FAB
                 contentPadding = PaddingValues(bottom = 88.dp),
@@ -218,8 +209,6 @@ fun StockContent(
     onArticleClick: (String) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(bottom = 16.dp),
-    /** Starts or resumes a stock review of the filtered location. Null hides the chip. */
-    onReviewLocation: ((String) -> Unit)? = null,
 ) {
     var picker by remember { mutableStateOf<StockPicker?>(null) }
     val filters = state.filters
@@ -240,7 +229,6 @@ fun StockContent(
                 onOpenPicker = { picker = it },
                 onFiltersChange = onFiltersChange,
                 onClearFilters = onClearFilters,
-                onReviewLocation = onReviewLocation,
             )
         }
         when {
@@ -371,7 +359,6 @@ private fun FilterRow(
     onOpenPicker: (StockPicker) -> Unit,
     onFiltersChange: (StockFilters) -> Unit,
     onClearFilters: () -> Unit,
-    onReviewLocation: ((String) -> Unit)?,
 ) {
     val filters = state.filters
     Row(
@@ -445,14 +432,6 @@ private fun FilterRow(
                 clearDescription = stringResource(Res.string.stock_filter_clear_attribute),
                 onClick = { onOpenPicker(StockPicker.Attribute) },
                 onClear = { onFiltersChange(filters.copy(attributeId = null)) },
-            )
-        }
-        val locationId = filters.locationId
-        if (onReviewLocation != null && locationId != null && state.selectedLocation != null) {
-            AssistChip(
-                onClick = { onReviewLocation(locationId) },
-                label = { Text(stringResource(Res.string.review_chip)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.ic_fact_check), null, Modifier.size(AssistChipDefaults.IconSize)) },
             )
         }
     }
