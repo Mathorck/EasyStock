@@ -5,19 +5,23 @@ import androidx.lifecycle.viewModelScope
 import ch.mathorck.easystock.composables.attributes.AttributeCatalog
 import ch.mathorck.easystock.composables.attributes.summaryLine
 import ch.mathorck.easystock.data.db.AttributeDao
+import ch.mathorck.easystock.data.db.DuplicateSerialException
 import ch.mathorck.easystock.data.db.FoundCandidate
 import ch.mathorck.easystock.data.db.ReviewClosedException
 import ch.mathorck.easystock.data.db.ReviewDao
 import ch.mathorck.easystock.data.db.ReviewSummaryRow
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.data.model.PendingUnit
 import ch.mathorck.easystock.data.model.ReviewResult
 import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.data.model.StockReview
 import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.data.model.pendingUnit
 import ch.mathorck.easystock.nfc.TagEvent
 import ch.mathorck.easystock.review.LineFilter
 import ch.mathorck.easystock.review.LineStatus
@@ -35,8 +39,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -143,12 +150,32 @@ data class ReviewFinishPreview(
 
 data class FoundSearchState(val query: String = "", val results: List<FoundCandidate> = emptyList(), val searching: Boolean = false)
 
+/** The "new unit found" form: the unit properties of the article, at a fixed location of the review. */
+data class NewUnitSheetState(
+    val articleName: String,
+    val unit: String,
+    val locationPath: String,
+    val ui: StockActionUiState,
+)
+
+private data class NewUnitDraft(
+    val article: Article,
+    val locationId: String,
+    val form: StockActionForm,
+    val itemAttributes: List<CategoryAttributeWithDefinition>,
+    /** Every serial number in use, soft-deleted units included. */
+    val serials: List<String>,
+    val saving: Boolean = false,
+    val failed: Boolean = false,
+    val rejectedSerial: String? = null,
+)
+
 /** Checklist of a review: count, mark, flag, add found items, then finish. */
 @OptIn(ExperimentalUuidApi::class)
 class ReviewViewModel(
     private val reviewId: String,
     private val dao: ReviewDao,
-    attributeDao: AttributeDao,
+    private val attributeDao: AttributeDao,
     /** Active article of an NFC tag ID (`article.barcode`). */
     private val findArticleByTag: suspend (String) -> Article? = { null },
     private val clock: Clock = Clock.System,
@@ -166,6 +193,8 @@ class ReviewViewModel(
     /** True when a scanned article is not in the review: the screen opens the "found item" search. */
     val openFound = MutableStateFlow(false)
 
+    private val newUnitDraft = MutableStateFlow<NewUnitDraft?>(null)
+
     private val catalog = combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog)
 
     private val data = combine(
@@ -179,6 +208,11 @@ class ReviewViewModel(
     val state: StateFlow<ReviewUiState> = combine(data, catalog, filter) { data, catalog, filter ->
         buildState(data, catalog, filter)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReviewUiState())
+
+    /** Null when the form is closed. Pending units of the review count as taken serials. */
+    val newUnit: StateFlow<NewUnitSheetState?> = combine(newUnitDraft, state) { draft, review ->
+        draft?.let { buildNewUnit(it, review) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         // Stock added or moved since the last visit gets its line
@@ -243,6 +277,94 @@ class ReviewViewModel(
             dao.addFoundArticle(reviewId, candidate.articleId, locationId, now(), newId)
         }
         clearSearch()
+    }
+
+    // ---------- New unit found ----------
+
+    /** Opens the add-unit form for a serial article found at [locationId]. The unit is only stored on the review. */
+    fun openNewUnit(articleId: String, locationId: String) {
+        viewModelScope.launch {
+            try {
+                val article = dao.getActiveArticle(articleId)?.takeIf { it.tracking == Tracking.SERIAL }
+                if (article == null) {
+                    message.value = ReviewMessage.FAILED
+                    return@launch
+                }
+                val attributes = article.categoryId?.let { attributeDao.observeCategoryAttributes(it).first() }.orEmpty()
+                newUnitDraft.value = NewUnitDraft(
+                    article = article,
+                    locationId = locationId,
+                    form = StockActionForm(kind = StockActionKind.ADD_UNIT, targetLocationId = locationId),
+                    itemAttributes = attributes,
+                    serials = dao.allSerials(),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                message.value = ReviewMessage.FAILED
+            }
+        }
+    }
+
+    fun updateNewUnit(transform: (StockActionForm) -> StockActionForm) {
+        newUnitDraft.update { it?.copy(form = transform(it.form), failed = false) }
+    }
+
+    fun closeNewUnit() {
+        newUnitDraft.value = null
+    }
+
+    fun saveNewUnit() {
+        val draft = newUnitDraft.value ?: return
+        val ui = newUnit.value?.ui ?: return
+        if (!ui.canSave) return
+        newUnitDraft.value = draft.copy(saving = true, failed = false)
+        viewModelScope.launch {
+            try {
+                val unit = PendingUnit(draft.form.serial.trim().ifEmpty { null }, draft.form.itemStatus, draft.form.itemAttributes)
+                dao.addPendingUnit(reviewId, draft.article.id, draft.locationId, unit, now(), newId)
+                newUnitDraft.value = null
+                clearSearch()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: DuplicateSerialException) {
+                newUnitDraft.update { it?.copy(saving = false, rejectedSerial = e.serial) }
+            } catch (e: ReviewClosedException) {
+                newUnitDraft.value = null
+                message.value = ReviewMessage.CLOSED
+            } catch (e: Exception) {
+                newUnitDraft.update { it?.copy(saving = false, failed = true) }
+            }
+        }
+    }
+
+    private fun buildNewUnit(draft: NewUnitDraft, review: ReviewUiState): NewUnitSheetState {
+        val pendingSerials = review.lines.values.mapNotNull { it.line.pendingUnit?.serialNumber }
+        val context = StockActionContext(
+            stockByLocation = emptyMap(),
+            activeLocationIds = setOf(draft.locationId),
+            serials = draft.serials + pendingSerials,
+            items = emptyList(),
+            itemAttributes = draft.itemAttributes,
+        )
+        val path = review.paths[draft.locationId] ?: ""
+        return NewUnitSheetState(
+            articleName = draft.article.name,
+            unit = draft.article.unit,
+            locationPath = path,
+            ui = StockActionUiState(
+                form = draft.form,
+                errors = draft.form.validate(context, draft.rejectedSerial),
+                locations = emptyList(),
+                sourcePath = path,
+                availableMilli = null,
+                unitSerial = null,
+                itemAttributes = draft.itemAttributes,
+                inheritedAttributes = draft.article.attributes,
+                saving = draft.saving,
+                saveFailed = draft.failed,
+            ),
+        )
     }
 
     // ---------- Finish ----------
@@ -385,9 +507,14 @@ private fun buildState(data: ReviewData, catalog: AttributeCatalog, filter: Line
     val uiLines = data.lines.map { line ->
         val article = articles[line.articleId]
         val item = line.itemId?.let { items[it] }
+        val pending = line.pendingUnit
         val attributes = when {
             article == null -> ""
             // Unit values first, then the article's own
+            pending != null -> listOf(
+                catalog.format(article.copy(attributes = pending.attributes)).summaryLine(),
+                catalog.format(article).summaryLine(),
+            ).filter { it.isNotEmpty() }.joinToString(" · ")
             item != null -> listOf(
                 catalog.format(article.copy(attributes = item.attributes)).summaryLine(),
                 catalog.format(article).summaryLine(),
@@ -398,8 +525,8 @@ private fun buildState(data: ReviewData, catalog: AttributeCatalog, filter: Line
             line = line,
             articleName = article?.name ?: "",
             unit = article?.unit ?: "",
-            serialNumber = item?.serialNumber,
-            itemStatus = item?.status,
+            serialNumber = item?.serialNumber ?: pending?.serialNumber,
+            itemStatus = item?.status ?: pending?.status,
             attributes = attributes,
             status = line.status(),
             foundPath = line.foundLocationId?.let { paths[it] },

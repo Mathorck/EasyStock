@@ -90,4 +90,13 @@
     <string name="review_tag_not_in_review">Pas attendu ici : ajoutez-le comme objet trouvé.</string>
     <string name="review_tag_hint">Scannez un tag pour aller à sa ligne.</string>
     <string name="review_gone">Cette révision n’existe plus.</string>
+    <string name="review_found_new_unit">Nouvelle unité de cet article</string>
+    <string name="review_add_unit_here">Ajouter une unité trouvée ici</string>
+    <string name="review_new_unit_title">Nouvelle unité trouvée</string>
+    <string name="review_new_unit_at">%1$s, trouvée à %2$s</string>
+    <string name="review_new_unit_hint">L’unité est créée quand vous appliquez la révision.</string>
+    <string name="review_new_unit_add">Ajouter</string>
+    <string name="review_pending_unit">Nouvelle unité, créée à l’application de la révision</string>
+    <string name="review_change_create">Créer %1$s (%2$s) à %3$s</string>
+    <string name="review_skipped_duplicate">%1$s : ce numéro de série est maintenant utilisé par une autre unité, rien n’est créé</string>
 </resources>

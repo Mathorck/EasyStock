@@ -11,12 +11,14 @@ import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.data.model.PendingUnit
 import ch.mathorck.easystock.data.model.ReviewResult
 import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.data.model.StockMovement
 import ch.mathorck.easystock.data.model.StockReview
 import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.data.model.pendingUnit
 import ch.mathorck.easystock.review.FinishInputs
 import ch.mathorck.easystock.review.MissingResolution
 import ch.mathorck.easystock.review.ReviewChange
@@ -25,6 +27,7 @@ import ch.mathorck.easystock.review.ReviewPosition
 import ch.mathorck.easystock.review.UnitState
 import ch.mathorck.easystock.review.allowedResults
 import ch.mathorck.easystock.review.isAddedUnit
+import ch.mathorck.easystock.review.isPendingUnit
 import ch.mathorck.easystock.review.isSerial
 import ch.mathorck.easystock.review.newLine
 import ch.mathorck.easystock.review.planReviewFinish
@@ -119,13 +122,13 @@ abstract class ReviewDao {
     )
     abstract fun observeLastReviewed(): Flow<List<LocationReviewedRow>>
 
-    /** Articles and units whose name, SKU or serial contains [query] (case-insensitive), active ones only. */
+    /** Active articles (to count a quantity article, or add a new unit of a serial one) and units whose name, SKU or serial contains [query] (case-insensitive), active ones only. */
     @Query(
         """
         SELECT a.id AS article_id, a.name AS article_name, a.tracking, a.unit,
             NULL AS item_id, NULL AS serial_number, NULL AS item_status, NULL AS location_id
         FROM article a
-        WHERE a.deleted_at IS NULL AND a.tracking = 'quantity'
+        WHERE a.deleted_at IS NULL
             AND (a.name LIKE '%' || :query || '%' OR a.sku LIKE '%' || :query || '%')
         UNION ALL
         SELECT a.id, a.name, a.tracking, a.unit, i.id, i.serial_number, i.status, i.location_id
@@ -154,7 +157,14 @@ abstract class ReviewDao {
     protected abstract suspend fun activeLocations(): List<Location>
 
     @Query("SELECT * FROM article WHERE id = :id AND deleted_at IS NULL")
-    protected abstract suspend fun getActiveArticle(id: String): Article?
+    abstract suspend fun getActiveArticle(id: String): Article?
+
+    /** All serial numbers, soft-deleted units included (they keep their serial and the unique index). */
+    @Query("SELECT serial_number FROM item WHERE serial_number IS NOT NULL")
+    abstract suspend fun allSerials(): List<String>
+
+    @Query("SELECT COUNT(*) FROM item WHERE serial_number = :serial COLLATE NOCASE")
+    protected abstract suspend fun countItemsWithSerial(serial: String): Int
 
     @Query("SELECT id FROM article WHERE id IN (:ids) AND deleted_at IS NULL")
     protected abstract suspend fun activeArticleIds(ids: List<String>): List<String>
@@ -211,6 +221,9 @@ abstract class ReviewDao {
 
     @Update
     protected abstract suspend fun updateItem(item: Item)
+
+    @Insert
+    protected abstract suspend fun insertItem(item: Item)
 
     @Insert
     protected abstract suspend fun insertMovement(movement: StockMovement)
@@ -277,6 +290,7 @@ abstract class ReviewDao {
     open suspend fun setUnitResult(lineId: String, result: ReviewResult, foundLocationId: String?, now: Long) {
         val line = openLine(lineId)
         require(line.isSerial) { "Not a unit line" }
+        require(!line.isPendingUnit) { "A new unit is present here, reset it to remove it" }
         require(result in allowedResults(serial = true) && result != ReviewResult.UNCHECKED) { "Use resetLine" }
         if (result == ReviewResult.ELSEWHERE) {
             requireNotNull(foundLocationId) { "Where it was found is needed" }
@@ -338,6 +352,39 @@ abstract class ReviewDao {
             return existing.id
         }
         val line = newLine(newId(), reviewId, item.articleId, itemId, locationId, 0, now, ReviewResult.PRESENT)
+        insertLines(listOf(line))
+        return line.id
+    }
+
+    /**
+     * A new unit of a serial article found at [locationId], not registered yet. Only a review line is written
+     * (nothing else changes now): the unit and its movement are created when the review is finished.
+     * Throws [DuplicateSerialException] when the serial number is taken (by a unit, or another new unit of the review).
+     * Returns the line id.
+     */
+    @Transaction
+    open suspend fun addPendingUnit(
+        reviewId: String,
+        articleId: String,
+        locationId: String,
+        unit: PendingUnit,
+        now: Long,
+        newId: () -> String,
+    ): String {
+        val review = openReview(reviewId)
+        requireInScope(review, locationId)
+        val article = getActiveArticle(articleId) ?: throw StockTargetNotFoundException("article $articleId")
+        require(article.tracking == Tracking.SERIAL) { "Article is not serial-tracked" }
+        require(unit.status in CREATABLE_STATUSES) { "A new unit is in stock" }
+        val lines = linesOf(reviewId)
+        unit.serialNumber?.let { serial ->
+            require(serial.isNotBlank() && serial == serial.trim() && serial.length <= MAX_SERIAL_LENGTH) { "Invalid serial number" }
+            val pendingSerials = lines.mapNotNull { it.pendingUnit?.serialNumber }
+            if (countItemsWithSerial(serial) > 0 || pendingSerials.any { it.equals(serial, ignoreCase = true) }) {
+                throw DuplicateSerialException(serial)
+            }
+        }
+        val line = newLine(newId(), reviewId, articleId, null, locationId, 0, now, ReviewResult.PRESENT, pendingItem = unit.toJson())
         insertLines(listOf(line))
         return line.id
     }
@@ -404,6 +451,7 @@ abstract class ReviewDao {
             units = units,
             activeArticleIds = activeArticleIds(lines.map { it.articleId }.distinct()).toSet(),
             activeLocationIds = activeLocations().mapTo(HashSet()) { it.id },
+            takenSerials = allSerials().mapTo(HashSet()) { it.lowercase() },
         )
     }
 
@@ -433,6 +481,24 @@ abstract class ReviewDao {
                 }
                 insertMovement(movement(change.locationId, UNIT_MILLI, reason, change.itemId))
                 syncUnit(change.itemId, status, now)
+            }
+            is ReviewChange.CreateUnit -> {
+                // Found, not bought: INVENTORY +1 with the review comment (the normal add-unit flow uses PURCHASE)
+                val item = Item(
+                    id = newId(),
+                    articleId = change.articleId,
+                    serialNumber = change.unit.serialNumber,
+                    status = change.unit.status,
+                    locationId = change.locationId,
+                    attributes = change.unit.attributes,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+                insertItem(item)
+                insertMovement(movement(change.locationId, UNIT_MILLI, MovementReason.INVENTORY, item.id))
+                // The line now points at the created unit and no longer holds the pending data
+                val line = getLine(change.lineId) ?: throw ReviewClosedException("line ${change.lineId}")
+                updateLine(line.copy(itemId = item.id, pendingItem = null, updatedAt = now))
             }
             is ReviewChange.LoseUnit -> {
                 val transition = unitTransition(change.from, UnitAction.LOSE) ?: throw InvalidItemStatusException(change.from)

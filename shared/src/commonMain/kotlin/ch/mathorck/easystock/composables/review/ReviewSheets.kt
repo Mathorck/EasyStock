@@ -1,6 +1,8 @@
 package ch.mathorck.easystock.composables.review
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import ch.mathorck.easystock.composables.article.label
+import ch.mathorck.easystock.composables.article.ItemPropertiesFields
+import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.viewmodels.NewUnitSheetState
+import ch.mathorck.easystock.viewmodels.StockActionForm
 import ch.mathorck.easystock.data.db.FoundCandidate
 import ch.mathorck.easystock.review.MissingResolution
 import ch.mathorck.easystock.review.ReviewChange
@@ -75,6 +81,13 @@ import easystock.shared.generated.resources.review_no_serial
 import easystock.shared.generated.resources.review_skipped_changed
 import easystock.shared.generated.resources.review_skipped_gone
 import easystock.shared.generated.resources.review_skipped_title
+import easystock.shared.generated.resources.review_found_new_unit
+import easystock.shared.generated.resources.review_new_unit_title
+import easystock.shared.generated.resources.review_new_unit_at
+import easystock.shared.generated.resources.review_new_unit_hint
+import easystock.shared.generated.resources.review_new_unit_add
+import easystock.shared.generated.resources.review_change_create
+import easystock.shared.generated.resources.review_skipped_duplicate
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -108,6 +121,7 @@ internal fun FoundItemDialog(
     search: FoundSearchState,
     onQueryChange: (String) -> Unit,
     onAdd: (FoundCandidate, String) -> Unit,
+    onNewUnit: (FoundCandidate, String) -> Unit,
     onNewArticle: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -140,7 +154,12 @@ internal fun FoundItemDialog(
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = location != null) { location?.let { onAdd(candidate, it.id) } }
+                        .clickable(enabled = location != null) {
+                            location?.let {
+                                // A serial article itself (no unit): register a new unit of it here
+                                if (candidate.itemId == null && candidate.tracking == Tracking.SERIAL) onNewUnit(candidate, it.id) else onAdd(candidate, it.id)
+                            }
+                        }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
                     Text(candidate.articleName, style = MaterialTheme.typography.bodyLarge)
@@ -151,6 +170,12 @@ internal fun FoundItemDialog(
                             candidate.locationId?.let { state.paths[it] },
                         )
                         Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else if (candidate.tracking == Tracking.SERIAL) {
+                        Text(
+                            stringResource(Res.string.review_found_new_unit),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     } else {
                         Text(candidate.unit, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -192,6 +217,37 @@ internal fun FoundItemDialog(
             },
             onDismiss = { picking = false },
         )
+    }
+}
+
+/** Form of a new unit found during the review: serial, status and attributes. Nothing is created before the review is applied. */
+@Composable
+internal fun NewUnitDialog(
+    sheet: NewUnitSheetState,
+    onFormChange: ((StockActionForm) -> StockActionForm) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    FullDialog(
+        title = stringResource(Res.string.review_new_unit_title),
+        onDismiss = onDismiss,
+        buttons = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.review_cancel)) }
+            Button(onClick = onSave, enabled = sheet.ui.canSave) { Text(stringResource(Res.string.review_new_unit_add)) }
+        },
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+        ) {
+            Text(stringResource(Res.string.review_new_unit_at, sheet.articleName, sheet.locationPath), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(Res.string.review_new_unit_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ItemPropertiesFields(sheet.ui, onFormChange)
+        }
     }
 }
 
@@ -275,6 +331,12 @@ internal fun FinishDialog(
                                 state.paths[change.toLocationId] ?: "",
                             )
                             is ReviewChange.BringBack -> stringResource(Res.string.review_change_back, name, serial, state.paths[change.locationId] ?: "")
+                            is ReviewChange.CreateUnit -> stringResource(
+                                Res.string.review_change_create,
+                                name,
+                                serial,
+                                state.paths[change.locationId] ?: "",
+                            )
                             is ReviewChange.LoseUnit -> stringResource(Res.string.review_change_lose, name, serial)
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -289,7 +351,11 @@ internal fun FinishDialog(
                     val label = state.lines[skipped.lineId]?.let { lineLabel(it) } ?: ""
                     Text(
                         stringResource(
-                            if (skipped.reason == SkipReason.GONE) Res.string.review_skipped_gone else Res.string.review_skipped_changed,
+                            when (skipped.reason) {
+                                SkipReason.GONE -> Res.string.review_skipped_gone
+                                SkipReason.CHANGED -> Res.string.review_skipped_changed
+                                SkipReason.DUPLICATE_SERIAL -> Res.string.review_skipped_duplicate
+                            },
                             label,
                         ),
                         style = MaterialTheme.typography.bodyMedium,

@@ -7,6 +7,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 /**
  * Physical count of a location and all its active descendants.
@@ -69,8 +75,37 @@ data class StockReviewLine(
     @SerialName("found_location_id") @ColumnInfo(name = "found_location_id") val foundLocationId: String? = null,
     @SerialName("info_flagged") @ColumnInfo(name = "info_flagged", defaultValue = "0") val infoFlagged: Boolean = false,
     val note: String? = null,
+    /**
+     * A new unit found during the review, not created yet (see [PendingUnit]). The line has no [itemId] until the
+     * review is finished: the unit and its movement are then created and this is cleared.
+     */
+    @SerialName("pending_item") @ColumnInfo(name = "pending_item") val pendingItem: JsonObject? = null,
     @SerialName("checked_at") @ColumnInfo(name = "checked_at") val checkedAt: Long? = null,
     @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
     @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
 )
+
+/** A unit found during a review that is not registered yet. Stored as JSON on the review line until the review is applied. */
+data class PendingUnit(
+    val serialNumber: String? = null,
+    val status: ItemStatus = ItemStatus.AVAILABLE,
+    /** Unit-specific attribute values, same keys as [Article.attributes]. */
+    val attributes: JsonObject? = null,
+) {
+    fun toJson(): JsonObject = buildJsonObject {
+        put("serial_number", serialNumber)
+        put("status", status.dbValue)
+        attributes?.let { put("attributes", it) }
+    }
+
+    companion object {
+        fun fromJson(json: JsonObject): PendingUnit = PendingUnit(
+            serialNumber = (json["serial_number"] as? JsonPrimitive)?.contentOrNull,
+            status = json["status"]?.jsonPrimitive?.contentOrNull?.let { enumFromDb<ItemStatus>(it) } ?: ItemStatus.AVAILABLE,
+            attributes = (json["attributes"] as? JsonObject),
+        )
+    }
+}
+
+val StockReviewLine.pendingUnit: PendingUnit? get() = pendingItem?.let(PendingUnit::fromJson)

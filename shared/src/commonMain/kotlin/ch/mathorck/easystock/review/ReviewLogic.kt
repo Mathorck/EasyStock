@@ -1,19 +1,25 @@
 package ch.mathorck.easystock.review
 
 import androidx.room.ColumnInfo
+import kotlinx.serialization.json.JsonObject
 import ch.mathorck.easystock.data.db.UNIT_MILLI
 import ch.mathorck.easystock.data.db.canMoveUnit
 import ch.mathorck.easystock.data.model.ItemStatus
+import ch.mathorck.easystock.data.model.PendingUnit
 import ch.mathorck.easystock.data.model.ReviewResult
 import ch.mathorck.easystock.data.model.StockReviewLine
+import ch.mathorck.easystock.data.model.pendingUnit
 
 // Pure rules of a stock review, shared by ReviewDao and the UI. No database access here.
 
 /** What the checklist shows for a line. The info flag is separate ([StockReviewLine.infoFlagged]). */
 enum class LineStatus { UNCHECKED, OK, DISCREPANCY }
 
-/** A serial line is one unit, a quantity line an article at a location. */
-val StockReviewLine.isSerial: Boolean get() = itemId != null
+/** A serial line is one unit (existing or [isPendingUnit]), a quantity line an article at a location. */
+val StockReviewLine.isSerial: Boolean get() = itemId != null || pendingItem != null
+
+/** A new unit found during the review: it is created when the review is applied. */
+val StockReviewLine.isPendingUnit: Boolean get() = pendingItem != null
 
 /**
  * A unit added by "found here" (it was not expected at this location). Resetting it removes the line.
@@ -121,6 +127,7 @@ fun newLine(
     expectedMilli: Long,
     now: Long,
     result: ReviewResult = ReviewResult.UNCHECKED,
+    pendingItem: JsonObject? = null,
 ) = StockReviewLine(
     id = id,
     reviewId = reviewId,
@@ -129,6 +136,7 @@ fun newLine(
     locationId = locationId,
     expectedMilli = expectedMilli,
     result = result,
+    pendingItem = pendingItem,
     checkedAt = if (result == ReviewResult.UNCHECKED) null else now,
     createdAt = now,
     updatedAt = now,
@@ -160,6 +168,8 @@ data class FinishInputs(
     val units: Map<String, UnitState>,
     val activeArticleIds: Set<String>,
     val activeLocationIds: Set<String>,
+    /** Every serial number in use (lowercase), soft-deleted units included. */
+    val takenSerials: Set<String> = emptySet(),
 )
 
 /** One change applied on finish. Every change only adds stock_movement rows (and updates the unit). */
@@ -198,6 +208,14 @@ sealed interface ReviewChange {
         val from: ItemStatus,
     ) : ReviewChange
 
+    /** A new unit found during the review: creates the unit at [locationId] with one INVENTORY +1 movement. */
+    data class CreateUnit(
+        override val lineId: String,
+        override val articleId: String,
+        val locationId: String,
+        val unit: PendingUnit,
+    ) : ReviewChange
+
     /** Unit missing and resolved as lost: the "lost" action (-1 LOSS when in stock, status only when lent). */
     data class LoseUnit(
         override val lineId: String,
@@ -214,6 +232,8 @@ enum class SkipReason {
     GONE,
     /** The unit changed since the review saw it (moved, lent or lost meanwhile), the result no longer applies. */
     CHANGED,
+    /** The serial number of a new unit was taken since (by another unit or another new unit of the review). */
+    DUPLICATE_SERIAL,
 }
 
 data class SkippedLine(val lineId: String, val reason: SkipReason)
@@ -246,6 +266,7 @@ fun planReviewFinish(inputs: FinishInputs, resolutions: Map<String, MissingResol
     val drifted = mutableSetOf<String>()
     val clamped = mutableSetOf<String>()
     val handledUnits = mutableSetOf<String>()
+    val usedSerials = inputs.takenSerials.toMutableSet()
     var unchecked = 0
     for (line in inputs.lines.sortedWith(compareBy({ it.createdAt }, { it.id }))) {
         if (line.result == ReviewResult.UNCHECKED) {
@@ -259,6 +280,11 @@ fun planReviewFinish(inputs: FinishInputs, resolutions: Map<String, MissingResol
         }
         if (line.articleId !in inputs.activeArticleIds) {
             skipped += SkippedLine(line.id, SkipReason.GONE)
+            continue
+        }
+        val pending = line.pendingUnit
+        if (pending != null && line.itemId == null) {
+            planNewUnit(line, pending, inputs, usedSerials, changes, skipped)
             continue
         }
         val itemId = line.itemId
@@ -275,6 +301,26 @@ fun planReviewFinish(inputs: FinishInputs, resolutions: Map<String, MissingResol
         }
     }
     return ReviewFinishPlan(changes, skipped, drifted, clamped, unchecked)
+}
+
+private fun planNewUnit(
+    line: StockReviewLine,
+    pending: PendingUnit,
+    inputs: FinishInputs,
+    usedSerials: MutableSet<String>,
+    changes: MutableList<ReviewChange>,
+    skipped: MutableList<SkippedLine>,
+) {
+    if (line.locationId !in inputs.activeLocationIds) {
+        skipped += SkippedLine(line.id, SkipReason.GONE)
+        return
+    }
+    val serial = pending.serialNumber?.lowercase()
+    if (serial != null && !usedSerials.add(serial)) {
+        skipped += SkippedLine(line.id, SkipReason.DUPLICATE_SERIAL)
+        return
+    }
+    changes += ReviewChange.CreateUnit(line.id, line.articleId, line.locationId, pending)
 }
 
 private fun planCorrection(

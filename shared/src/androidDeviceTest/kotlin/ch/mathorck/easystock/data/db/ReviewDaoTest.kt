@@ -8,6 +8,7 @@ import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
+import ch.mathorck.easystock.data.model.PendingUnit
 import ch.mathorck.easystock.data.model.ReviewResult
 import ch.mathorck.easystock.data.model.ReviewStatus
 import ch.mathorck.easystock.data.model.StockMovement
@@ -235,5 +236,143 @@ class ReviewDaoTest {
         assertEquals(1, row.discrepancies)
         assertEquals(1, row.flagged)
         assertEquals("serial unreadable", unitLine(id, "d2").note)
+    }
+
+    // ---------- New unit of an existing article found during a review ----------
+
+    @Test
+    fun searchOffersSerialArticlesToAddAUnit() = runBlocking {
+        val results = reviews.searchFoundCandidates("Drill")
+
+        assertTrue(results.any { it.articleId == "drill" && it.itemId == null && it.tracking == Tracking.SERIAL })
+        assertTrue(results.any { it.itemId == "d1" })
+    }
+
+    @Test
+    fun newUnitIsOnlyStoredOnTheLineBeforeApply() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+        val snapshot = db.backupDao().snapshot()
+
+        val lineId = reviews.addPendingUnit(id, "drill", "bin", PendingUnit("SN-new"), now = 110, newId = newId)
+
+        // No item, no movement: only the review line
+        val after = db.backupDao().snapshot()
+        assertEquals(snapshot.items, after.items)
+        assertEquals(snapshot.movements, after.movements)
+        val line = lines(id).single { it.id == lineId }
+        assertEquals(ReviewResult.PRESENT, line.result)
+        assertNull(line.itemId)
+        assertEquals(0, line.expectedMilli)
+        assertEquals("SN-new", line.pendingItem?.let { PendingUnit.fromJson(it).serialNumber })
+        assertEquals(1, reviews.observeReviews().first().single().discrepancies)
+
+        // Cancelling leaves the stock untouched
+        reviews.cancelReview(id, now = 120)
+        assertEquals(snapshot.items, db.backupDao().snapshot().items)
+        assertEquals(snapshot.movements, db.backupDao().snapshot().movements)
+    }
+
+    @Test
+    fun applyCreatesTheUnitWithAnInventoryMovement() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+        val before = allMovements()
+        val lineId = reviews.addPendingUnit(
+            id, "drill", "bin", PendingUnit("SN-new", ItemStatus.REPAIR), now = 110, newId = newId,
+        )
+
+        val plan = reviews.finishReview(id, emptyMap(), comment = "Review room", now = 120, newId = newId)
+
+        assertEquals(1, plan.changes.size)
+        val line = lines(id).single { it.id == lineId }
+        val created = unit(line.itemId!!)
+        assertEquals("SN-new", created.serialNumber)
+        assertEquals(ItemStatus.REPAIR, created.status)
+        assertEquals("bin", created.locationId)
+        assertEquals(120, created.createdAt)
+        assertNull(line.pendingItem)
+        val added = allMovements() - before.toSet()
+        val movement = added.single()
+        assertEquals(created.id, movement.itemId)
+        assertEquals("bin", movement.locationId)
+        assertEquals(UNIT_MILLI, movement.quantityMilli)
+        assertEquals(MovementReason.INVENTORY, movement.reason)
+        assertEquals("Review room", movement.comment)
+        // d1 and the new unit are in the bin
+        assertEquals(2 * UNIT_MILLI, actions.stockAt("drill", "bin"))
+        assertEquals(ReviewStatus.FINISHED, reviews.getReview(id)!!.status)
+    }
+
+    @Test
+    fun newUnitWithADuplicateSerialIsRefused() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+        reviews.addPendingUnit(id, "drill", "bin", PendingUnit("SN-new"), now = 110, newId = newId)
+
+        // Taken by an existing unit, ignoring case
+        assertFailsWith<DuplicateSerialException> {
+            reviews.addPendingUnit(id, "drill", "bin", PendingUnit("sn-d1"), now = 110, newId = newId)
+        }
+        // Taken by another new unit of the review
+        assertFailsWith<DuplicateSerialException> {
+            reviews.addPendingUnit(id, "drill", "shelf", PendingUnit("SN-NEW"), now = 110, newId = newId)
+        }
+        // Without a serial number, several are fine
+        reviews.addPendingUnit(id, "drill", "bin", PendingUnit(), now = 110, newId = newId)
+        reviews.addPendingUnit(id, "drill", "bin", PendingUnit(), now = 110, newId = newId)
+        assertEquals(3, lines(id).count { it.pendingItem != null })
+    }
+
+    @Test
+    fun serialTakenSinceTheCheckSkipsTheUnitOnApply() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+        val lineId = reviews.addPendingUnit(id, "drill", "bin", PendingUnit("SN-late"), now = 110, newId = newId)
+        // The same serial is registered meanwhile
+        addUnit("late", "shelf")
+        val before = allMovements()
+
+        val plan = reviews.finishReview(id, emptyMap(), comment = "c", now = 120, newId = newId)
+
+        assertTrue(plan.changes.isEmpty())
+        assertEquals(listOf(lineId), plan.skipped.map { it.lineId })
+        assertEquals(before, allMovements())
+        assertEquals(ReviewStatus.FINISHED, reviews.getReview(id)!!.status)
+    }
+
+    @Test
+    fun newUnitMustBeInTheScopeOfASerialArticle() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+
+        assertFailsWith<IllegalArgumentException> { reviews.addPendingUnit(id, "drill", "van", PendingUnit(), now = 110, newId = newId) }
+        assertFailsWith<IllegalArgumentException> { reviews.addPendingUnit(id, "bolt", "bin", PendingUnit(), now = 110, newId = newId) }
+    }
+
+    @Test
+    fun removingAPendingUnitDropsItsLine() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+        val lineId = reviews.addPendingUnit(id, "drill", "bin", PendingUnit("SN-x"), now = 110, newId = newId)
+
+        reviews.resetLine(lineId, now = 115)
+        val plan = reviews.finishReview(id, emptyMap(), comment = "c", now = 120, newId = newId)
+
+        assertTrue(lines(id).none { it.id == lineId })
+        assertTrue(plan.changes.isEmpty())
+    }
+
+    @Test
+    fun quantityArticleNotExpectedHereIsCountedFromZero() = runBlocking {
+        val id = reviews.startReview("room", now = 100, newId = newId)
+        val before = allMovements()
+
+        // Bolts have no stock in the bin: found there, counted 3
+        val lineId = reviews.addFoundArticle(id, "bolt", "bin", now = 110, newId = newId)
+        assertEquals(0, lines(id).single { it.id == lineId }.expectedMilli)
+        assertEquals(before, allMovements())
+        reviews.setCount(lineId, 3_000, now = 115)
+        reviews.finishReview(id, emptyMap(), comment = "Review room", now = 120, newId = newId)
+
+        assertEquals(3_000, actions.stockAt("bolt", "bin"))
+        val correction = (allMovements() - before.toSet()).single()
+        assertEquals(MovementReason.INVENTORY, correction.reason)
+        assertEquals(3_000, correction.quantityMilli)
+        assertEquals("bin", correction.locationId)
     }
 }
