@@ -126,6 +126,43 @@ class JoinCodeTest {
     }
 
     @Test
+    fun readsTheServerPlanFormat() {
+        JoinKind.entries.forEach { kind ->
+            val text = "easystock://${kind.code}?server=https%3A%2F%2Fstock.example.org%2F&token=tok-123_x&fp=${fp.uppercase()}"
+            assertEquals(JoinCode("https://stock.example.org", kind, "tok-123_x", fp), JoinCode.parse(text))
+            assertEquals(kind, assertIs<ScannedQr.Join>(QrTransfer.parse(text)).code.kind)
+        }
+        // Parameters in any order, no fingerprint
+        assertEquals(
+            JoinCode("http://192.168.1.20:8080", JoinKind.INVITE, "abc"),
+            JoinCode.parse("easystock://invite?token=abc&server=http://192.168.1.20:8080"),
+        )
+    }
+
+    @Test
+    fun theServerPlanFormatIsCheckedLikeTheAppOne() {
+        listOf(
+            "easystock://invite?token=abc",
+            "easystock://invite?server=https://h",
+            "easystock://invite?server=ftp://h&token=abc",
+            "easystock://invite?server=http://h&token=abc&fp=$fp",
+            "easystock://invite?u=https://h&t=abc",
+            "easystock://admin?server=https://h&token=abc",
+            "easystock://invite?server=https://h&token=abc&token=def",
+        ).forEach {
+            assertFailsWith<IllegalArgumentException>(it) { JoinCode.parse(it) }
+        }
+        assertFailsWith<BackupException> { QrTransfer.parse("easystock://admin?server=https://h&token=abc") }
+    }
+
+    @Test
+    fun theAppStillBuildsTheJoinFormat() {
+        val code = JoinCode.parse("easystock://guest?server=https://h&token=abc")
+        assertTrue(code.toQrText().startsWith(JOIN_QR_PREFIX))
+        assertEquals(code, JoinCode.parse(code.toQrText()))
+    }
+
+    @Test
     fun otherPrefixesAreNotJoinCodes() {
         listOf("EASYSTOCK://join?u=https://h&k=guest&t=a", "easystock://joinu=https://h", "https://h/join?k=guest").forEach {
             assertFailsWith<IllegalArgumentException> { JoinCode.parse(it) }

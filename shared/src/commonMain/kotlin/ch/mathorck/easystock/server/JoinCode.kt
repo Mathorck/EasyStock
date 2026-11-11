@@ -1,7 +1,18 @@
 package ch.mathorck.easystock.server
 
-/** Prefix of every server QR code, next to the backup ones (backup/QrTransfer). */
+/** Prefix of every server QR code built by the app, next to the backup ones (backup/QrTransfer). */
 const val JOIN_QR_PREFIX = "easystock://join?"
+
+/**
+ * Prefixes of the format proposed by the server plan (04-server-implementation-plan.md, 1.1):
+ * `easystock://<kind>?server=<URL>&token=<token>&fp=<hex>`, the kind being the host. Read too, so a code
+ * printed by the server works until both sides agree on one format (open point, docs/server-mode/02-app.md).
+ */
+val SERVER_QR_PREFIXES: List<String> = listOf("setup", "invite", "guest", "reset").map { "easystock://$it?" }
+
+/** True when [text] starts like a server QR code, in either format. */
+fun isJoinCodeText(text: String): Boolean =
+    text.startsWith(JOIN_QR_PREFIX) || SERVER_QR_PREFIXES.any { text.startsWith(it) }
 
 /** What a server QR code is for. */
 enum class JoinKind(val code: String) {
@@ -24,7 +35,8 @@ enum class JoinKind(val code: String) {
 }
 
 /**
- * A scanned server QR code: `easystock://join?u=<server URL>&k=<kind>&t=<token>&fp=<certificate SHA-256>`.
+ * A scanned server QR code: `easystock://join?u=<server URL>&k=<kind>&t=<token>&fp=<certificate SHA-256>`,
+ * or the server plan format `easystock://<kind>?server=<URL>&token=<token>&fp=<hex>` ([SERVER_QR_PREFIXES]).
  * [fingerprint] (64 lowercase hex characters) is only given for HTTPS with a self-signed certificate.
  * Built by [build] for the admin screens (invite, reset and printed codes), read by [parse] when scanned.
  */
@@ -61,9 +73,11 @@ data class JoinCode(
          * fingerprint, or a fingerprint on an HTTP address. Unknown parameters are ignored (newer server).
          */
         fun parse(text: String): JoinCode {
-            require(text.startsWith(JOIN_QR_PREFIX)) { "Not a join code" }
             require(text.length <= MAX_TEXT_LENGTH) { "Join code too long" }
-            val query = text.substring(JOIN_QR_PREFIX.length)
+            // Server plan format: the kind is the host, the parameters have long names
+            val serverPrefix = SERVER_QR_PREFIXES.firstOrNull { text.startsWith(it) }
+            require(serverPrefix != null || text.startsWith(JOIN_QR_PREFIX)) { "Not a join code" }
+            val query = text.substring((serverPrefix ?: JOIN_QR_PREFIX).length)
             require('#' !in query) { "Fragment in join code" }
 
             val params = HashMap<String, String>()
@@ -75,13 +89,14 @@ data class JoinCode(
                 require(params.put(key, value) == null) { "Repeated parameter" }
             }
 
-            val url = params["u"]
+            val url = params[if (serverPrefix == null) "u" else "server"]
             require(!url.isNullOrEmpty()) { "Missing server URL" }
             require(isValidServerUrl(url)) { "Invalid server URL" }
 
-            val kind = JoinKind.fromCode(params["k"] ?: "") ?: throw IllegalArgumentException("Unknown kind")
+            val kindCode = serverPrefix?.removePrefix("easystock://")?.removeSuffix("?") ?: params["k"] ?: ""
+            val kind = JoinKind.fromCode(kindCode) ?: throw IllegalArgumentException("Unknown kind")
 
-            val token = params["t"]
+            val token = params[if (serverPrefix == null) "t" else "token"]
             require(!token.isNullOrEmpty()) { "Missing token" }
             require(token.length <= MAX_TOKEN_LENGTH && token.all { it.code in 0x21..0x7e }) { "Invalid token" }
 

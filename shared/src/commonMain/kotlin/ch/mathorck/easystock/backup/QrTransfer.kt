@@ -1,7 +1,7 @@
 package ch.mathorck.easystock.backup
 
-import ch.mathorck.easystock.server.JOIN_QR_PREFIX
 import ch.mathorck.easystock.server.JoinCode
+import ch.mathorck.easystock.server.isJoinCodeText
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.io.encoding.Base64
@@ -9,7 +9,8 @@ import kotlin.io.encoding.Base64
 // Two kinds of QR codes, both text in the QR alphanumeric alphabet (uppercase prefix + Base45):
 //   ES1:<base45>   the backup itself: [QR_BUNDLE_MAGIC] + deflate(BackupBundle JSON), optionally encrypted
 //   ESW1:<base45>  a Wi-Fi transfer ticket (JSON [WifiTicket]): where to download and the stream key
-// The same scanner also reads the server QR codes (server/JoinCode): easystock://join?...
+// The same scanner also reads the server QR codes (server/JoinCode): easystock://join?... and
+// the server plan format easystock://<kind>?server=...
 
 const val DATA_QR_PREFIX = "ES1:"
 const val WIFI_QR_PREFIX = "ESW1:"
@@ -71,7 +72,7 @@ object QrTransfer {
                 val json = Base45.decode(text.substring(WIFI_QR_PREFIX.length)).decodeToString()
                 ScannedQr.Wifi(backupJson.decodeFromString(WifiTicket.serializer(), json).also { it.validate() })
             }
-            text.startsWith(JOIN_QR_PREFIX) -> ScannedQr.Join(JoinCode.parse(text))
+            isJoinCodeText(text) -> ScannedQr.Join(JoinCode.parse(text))
             else -> throw BackupException(BackupError.NOT_A_BACKUP, "Unknown QR code")
         }
     } catch (e: BackupException) {
