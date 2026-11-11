@@ -20,6 +20,12 @@ dependencies {
     debugImplementation(libs.compose.uiTooling)
 }
 
+// Local builds: last git tag + "-dev" (e.g. 0.3.0-dev). Falls back when git or the tags are missing (shallow clone).
+val lastTag: String? = providers.exec {
+    commandLine("git", "describe", "--tags", "--abbrev=0")
+    isIgnoreExitValue = true
+}.standardOutput.asText.orNull?.trim()?.takeIf { it.matches(Regex("""\d+\.\d+\.\d+""")) }
+
 android {
     namespace = "ch.mathorck.easystock"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -30,7 +36,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         // Set by CI from the git tag (X.Y.Z), defaults for local builds
         versionCode = providers.gradleProperty("appVersionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("appVersionName").orNull ?: "0.0.0-dev"
+        versionName = providers.gradleProperty("appVersionName").orNull ?: "${lastTag ?: "0.0.0"}-dev"
     }
     // Release signing only when CI provides the keystore, local release builds stay unsigned
     val keystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
