@@ -54,7 +54,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun AdminSettingsScreen(api: AdminApi, onBack: () -> Unit) {
-    val viewModel = viewModel(key = "admin-settings") { AdminSettingsViewModel(api) }
+    val viewModel = viewModel(key = "admin-settings-${api.hashCode()}") { AdminSettingsViewModel(api) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { viewModel.refresh() }

@@ -80,7 +80,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PublicInviteScreen(api: AdminApi, connection: ServerConnection, onBack: () -> Unit) {
-    val viewModel = viewModel(key = "admin-public-${connection.serverUrl}") { PublicInviteViewModel(api) }
+    val viewModel = viewModel(key = "admin-public-${api.hashCode()}") { PublicInviteViewModel(api) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

@@ -49,6 +49,7 @@ import easystock.shared.generated.resources.admin_invite_no_qr
 import easystock.shared.generated.resources.admin_invite_qr_subtitle
 import easystock.shared.generated.resources.admin_invite_qr_title
 import easystock.shared.generated.resources.admin_invite_role
+import easystock.shared.generated.resources.admin_qr_close
 import easystock.shared.generated.resources.admin_invites
 import easystock.shared.generated.resources.admin_invites_empty
 import easystock.shared.generated.resources.admin_user_unknown_role
@@ -59,7 +60,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun AdminInvitesScreen(api: AdminApi, connection: ServerConnection, onBack: () -> Unit) {
-    val viewModel = viewModel(key = "admin-invites-${connection.serverUrl}") { AdminInvitesViewModel(api) }
+    val viewModel = viewModel(key = "admin-invites-${api.hashCode()}") { AdminInvitesViewModel(api) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var chooseRole by rememberSaveable { mutableStateOf(false) }
@@ -110,7 +111,7 @@ internal fun AdminInvitesScreen(api: AdminApi, connection: ServerConnection, onB
             AlertDialog(
                 onDismissRequest = viewModel::closeCreated,
                 text = { Text(stringResource(Res.string.admin_invite_no_qr)) },
-                confirmButton = { TextButton(onClick = viewModel::closeCreated) { Text(stringResource(Res.string.admin_cancel)) } },
+                confirmButton = { TextButton(onClick = viewModel::closeCreated) { Text(stringResource(Res.string.admin_qr_close)) } },
             )
         }
     }

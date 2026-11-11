@@ -96,7 +96,7 @@ internal fun ServerBackupScreen(api: AdminApi, onBack: () -> Unit) {
         onSaved = { holder?.saved() },
         onFailed = { holder?.fileFailed() },
     )
-    val viewModel = viewModel(key = "admin-backup") { ServerBackupViewModel(api, files, ::serverBackupFileName) }
+    val viewModel = viewModel(key = "admin-backup-${api.hashCode()}") { ServerBackupViewModel(api, files, ::serverBackupFileName) }
     holder = viewModel
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }

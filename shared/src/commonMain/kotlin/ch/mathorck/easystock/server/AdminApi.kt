@@ -75,6 +75,12 @@ interface AdminApi {
 class KtorAdminApi(private val client: ServerClient) : AdminApi {
     private val http get() = client.http
 
+    // Same client = same API: the screens key their view models on it, so a new client (connection
+    // changed, the old one closed) gets new view models, and opening the screen again reuses them.
+    override fun equals(other: Any?): Boolean = other is KtorAdminApi && other.client === client
+
+    override fun hashCode(): Int = client.hashCode()
+
     override suspend fun serverInfo(): ServerInfo = apiCall { http.get("server-info").body() }
 
     override suspend fun users(): List<AdminUser> = apiCall { http.get("admin/users").body() }

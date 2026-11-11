@@ -121,7 +121,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun AdminUsersScreen(api: AdminApi, connection: ServerConnection, onBack: () -> Unit) {
-    val viewModel = viewModel(key = "admin-users-${connection.serverUrl}") { AdminUsersViewModel(api) }
+    val viewModel = viewModel(key = "admin-users-${api.hashCode()}") { AdminUsersViewModel(api) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var openUser by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }

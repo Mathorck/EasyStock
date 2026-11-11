@@ -109,7 +109,8 @@ class AdminUsersViewModel(private val api: AdminApi) : ViewModel() {
         val form = _state.value.promote ?: return
         if (!form.canPromote) return
         act(UserMessage.PROMOTION_PENDING) {
-            api.promote(userId, form.role, form.typedCode.trim())
+            // The app checked that the typed code matches: send the server's own spelling of it
+            api.promote(userId, form.role, form.expectedCode ?: form.typedCode.trim())
             _state.update { it.copy(promote = null) }
         }
     }

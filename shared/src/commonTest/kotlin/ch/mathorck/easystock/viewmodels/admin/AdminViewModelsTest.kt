@@ -137,7 +137,7 @@ class AdminUsersViewModelTest {
         vm.typePromoteCode("ab cde")
         vm.choosePromoteRole(Role.VIEWER)
         vm.promote("g1")
-        assertEquals(Triple("g1", Role.VIEWER, "ab cde"), api.promoted)
+        assertEquals(Triple("g1", Role.VIEWER, "AB-CDE"), api.promoted)
         assertNull(vm.state.value.promote)
         assertEquals(UserMessage.PROMOTION_PENDING, vm.state.value.message)
     }
