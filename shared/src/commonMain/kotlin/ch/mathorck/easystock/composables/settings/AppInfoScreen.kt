@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -37,6 +38,9 @@ import ch.mathorck.easystock.data.db.DB_VERSION
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.enums.AppLanguage
 import ch.mathorck.easystock.nfc.NfcAvailability
+import ch.mathorck.easystock.reset.rememberDataReset
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import ch.mathorck.easystock.appinfo.DataCounts
 import ch.mathorck.easystock.viewmodels.formatDateTime
 import easystock.shared.generated.resources.Res
@@ -70,6 +74,8 @@ import easystock.shared.generated.resources.app_info_os
 import easystock.shared.generated.resources.app_info_photos
 import easystock.shared.generated.resources.app_info_photos_value
 import easystock.shared.generated.resources.app_info_privacy
+import easystock.shared.generated.resources.app_info_reset
+import easystock.shared.generated.resources.app_info_reset_summary
 import easystock.shared.generated.resources.app_info_repository
 import easystock.shared.generated.resources.app_info_section_app
 import easystock.shared.generated.resources.app_info_section_data
@@ -82,6 +88,7 @@ import easystock.shared.generated.resources.app_info_version
 import easystock.shared.generated.resources.app_info_version_value
 import easystock.shared.generated.resources.ic_chevron_right
 import easystock.shared.generated.resources.ic_content_copy
+import easystock.shared.generated.resources.ic_delete
 import easystock.shared.generated.resources.ic_description
 import easystock.shared.generated.resources.ic_folder_open
 import easystock.shared.generated.resources.ic_info
@@ -105,10 +112,22 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Settings > About and app info. Local only: reads the package, the device and row counts, sends nothing.
  * Shows counts and technical values, never article names, serial numbers or tag IDs.
+ * The Data section ends with the reset of all data: [onOpenBackup] opens the backup screen from its
+ * dialog, [onResetDone] is called once everything is erased.
  */
 @Composable
-fun AppInfoScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun AppInfoScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenBackup: () -> Unit = {},
+    onResetDone: () -> Unit = {},
+) {
     val db = rememberAppDatabase()
+    val dataReset = rememberDataReset()
+    val scope = rememberCoroutineScope()
+    var showReset by rememberSaveable { mutableStateOf(false) }
+    var resetRunning by remember { mutableStateOf(false) }
+    var resetFailed by remember { mutableStateOf(false) }
     val platform = rememberAppInfoPlatform()
     var info by remember { mutableStateOf<AppInfo?>(null) }
     var copied by remember { mutableStateOf(false) }
@@ -224,6 +243,7 @@ fun AppInfoScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         stringResource(Res.string.app_info_photos),
                         stringResource(Res.string.app_info_photos_value, p.photoCount.toString(), formatBytes(p.photoBytes)),
                     )
+                    ResetRow { showReset = true }
                 }
                 AppInfoSection.Device -> {
                     InfoRow(stringResource(Res.string.app_info_os), p.os)
@@ -244,6 +264,38 @@ fun AppInfoScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+
+    if (showReset) {
+        ResetDataDialog(
+            running = resetRunning,
+            failed = resetFailed,
+            onConfirm = {
+                resetRunning = true
+                resetFailed = false
+                scope.launch {
+                    try {
+                        dataReset.run()
+                        showReset = false
+                        onResetDone()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        resetFailed = true
+                    } finally {
+                        resetRunning = false
+                    }
+                }
+            },
+            onOpenBackup = {
+                showReset = false
+                onOpenBackup()
+            },
+            onDismiss = {
+                showReset = false
+                resetFailed = false
+            },
+        )
     }
 }
 
@@ -291,5 +343,18 @@ private fun ActionRow(title: String, icon: DrawableResource, onClick: () -> Unit
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+/** Destructive action at the bottom of the Data section. */
+@Composable
+private fun ResetRow(onClick: () -> Unit) {
+    val error = MaterialTheme.colorScheme.error
+    ListItem(
+        headlineContent = { Text(stringResource(Res.string.app_info_reset), color = error) },
+        supportingContent = { Text(stringResource(Res.string.app_info_reset_summary)) },
+        leadingContent = { Icon(painterResource(Res.drawable.ic_delete), contentDescription = null, tint = error) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier.padding(top = 16.dp).clickable(onClick = onClick),
     )
 }
