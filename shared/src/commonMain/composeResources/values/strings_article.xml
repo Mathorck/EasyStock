@@ -51,4 +51,5 @@
     <string name="article_history_info_flagged">Info to fix flagged</string>
     <string name="article_history_info_flagged_note">Info to fix flagged: %1$s</string>
     <string name="article_history_info_fixed">Info fixed</string>
+    <string name="article_history_author">By %1$s</string>
 </resources>

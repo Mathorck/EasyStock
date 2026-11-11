@@ -27,10 +27,14 @@ data class LocationStock(
     @ColumnInfo(name = "stock") val stockMilli: Long,
 )
 
-/** A movement with the name of its location. */
+/**
+ * A movement with the name of its location, and the display name of its author (server mode only:
+ * null when `created_by` is null, always in standalone mode, or when the user is not in `server_user`).
+ */
 data class MovementWithLocation(
     @Embedded val movement: StockMovement,
     @ColumnInfo(name = "location_name") val locationName: String,
+    @ColumnInfo(name = "author_name") val authorName: String? = null,
 )
 
 /**
@@ -102,12 +106,13 @@ abstract class ArticleDetailDao {
     )
     abstract fun observeStockByLocation(articleId: String): Flow<List<LocationStock>>
 
-    /** Movements of the article, newest first. Soft-deleted locations are included. */
+    /** Movements of the article, newest first, with their author's name. Soft-deleted locations are included. */
     @Query(
         """
-        SELECT stock_movement.*, location.name AS location_name
+        SELECT stock_movement.*, location.name AS location_name, server_user.display_name AS author_name
         FROM stock_movement
         JOIN location ON location.id = stock_movement.location_id
+        LEFT JOIN server_user ON server_user.user_id = stock_movement.created_by
         WHERE stock_movement.article_id = :articleId
         ORDER BY stock_movement.occurred_at DESC, stock_movement.created_at DESC, stock_movement.id DESC
         """,

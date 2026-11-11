@@ -51,4 +51,5 @@
     <string name="article_history_info_flagged">Info à corriger signalée</string>
     <string name="article_history_info_flagged_note">Info à corriger signalée : %1$s</string>
     <string name="article_history_info_fixed">Info corrigée</string>
+    <string name="article_history_author">Par %1$s</string>
 </resources>

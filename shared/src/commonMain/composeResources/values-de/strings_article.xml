@@ -51,4 +51,5 @@
     <string name="article_history_info_flagged">Angaben zu korrigieren gemeldet</string>
     <string name="article_history_info_flagged_note">Angaben zu korrigieren gemeldet: %1$s</string>
     <string name="article_history_info_fixed">Angaben korrigiert</string>
+    <string name="article_history_author">Von %1$s</string>
 </resources>

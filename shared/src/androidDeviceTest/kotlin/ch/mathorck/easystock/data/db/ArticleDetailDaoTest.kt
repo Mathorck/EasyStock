@@ -62,6 +62,7 @@ class ArticleDetailDaoTest {
         location: String = "shelf",
         occurredAt: Long = 0,
         createdAt: Long = occurredAt,
+        createdBy: String? = null,
     ): String {
         val id = "m${movementCount++}"
         stock.insertMovement(
@@ -73,6 +74,7 @@ class ArticleDetailDaoTest {
                 reason = MovementReason.INVENTORY,
                 occurredAt = occurredAt,
                 createdAt = createdAt,
+                createdBy = createdBy,
             ),
         )
         return id
@@ -143,6 +145,19 @@ class ArticleDetailDaoTest {
         val result = detail.observeMovements("a1").first()
         assertEquals(listOf(newest, middleLate, middleEarly, oldest), result.map { it.movement.id })
         assertEquals(listOf("Old bin", "Van", "Van", "Shelf"), result.map { it.locationName })
+    }
+
+    @Test
+    fun movementAuthorComesFromServerUser() = runBlocking<Unit> {
+        sql("INSERT INTO server_user (user_id, display_name) VALUES ('u1', 'Anna')")
+        article("a1")
+        val known = move("a1", 1_000, occurredAt = 300, createdBy = "u1")
+        val unknownUser = move("a1", 1_000, occurredAt = 200, createdBy = "u2")
+        val standalone = move("a1", 1_000, occurredAt = 100)
+
+        val result = detail.observeMovements("a1").first()
+        assertEquals(listOf(known, unknownUser, standalone), result.map { it.movement.id })
+        assertEquals(listOf("Anna", null, null), result.map { it.authorName })
     }
 
     @Test

@@ -57,6 +57,8 @@ data class MovementRow(
     val location: String,
     val quantityMilli: Long,
     val comment: String?,
+    /** Display name of who made it (server mode). Null in standalone mode or when the author is unknown. */
+    val author: String? = null,
 )
 
 /**
@@ -81,7 +83,7 @@ fun locationStockRows(stock: List<LocationStock>, locations: List<Location>): Li
 /** History rows in the given order (the query sorts newest first). The location is shown with its path. */
 fun movementRows(movements: List<MovementWithLocation>, locations: List<Location>, timeZone: TimeZone): List<MovementRow> {
     val paths = buildLocationOptions(locations).associate { it.id to it.path }
-    return movements.map { (movement, locationName) ->
+    return movements.map { (movement, locationName, authorName) ->
         MovementRow(
             id = movement.id,
             occurredAt = formatDateTime(movement.occurredAt, timeZone),
@@ -89,6 +91,7 @@ fun movementRows(movements: List<MovementWithLocation>, locations: List<Location
             location = paths[movement.locationId] ?: locationName,
             quantityMilli = movement.quantityMilli,
             comment = movement.comment?.takeIf { it.isNotBlank() },
+            author = authorName?.takeIf { it.isNotBlank() },
         )
     }
 }

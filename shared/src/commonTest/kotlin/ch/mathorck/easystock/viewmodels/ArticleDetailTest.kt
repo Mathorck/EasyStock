@@ -73,6 +73,22 @@ class ArticleDetailTest {
     }
 
     @Test
+    fun movementRowsShowTheAuthorOnlyWhenKnown() {
+        val rows = movementRows(
+            listOf(
+                MovementWithLocation(movement("m3", "van", 1_000, 3), "Van", authorName = "Anna"),
+                MovementWithLocation(movement("m2", "van", 1_000, 2), "Van", authorName = " "),
+                MovementWithLocation(movement("m1", "van", 1_000, 1), "Van"),
+            ),
+            locations,
+            TimeZone.UTC,
+        )
+
+        // Blank name or no server user (standalone): no author line
+        assertEquals(listOf("Anna", null, null), rows.map { it.author })
+    }
+
+    @Test
     fun dateTimeIsFormattedInTheGivenZone() {
         assertEquals("1970-01-01 00:00", formatDateTime(0, TimeZone.UTC))
         assertEquals("1970-01-01 01:00", formatDateTime(0, TimeZone.of("Europe/Zurich")))
