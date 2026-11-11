@@ -22,7 +22,7 @@ import kotlinx.coroutines.IO
 const val DATABASE_NAME = "easystock.db"
 
 /** Current schema version. Also written in backups (see backup/BackupManifest). */
-const val DB_VERSION = 5
+const val DB_VERSION = 6
 
 @Database(
     entities = [
@@ -46,6 +46,8 @@ const val DB_VERSION = 5
         AutoMigration(from = 3, to = 4),
         // stock_review, stock_review_line
         AutoMigration(from = 4, to = 5),
+        // location.barcode (NFC tag)
+        AutoMigration(from = 5, to = 6),
     ],
     exportSchema = true,
 )

@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonObject
     indices = [
         Index(value = ["parent_id"]),
         Index(value = ["updated_at"]),
+        Index(value = ["barcode"], unique = true),
     ],
 )
 @Serializable
@@ -32,7 +33,15 @@ data class Location(
     @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
     @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
-)
+    /**
+     * Optional NFC tag ID (see nfc/TagId), same format as [Article.barcode]. A tag is on one
+     * article or one location, never both: checked by TagDao, SQLite can't across tables.
+     */
+    val barcode: String? = null,
+) {
+    /** Soft delete. Clears [barcode] so the tag can be linked again. */
+    fun softDeleted(now: Long): Location = copy(barcode = null, deletedAt = now, updatedAt = now)
+}
 
 /** Individual unit, only for articles with [Tracking.SERIAL]. */
 @Entity(
