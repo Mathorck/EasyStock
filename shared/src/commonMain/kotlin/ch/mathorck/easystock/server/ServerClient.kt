@@ -5,6 +5,8 @@ import ch.mathorck.easystock.auth.SessionStore
 import ch.mathorck.easystock.data.db.DB_VERSION
 import ch.mathorck.easystock.data.model.SyncState
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
+import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
@@ -94,18 +96,7 @@ fun createServerClient(
     onSessionRevoked: suspend () -> Unit = {},
 ): ServerClient {
     val http = HttpClient(engine) {
-        expectSuccess = true
-        install(ContentNegotiation) { json(ServerJson) }
-        install(HttpTimeout) {
-            connectTimeoutMillis = 15_000
-            socketTimeoutMillis = 60_000
-            requestTimeoutMillis = 120_000
-        }
-        defaultRequest {
-            url(connection.apiBase)
-            header(ClientVersions.APP_HEADER, versions.appVersion)
-            header(ClientVersions.SCHEMA_HEADER, versions.schemaVersion.toString())
-        }
+        baseConfig(connection, versions)
         install(Auth) {
             bearer {
                 // The token can change outside this client (login, logout): read it for every request
@@ -139,6 +130,30 @@ fun createServerClient(
     return ServerClient(connection, http)
 }
 
+/** JSON, timeouts, base URL and version headers: what every server client has. */
+private fun HttpClientConfig<*>.baseConfig(connection: ServerConnection, versions: ClientVersions) {
+    expectSuccess = true
+    install(ContentNegotiation) { json(ServerJson) }
+    install(HttpTimeout) {
+        connectTimeoutMillis = 15_000
+        socketTimeoutMillis = 60_000
+        requestTimeoutMillis = 120_000
+    }
+    defaultRequest {
+        url(connection.apiBase)
+        header(ClientVersions.APP_HEADER, versions.appVersion)
+        header(ClientVersions.SCHEMA_HEADER, versions.schemaVersion.toString())
+    }
+}
+
+/**
+ * A client without any token, for the calls made before joining (`/server-info`, login, setup, invite,
+ * Guest signup, reset). No bearer plugin: a 401 (wrong password) is an answer, never a revoked
+ * session, so it can't trigger the wipe of [createServerClient].
+ */
+fun createPublicClient(connection: ServerConnection, engine: HttpClientEngine, versions: ClientVersions): HttpClient =
+    HttpClient(engine) { baseConfig(connection, versions) }
+
 private suspend fun revoked(session: SessionStore, onSessionRevoked: suspend () -> Unit): Nothing {
     session.clear()
     onSessionRevoked()
@@ -171,6 +186,9 @@ suspend fun <T> apiCall(block: suspend () -> T): T = try {
     throw ApiException(ApiError.SERVER, cause = e)
 } catch (e: IllegalArgumentException) {
     // A body Ktor could not convert (wrong content type...)
+    throw ApiException(ApiError.SERVER, cause = e)
+} catch (e: NoTransformationFoundException) {
+    // Not JSON at all: a web page, a proxy error... not an EasyStock answer
     throw ApiException(ApiError.SERVER, cause = e)
 }
 
