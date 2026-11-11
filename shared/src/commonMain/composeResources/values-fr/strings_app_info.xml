@@ -45,4 +45,15 @@
     <string name="app_info_summary_app">%1$s · %2$s</string>
     <string name="app_info_summary_data">BD v%1$s · %2$s articles</string>
     <string name="app_info_summary_device">%1$s · %2$s</string>
+    <string name="app_info_reset">Réinitialiser</string>
+    <string name="app_info_reset_summary">Efface toutes les données de ce téléphone</string>
+    <string name="app_info_reset_title">Réinitialiser toutes les données ?</string>
+    <string name="app_info_reset_message">Toutes les données de ce téléphone seront effacées définitivement : articles, stock, mouvements, emplacements, catégories, attributs, révisions de stock, liens des tags NFC et photos. L’app sera comme après une nouvelle installation. Impossible d’annuler.\n\nFaites d’abord une sauvegarde si vous pourriez encore avoir besoin de ces données.</string>
+    <string name="app_info_reset_backup">Faire une sauvegarde</string>
+    <string name="app_info_reset_word">RÉINITIALISER</string>
+    <string name="app_info_reset_prompt">Tapez %1$s pour confirmer</string>
+    <string name="app_info_reset_confirm">Tout effacer</string>
+    <string name="app_info_reset_running">Effacement…</string>
+    <string name="app_info_reset_failed">La réinitialisation a échoué. Réessayez.</string>
+    <string name="app_info_reset_done">Données réinitialisées</string>
 </resources>

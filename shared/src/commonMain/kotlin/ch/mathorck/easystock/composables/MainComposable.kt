@@ -7,6 +7,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.app_info_reset_done
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,9 +33,13 @@ fun MainComposable() {
     var page by rememberSaveable { mutableStateOf(Page.Scan) }
     // Runs the NFC reader while a screen waits for a tag
     NfcReaderHost()
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val resetDone = stringResource(Res.string.app_info_reset_done)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = { NavBarComposable(currentPage = page, onPageSelected = { page = it }) },
     ) { innerPadding ->
         Box(
@@ -37,7 +49,12 @@ fun MainComposable() {
             when (page) {
                 Page.Scan -> ScanPage()
                 Page.Stock -> StockPage()
-                Page.Settings -> SettingsPage()
+                Page.Settings -> SettingsPage(
+                    onDataReset = {
+                        page = Page.Stock
+                        scope.launch { snackbar.showSnackbar(resetDone) }
+                    },
+                )
             }
         }
     }

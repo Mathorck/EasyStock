@@ -45,4 +45,15 @@
     <string name="app_info_summary_app">%1$s · %2$s</string>
     <string name="app_info_summary_data">DB v%1$s · %2$s articles</string>
     <string name="app_info_summary_device">%1$s · %2$s</string>
+    <string name="app_info_reset">Reset all data</string>
+    <string name="app_info_reset_summary">Erases everything stored on this phone</string>
+    <string name="app_info_reset_title">Reset all data?</string>
+    <string name="app_info_reset_message">All the data on this phone will be erased for good: articles, stock, movements, locations, categories, attributes, stock reviews, NFC tag links and photos. The app will be as after a fresh install. This can’t be undone.\n\nMake a backup first if you may need this data again.</string>
+    <string name="app_info_reset_backup">Make a backup</string>
+    <string name="app_info_reset_word">RESET</string>
+    <string name="app_info_reset_prompt">Type %1$s to confirm</string>
+    <string name="app_info_reset_confirm">Erase everything</string>
+    <string name="app_info_reset_running">Erasing…</string>
+    <string name="app_info_reset_failed">The reset failed. Try again.</string>
+    <string name="app_info_reset_done">Data reset</string>
 </resources>

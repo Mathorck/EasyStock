@@ -45,4 +45,15 @@
     <string name="app_info_summary_app">%1$s · %2$s</string>
     <string name="app_info_summary_data">DB v%1$s · %2$s Artikel</string>
     <string name="app_info_summary_device">%1$s · %2$s</string>
+    <string name="app_info_reset">Zurücksetzen</string>
+    <string name="app_info_reset_summary">Löscht alle Daten auf diesem Telefon</string>
+    <string name="app_info_reset_title">Alle Daten zurücksetzen?</string>
+    <string name="app_info_reset_message">Alle Daten auf diesem Telefon werden endgültig gelöscht: Artikel, Bestand, Bewegungen, Lagerorte, Kategorien, Attribute, Inventuren, NFC-Tag-Verknüpfungen und Fotos. Die App ist danach wie frisch installiert. Dies kann nicht rückgängig gemacht werden.\n\nErstellen Sie zuerst eine Sicherung, falls Sie diese Daten noch brauchen könnten.</string>
+    <string name="app_info_reset_backup">Sicherung erstellen</string>
+    <string name="app_info_reset_word">ZURÜCKSETZEN</string>
+    <string name="app_info_reset_prompt">Geben Sie %1$s ein, um zu bestätigen</string>
+    <string name="app_info_reset_confirm">Alles löschen</string>
+    <string name="app_info_reset_running">Wird gelöscht…</string>
+    <string name="app_info_reset_failed">Das Zurücksetzen ist fehlgeschlagen. Versuchen Sie es erneut.</string>
+    <string name="app_info_reset_done">Daten zurückgesetzt</string>
 </resources>

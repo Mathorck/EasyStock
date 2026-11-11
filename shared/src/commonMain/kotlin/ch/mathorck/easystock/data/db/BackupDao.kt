@@ -91,9 +91,13 @@ abstract class BackupDao {
         reviewLines = reviewLines(),
     )
 
-    /** Wipes every table and writes [data]. `item.location_id` is recomputed from the movements. */
+    /**
+     * Hard-deletes every row of every table, children first (foreign keys).
+     * Only for a full wipe the user asked for (backup restore, reset of all data): the soft-delete
+     * and append-only `stock_movement` rules don't apply, nothing is left to sync.
+     */
     @Transaction
-    open suspend fun replaceAll(data: BackupData) {
+    open suspend fun wipeAll() {
         deleteReviewLines()
         deleteReviews()
         deleteMovements()
@@ -103,6 +107,12 @@ abstract class BackupDao {
         deleteAttributeDefinitions()
         deleteCategories()
         deleteLocations()
+    }
+
+    /** Wipes every table and writes [data]. `item.location_id` is recomputed from the movements. */
+    @Transaction
+    open suspend fun replaceAll(data: BackupData) {
+        wipeAll()
         val rows = data.withItemLocations()
         insertCategories(rows.categories)
         insertAttributeDefinitions(rows.attributeDefinitions)

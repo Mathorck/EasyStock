@@ -94,7 +94,7 @@ import org.jetbrains.compose.resources.stringResource
 enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo }
 
 @Composable
-fun SettingsPage() {
+fun SettingsPage(onDataReset: () -> Unit = {}) {
     val service = rememberBackupService()
     var language by remember { mutableStateOf(currentAppLanguage()) }
     var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
@@ -110,7 +110,16 @@ fun SettingsPage() {
         SettingsSubpageId.Tags -> TagsScreen(onBack = { subpage = null })
         SettingsSubpageId.Reviews -> ReviewsScreen(onBack = { subpage = null })
         SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
-        SettingsSubpageId.AppInfo -> AppInfoScreen(onBack = { subpage = null })
+        SettingsSubpageId.AppInfo -> AppInfoScreen(
+            onBack = { subpage = null },
+            onOpenBackup = { subpage = SettingsSubpageId.Backup },
+            onResetDone = {
+                // Stops a Wi-Fi share and drops the temporary backup files of the erased data
+                backup.reset()
+                subpage = null
+                onDataReset()
+            },
+        )
         null -> SettingsContent(
             language = language,
             onLanguageSelected = {
