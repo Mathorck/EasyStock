@@ -72,7 +72,7 @@ enum class SyncResult { DONE, NOT_CONNECTED, PAUSED, FAILED }
 class SyncEngine(
     private val store: SyncStore,
     /** The server calls of the connection of [SyncState]. */
-    private val remote: (SyncState) -> SyncRemote,
+    private val remote: suspend (SyncState) -> SyncRemote,
     /** For the photo downloads, which outlive a cycle. */
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.System,

@@ -59,6 +59,8 @@ import easystock.shared.generated.resources.ic_delete
 import easystock.shared.generated.resources.ic_image
 import easystock.shared.generated.resources.ic_photo_camera
 import easystock.shared.generated.resources.ic_photo_library
+import ch.mathorck.easystock.sync.SyncImages
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -83,6 +85,10 @@ fun ArticleImage(
         val requiredPx = with(LocalDensity.current) { side.roundToPx() }
         val bitmap: ImageBitmap? by produceState(path?.let { store.cached(it, requiredPx) }, path, requiredPx) {
             value = path?.let { store.load(it, requiredPx) }
+            // Server mode: a pulled photo may still be downloading, loaded once it is there
+            if (value == null && path != null) {
+                SyncImages.downloads.first { store.load(path, requiredPx)?.also { value = it } != null }
+            }
         }
         val image = bitmap
         if (image != null) {

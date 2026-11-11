@@ -55,6 +55,9 @@ private fun holder(context: Context): ServerClientHolder = holder ?: run {
     }.also { holder = it }
 }
 
+/** The shared client of [connection], for the sync engine. Main thread. */
+internal fun serverClientFor(context: Context, connection: ServerConnection): ServerClient = holder(context).clientFor(connection)
+
 actual fun releaseServerClient() {
     holder?.release()
 }

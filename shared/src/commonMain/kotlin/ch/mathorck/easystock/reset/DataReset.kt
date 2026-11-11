@@ -5,6 +5,7 @@ import androidx.room.execSQL
 import androidx.room.useWriterConnection
 import ch.mathorck.easystock.data.db.AppDatabase
 import ch.mathorck.easystock.data.db.BackupDao
+import ch.mathorck.easystock.sync.SyncCoordinator
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -29,6 +30,11 @@ class DataReset(
      * pointing at a deleted photo. Not cancellable: the screen that starts it closes right after.
      */
     suspend fun run() = withContext(NonCancellable) {
+        // Stops a running sync cycle first: no pulled row is written after the wipe
+        SyncCoordinator.stopAndLock { wipe() }
+    }
+
+    private suspend fun wipe() {
         clearSession()
         db.backupDao().wipeEverything()
         // Deleted rows can stay readable in unused pages and in the write-ahead log: VACUUM
