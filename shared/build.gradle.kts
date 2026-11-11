@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -94,4 +95,26 @@ dependencies {
 room {
     // Exported schema JSON, needed to write and test migrations
     schemaDirectory("$projectDir/schemas")
+}
+
+// Code coverage of the host tests (commonTest + androidHostTest), see .github/workflows/ci.yml.
+// Device tests (androidDeviceTest) need an emulator and are not measured.
+kover {
+    reports {
+        filters {
+            excludes {
+                // Generated code only: real logic stays in the report.
+                classes(
+                    // Room: DAO and database implementations, database constructor
+                    "*_Impl*",
+                    "*.AppDatabaseConstructor*",
+                    // Compose resources accessors (Res, String0, Drawable0...)
+                    "easystock.shared.generated.resources.*",
+                    // Compose compiler lambda holders
+                    "*.ComposableSingletons*",
+                    "*.BuildConfig",
+                )
+            }
+        }
+    }
 }
