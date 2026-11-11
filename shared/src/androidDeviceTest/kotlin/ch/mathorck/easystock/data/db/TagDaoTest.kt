@@ -2,6 +2,7 @@ package ch.mathorck.easystock.data.db
 
 import androidx.room.Room
 import androidx.room.execSQL
+import androidx.room.useReaderConnection
 import androidx.room.useWriterConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.platform.app.InstrumentationRegistry
@@ -313,7 +314,11 @@ class TagDaoTest {
 
         locations.createLocation("crate", "Crate", null, 2_000, barcode = tag)
 
-        assertNull(stored("gone").barcode)
+        // getById skips deleted rows: read the row directly
+        val goneTag = db.useReaderConnection { connection ->
+            connection.usePrepared("SELECT barcode FROM article WHERE id = 'gone'") { if (it.step() && !it.isNull(0)) it.getText(0) else null }
+        }
+        assertNull(goneTag)
         assertEquals(TagTarget.OfLocation("crate"), tags.findOwner(tag)?.target)
     }
 

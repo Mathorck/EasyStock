@@ -218,7 +218,7 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(5, DB_VERSION)
+        assertEquals(6, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
