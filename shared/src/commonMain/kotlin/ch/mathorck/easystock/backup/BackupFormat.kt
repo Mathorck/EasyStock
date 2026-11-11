@@ -70,7 +70,11 @@ data class BackupManifest(
     val counts: Map<String, Int> = emptyMap(),
 )
 
-/** Every row of every table, soft-deleted rows included. */
+/**
+ * Every row of every synced table, soft-deleted rows included. The server mode tables (`sync_state`,
+ * `outbox`, `server_user`, `low_stock_alert`, `rejected_change`) belong to this phone and are never
+ * part of a backup.
+ */
 @Serializable
 data class BackupData(
     @SerialName("category") val categories: List<Category> = emptyList(),
@@ -336,6 +340,19 @@ fun itemLocations(items: Collection<Item>, movements: Collection<StockMovement>)
         item.id to sums[item.id]?.filterValues { it > 0 }?.keys?.minOrNull()
     }
 }
+
+/**
+ * [data] as imported into a standalone phone: `stock_movement.created_by` and `device_id` (server
+ * mode, schema 9+) are exported but cleared here. They name users and devices of a server this phone
+ * is not connected to: personal data kept to a minimum (nFADP, GDPR), and a merge compares the
+ * movements without them.
+ */
+fun BackupData.withoutServerAuthors(): BackupData =
+    if (movements.none { it.createdBy != null || it.deviceId != null }) {
+        this
+    } else {
+        copy(movements = movements.map { if (it.createdBy == null && it.deviceId == null) it else it.copy(createdBy = null, deviceId = null) })
+    }
 
 /** [data] with every `item.location_id` recomputed from the movements. */
 fun BackupData.withItemLocations(): BackupData {

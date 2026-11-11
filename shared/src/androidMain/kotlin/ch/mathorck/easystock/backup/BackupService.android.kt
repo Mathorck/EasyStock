@@ -189,11 +189,13 @@ class AndroidBackupService(
     }
 
     override suspend fun import(backup: OpenedBackup, mode: ImportMode): ImportSummary = io {
-        validateBackup(backup.data)
+        // This phone is standalone (server mode can't be joined yet): the server authors are dropped
+        val data = backup.data.withoutServerAuthors()
+        validateBackup(data)
         val archive = backup.archivePath?.let(::File)
         when (mode) {
-            ImportMode.REPLACE -> replace(backup.data, archive)
-            ImportMode.MERGE -> merge(backup.data, archive)
+            ImportMode.REPLACE -> replace(data, archive)
+            ImportMode.MERGE -> merge(data, archive)
         }
     }
 

@@ -68,6 +68,13 @@ abstract class BackupDao {
     @Query("DELETE FROM category") protected abstract suspend fun deleteCategories()
     @Query("DELETE FROM location") protected abstract suspend fun deleteLocations()
 
+    // Server mode tables, app only (never in a backup)
+    @Query("DELETE FROM sync_state") protected abstract suspend fun deleteSyncState()
+    @Query("DELETE FROM outbox") protected abstract suspend fun deleteOutbox()
+    @Query("DELETE FROM server_user") protected abstract suspend fun deleteServerUsers()
+    @Query("DELETE FROM low_stock_alert") protected abstract suspend fun deleteLowStockAlerts()
+    @Query("DELETE FROM rejected_change") protected abstract suspend fun deleteRejectedChanges()
+
     // Frees unique values before the updates, so two rows can swap a value (name, SKU, tag, serial)
     @Query("UPDATE category SET name = :name WHERE id = :id") protected abstract suspend fun renameCategory(id: String, name: String)
     @Query("UPDATE article SET sku = NULL, barcode = NULL WHERE id = :id") protected abstract suspend fun clearArticleUniques(id: String)
@@ -92,9 +99,10 @@ abstract class BackupDao {
     )
 
     /**
-     * Hard-deletes every row of every table, children first (foreign keys).
+     * Hard-deletes every row of every synced table, children first (foreign keys).
      * Only for a full wipe the user asked for (backup restore, reset of all data): the soft-delete
      * and append-only `stock_movement` rules don't apply, nothing is left to sync.
+     * The server mode tables are kept (a backup replace doesn't touch them), see [wipeEverything].
      */
     @Transaction
     open suspend fun wipeAll() {
@@ -109,7 +117,22 @@ abstract class BackupDao {
         deleteLocations()
     }
 
-    /** Wipes every table and writes [data]. `item.location_id` is recomputed from the movements. */
+    /**
+     * [wipeAll] plus the server mode tables (`sync_state`, `outbox`, `server_user`, `low_stock_alert`,
+     * `rejected_change`): the phone is as after a fresh install. For the reset of all data.
+     */
+    @Transaction
+    open suspend fun wipeEverything() {
+        // sync_state first: with it gone the outbox triggers are off (they don't fire on DELETE anyway)
+        deleteSyncState()
+        deleteOutbox()
+        deleteServerUsers()
+        deleteLowStockAlerts()
+        deleteRejectedChanges()
+        wipeAll()
+    }
+
+    /** Wipes every synced table and writes [data]. `item.location_id` is recomputed from the movements. */
     @Transaction
     open suspend fun replaceAll(data: BackupData) {
         wipeAll()

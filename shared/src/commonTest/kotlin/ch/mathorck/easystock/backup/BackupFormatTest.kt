@@ -28,6 +28,33 @@ class BackupFormatTest {
         assertEquals(data, BackupCodec.decodeTables { tables[it] })
     }
 
+    /** Schema 9: the server authors of a movement are exported, and an older backup without them reads as null. */
+    @Test
+    fun schema9MovementAuthorsAreWrittenAndOptional() {
+        val authored = movement("m1", "a1", "l1", 1000).copy(createdBy = "u1", deviceId = "d1")
+        val json = BackupCodec.encodeTable(BackupData(movements = listOf(authored)), BackupTable.STOCK_MOVEMENT).decodeToString()
+        assertTrue("\"created_by\":\"u1\"" in json, json)
+        assertTrue("\"device_id\":\"d1\"" in json, json)
+
+        val older = """[{"id":"m1","article_id":"a1","location_id":"l1","quantity":1000,"reason":"purchase","occurred_at":1,"created_at":1}]"""
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.STOCK_MOVEMENT) older.encodeToByteArray() else null }.movements.single()
+        assertNull(decoded.createdBy)
+        assertNull(decoded.deviceId)
+    }
+
+    /** Imported into a standalone phone, the server authors are dropped; the rest of the backup is unchanged. */
+    @Test
+    fun standaloneImportDropsTheServerAuthors() {
+        val data = full()
+        val authored = data.copy(movements = data.movements.map { it.copy(createdBy = "u1", deviceId = "d1") })
+
+        val imported = authored.withoutServerAuthors()
+
+        assertEquals(data, imported)
+        // Nothing to drop: the same instance
+        assertTrue(data.withoutServerAuthors() === data)
+    }
+
     @Test
     fun schema3ColumnsAreWritten() {
         val data = BackupData(
@@ -253,7 +280,7 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(8, DB_VERSION)
+        assertEquals(9, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
@@ -262,6 +289,7 @@ class BackupFormatTest {
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 1))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 7))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 8))
     }
 
     @Test

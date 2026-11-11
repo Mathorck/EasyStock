@@ -9,11 +9,12 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 /**
- * Erases all the data of this phone, as after a fresh install: every table, then the files the app
+ * Erases all the data of this phone, as after a fresh install: every table (server mode tables
+ * included), then the files the app
  * owns ([wipeFiles]: article photos, temporary backups and photos).
  *
  * A full wipe the user asked for and confirmed in writing: rows are hard-deleted, the soft-delete
- * and append-only `stock_movement` rules don't apply (see [BackupDao.wipeAll]).
+ * and append-only `stock_movement` rules don't apply (see [BackupDao.wipeEverything]).
  * A fresh install has no seed data, so nothing is recreated. The app language is kept (a UI
  * preference, stored by the platform, not data).
  */
@@ -26,7 +27,7 @@ class DataReset(
      * pointing at a deleted photo. Not cancellable: the screen that starts it closes right after.
      */
     suspend fun run() = withContext(NonCancellable) {
-        db.backupDao().wipeAll()
+        db.backupDao().wipeEverything()
         // Deleted rows can stay readable in unused pages and in the write-ahead log: VACUUM
         // (outside a transaction) rebuilds the file, the checkpoint then writes back and empties the log
         db.useWriterConnection { connection ->

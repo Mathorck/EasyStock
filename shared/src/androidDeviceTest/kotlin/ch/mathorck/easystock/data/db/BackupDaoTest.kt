@@ -14,6 +14,8 @@ import ch.mathorck.easystock.backup.DeviceFixtures.sample
 import ch.mathorck.easystock.backup.DeviceFixtures.sorted
 import ch.mathorck.easystock.backup.withItemLocations
 import androidx.room.useReaderConnection
+import androidx.room.useWriterConnection
+import androidx.room.execSQL
 import ch.mathorck.easystock.backup.BackupTable
 import ch.mathorck.easystock.backup.backupJson
 import kotlinx.coroutines.runBlocking
@@ -144,5 +146,26 @@ class BackupDaoTest {
 
         assertTrue(plan.isEmpty, "$plan")
         assertEquals(sample().withItemLocations().sorted(), dao.snapshot().sorted())
+    }
+
+    /**
+     * A backup replace swaps the synced tables only: the server mode tables belong to this phone
+     * (the reset of all data empties them, see DataResetTest).
+     */
+    @Test
+    fun replaceKeepsTheServerModeTables() = runBlocking {
+        db.useWriterConnection { connection ->
+            connection.execSQL("INSERT INTO server_user (user_id, display_name) VALUES ('u1', 'Ann')")
+            connection.execSQL("INSERT INTO rejected_change (id, table_name, row_id, reason, rejected_at) VALUES ('rc1', 'article', 'a1', 'conflict', 1)")
+        }
+        dao.replaceAll(sample())
+        dao.wipeAll()
+
+        listOf("server_user", "rejected_change").forEach { table ->
+            val rows = db.useReaderConnection { connection ->
+                connection.usePrepared("SELECT count(*) FROM `$table`") { it.step(); it.getLong(0).toInt() }
+            }
+            assertEquals(1, rows, table)
+        }
     }
 }
