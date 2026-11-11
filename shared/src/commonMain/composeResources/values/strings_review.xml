@@ -90,6 +90,15 @@
     <string name="review_tag_not_in_review">Not expected here: add it as found item.</string>
     <string name="review_tag_hint">Scan a tag to jump to its line.</string>
     <string name="review_gone">This review no longer exists.</string>
+    <string name="review_found_new_unit">New unit of this article</string>
+    <string name="review_add_unit_here">Add a unit found here</string>
+    <string name="review_new_unit_title">New unit found</string>
+    <string name="review_new_unit_at">%1$s, found at %2$s</string>
+    <string name="review_new_unit_hint">The unit is created when you apply the review.</string>
+    <string name="review_new_unit_add">Add</string>
+    <string name="review_pending_unit">New unit, created when the review is applied</string>
+    <string name="review_change_create">Create %1$s (%2$s) at %3$s</string>
+    <string name="review_skipped_duplicate">%1$s: this serial number is now used by another unit, nothing is created</string>
     <string name="review_tag_location_outside">This location is not part of this review.</string>
     <string name="review_tag_location_empty">Nothing to count at this location in this review.</string>
 </resources>

@@ -121,6 +121,23 @@ class BackupFormatTest {
         assertTrue("\"found_location_id\":\"room\"" in lines)
     }
 
+    /** A new unit found during a review is kept in a backup, and a review line written before has none. */
+    @Test
+    fun pendingUnitOfAReviewLineRoundTripsAndOlderLinesHaveNone() {
+        val pending = ch.mathorck.easystock.data.model.PendingUnit("SN-9", ch.mathorck.easystock.data.model.ItemStatus.REPAIR).toJson()
+        val line = full().reviewLines.first().copy(itemId = null, pendingItem = pending)
+        val data = BackupData(reviewLines = listOf(line))
+
+        val encoded = BackupCodec.encodeTable(data, BackupTable.STOCK_REVIEW_LINE).decodeToString()
+        assertTrue("\"pending_item\":{" in encoded)
+        assertEquals(line, BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) encoded.encodeToByteArray() else null }.reviewLines.single())
+
+        val rows = backupJson.parseToJsonElement(encoded).jsonArray
+        val old = JsonArray(rows.map { row -> JsonObject(row.jsonObject - "pending_item") }).toString()
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) old.encodeToByteArray() else null }
+        assertNull(decoded.reviewLines.single().pendingItem)
+    }
+
     /** A schema 4 backup has no review tables: none, and the rest is read as before. */
     @Test
     fun schema4BackupHasNoReviews() {
@@ -218,7 +235,7 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(6, DB_VERSION)
+        assertEquals(7, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 

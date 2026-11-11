@@ -90,6 +90,15 @@
     <string name="review_tag_not_in_review">Hier nicht erwartet: als gefunden hinzufügen.</string>
     <string name="review_tag_hint">Einen Tag scannen, um zur Zeile zu springen.</string>
     <string name="review_gone">Diese Inventur existiert nicht mehr.</string>
+    <string name="review_found_new_unit">Neue Einheit dieses Artikels</string>
+    <string name="review_add_unit_here">Hier gefundene Einheit hinzufügen</string>
+    <string name="review_new_unit_title">Neue Einheit gefunden</string>
+    <string name="review_new_unit_at">%1$s, gefunden bei %2$s</string>
+    <string name="review_new_unit_hint">Die Einheit wird beim Anwenden der Inventur erstellt.</string>
+    <string name="review_new_unit_add">Hinzufügen</string>
+    <string name="review_pending_unit">Neue Einheit, wird beim Anwenden der Inventur erstellt</string>
+    <string name="review_change_create">%1$s (%2$s) bei %3$s erstellen</string>
+    <string name="review_skipped_duplicate">%1$s: Diese Seriennummer wird jetzt von einer anderen Einheit verwendet, nichts wird erstellt</string>
     <string name="review_tag_location_outside">Dieser Lagerort gehört nicht zu dieser Inventur.</string>
     <string name="review_tag_location_empty">An diesem Lagerort gibt es in dieser Inventur nichts zu zählen.</string>
 </resources>

@@ -25,13 +25,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ch.mathorck.easystock.composables.attributes.AttributeCatalog
+import ch.mathorck.easystock.composables.attributes.AttributeText
+import ch.mathorck.easystock.composables.attributes.matches
+import ch.mathorck.easystock.composables.attributes.summaryLine
 import kotlin.time.Clock
 
-/** Keeps the articles whose name or SKU contains [query], ignoring case. A blank query keeps all. */
-fun List<Article>.filterArticles(query: String): List<Article> {
+/**
+ * Keeps the articles whose name, SKU or one of their [attributes] values (see [matches]) contains [query],
+ * ignoring case. A blank query keeps all.
+ */
+fun List<Article>.filterArticles(query: String, attributes: (Article) -> List<AttributeText> = { emptyList() }): List<Article> {
     val q = query.trim()
     if (q.isEmpty()) return this
-    return filter { it.name.contains(q, ignoreCase = true) || it.sku?.contains(q, ignoreCase = true) == true }
+    return filter { it.name.contains(q, ignoreCase = true) || it.sku?.contains(q, ignoreCase = true) == true || attributes(it).matches(q) }
 }
 
 /** Keeps the locations whose name or path contains [query], ignoring case. A blank query keeps all. */
@@ -76,6 +83,8 @@ data class TagPickerUiState(
     val query: String = "",
     /** Untagged articles matching [query], for [TagPickerType.ARTICLE]. Null while loading. */
     val articles: List<Article>? = null,
+    /** The properties line of each article of [articles] that has properties, by article id ("Longueur 50 m · ..."). */
+    val attributeLines: Map<String, String> = emptyMap(),
     /** Untagged locations matching [query], for [TagPickerType.LOCATION]. Null while loading. */
     val locations: List<LocationOption>? = null,
     /** True when nothing at all is untagged (as opposed to none matching the query). */
@@ -135,6 +144,8 @@ class ScanViewModel(
     private val tags: TagStore,
     availability: Flow<NfcAvailability>,
     private val clock: Clock = Clock.System,
+    /** Formats the properties of the articles in the picker. Only collected while the article picker is open. */
+    private val catalog: Flow<AttributeCatalog> = flowOf(AttributeCatalog(emptyList(), emptyList())),
 ) : ViewModel() {
     private val phase = MutableStateFlow<ScanPhase>(ScanPhase.Ready)
 
@@ -145,7 +156,13 @@ class ScanViewModel(
     private val moveRequest = MutableStateFlow<TagMoveRequest?>(null)
 
     /** The untagged rows of the open picker's type. */
-    private class PickerRows(val type: TagPickerType, val articles: List<Article>? = null, val locations: List<LocationOption>? = null)
+    private class PickerRows(
+        val type: TagPickerType,
+        val articles: List<Article>? = null,
+        /** The values of each article of [articles], formatted once per emission. */
+        val attributes: Map<String, List<AttributeText>> = emptyMap(),
+        val locations: List<LocationOption>? = null,
+    )
 
     /** Null while the picker is closed. */
     private val pickerRows: Flow<PickerRows?> =
@@ -154,7 +171,9 @@ class ScanViewModel(
             .flatMapLatest { type ->
                 when (type) {
                     null -> flowOf(null)
-                    TagPickerType.ARTICLE -> tags.observeUntaggedArticles().map { PickerRows(type, articles = it) }
+                    TagPickerType.ARTICLE -> combine(tags.observeUntaggedArticles(), catalog) { articles, catalog ->
+                        PickerRows(type, articles = articles, attributes = articles.associate { it.id to catalog.format(it) })
+                    }
                     TagPickerType.LOCATION -> tags.observeLocations().map { PickerRows(type, locations = untaggedLocationOptions(it)) }
                 }
             }
@@ -165,7 +184,8 @@ class ScanViewModel(
             TagPickerUiState(
                 type = type,
                 query = it,
-                articles = current?.articles?.filterArticles(it),
+                articles = current?.articles?.filterArticles(it) { a -> current.attributes[a.id].orEmpty() },
+                attributeLines = current?.attributes.orEmpty().mapNotNull { (id, texts) -> texts.takeIf { t -> t.isNotEmpty() }?.let { t -> id to t.summaryLine() } }.toMap(),
                 locations = current?.locations?.filterLocations(it),
                 noneUntagged = current != null && current.articles.orEmpty().isEmpty() && current.locations.orEmpty().isEmpty(),
                 saving = status.saving,

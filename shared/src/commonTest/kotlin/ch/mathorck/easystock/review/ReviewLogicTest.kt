@@ -2,6 +2,7 @@ package ch.mathorck.easystock.review
 
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.data.model.PendingUnit
 import ch.mathorck.easystock.data.model.ReviewResult
 import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.viewmodels.subtreeIds
@@ -325,5 +326,39 @@ class ReviewLogicTest {
 
         assertTrue(plan.changes.isEmpty())
         assertEquals(SkipReason.GONE, plan.skipped.single().reason)
+    }
+
+    // ---------- New unit found ----------
+
+    private fun pendingLine(id: String, serial: String?, location: String = "shelf") = StockReviewLine(
+        id = id, reviewId = "r", articleId = "tool", locationId = location, expectedMilli = 0,
+        result = ReviewResult.PRESENT, pendingItem = PendingUnit(serial).toJson(), createdAt = 1, updatedAt = 1,
+    )
+
+    @Test
+    fun pendingUnitIsASerialLineThatCreatesTheUnit() {
+        val pending = pendingLine("p1", "SN-1")
+        assertTrue(pending.isSerial && pending.isPendingUnit && pending.isAddedUnit)
+
+        val plan = planReviewFinish(inputs(pending), emptyMap())
+
+        assertEquals(listOf<ReviewChange>(ReviewChange.CreateUnit("p1", "tool", "shelf", PendingUnit("SN-1"))), plan.changes)
+    }
+
+    @Test
+    fun pendingUnitWithATakenOrRepeatedSerialIsSkipped() {
+        val base = inputs(pendingLine("p1", "SN-1"), pendingLine("p2", "sn-1"), pendingLine("p3", null), pendingLine("p4", null))
+        val plan = planReviewFinish(base.copy(takenSerials = setOf("sn-9")), emptyMap())
+        assertEquals(listOf("p1", "p3", "p4"), plan.changes.map { it.lineId })
+        assertEquals(listOf(SkippedLine("p2", SkipReason.DUPLICATE_SERIAL)), plan.skipped)
+
+        val taken = planReviewFinish(inputs(pendingLine("p1", "SN-1")).copy(takenSerials = setOf("sn-1")), emptyMap())
+        assertEquals(listOf(SkippedLine("p1", SkipReason.DUPLICATE_SERIAL)), taken.skipped)
+    }
+
+    @Test
+    fun pendingUnitAtADeletedLocationIsSkipped() {
+        val plan = planReviewFinish(inputs(pendingLine("p1", null, location = "gone")), emptyMap())
+        assertEquals(listOf(SkippedLine("p1", SkipReason.GONE)), plan.skipped)
     }
 }

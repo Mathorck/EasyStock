@@ -67,6 +67,7 @@ import ch.mathorck.easystock.nfc.TagPriority
 import ch.mathorck.easystock.review.LineFilter
 import ch.mathorck.easystock.review.LineStatus
 import ch.mathorck.easystock.review.isAddedUnit
+import ch.mathorck.easystock.review.isPendingUnit
 import ch.mathorck.easystock.review.isSerial
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.NewArticleViewModel
@@ -83,7 +84,9 @@ import easystock.shared.generated.resources.ic_more_vert
 import easystock.shared.generated.resources.ic_remove
 import easystock.shared.generated.resources.ic_warning
 import easystock.shared.generated.resources.review_add_found
+import easystock.shared.generated.resources.review_add_unit_here
 import easystock.shared.generated.resources.review_added_unit
+import easystock.shared.generated.resources.review_pending_unit
 import easystock.shared.generated.resources.review_article_deleted
 import easystock.shared.generated.resources.review_cancel_message
 import easystock.shared.generated.resources.review_cancel_review
@@ -148,6 +151,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
     val message by viewModel.message.collectAsStateWithLifecycle()
     val jumpTo by viewModel.jumpTo.collectAsStateWithLifecycle()
     val openFound by viewModel.openFound.collectAsStateWithLifecycle()
+    val newUnit by viewModel.newUnit.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
     val newArticleViewModel = viewModel(key = "review-new-article-$reviewId") {
         NewArticleViewModel(db.articleFormDao(), db.categoryDao(), db.attributeDao(), images)
@@ -302,6 +306,7 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
                                         onReset = { viewModel.reset(line.line.id) },
                                         onFlag = { flagLineId = line.line.id },
                                         onEditInfo = { editArticleId = line.line.articleId },
+                                        onAddUnitHere = { viewModel.openNewUnit(line.line.articleId, line.line.locationId) },
                                     )
                                 }
                             }
@@ -377,12 +382,21 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
                 viewModel.addFound(candidate, locationId)
                 showFound = false
             },
+            onNewUnit = { candidate, locationId ->
+                viewModel.openNewUnit(candidate.articleId, locationId)
+                showFound = false
+            },
             onNewArticle = { newArticleViewModel.start() },
             onDismiss = {
                 viewModel.clearSearch()
                 showFound = false
             },
         )
+    }
+    newUnit?.let { sheet ->
+        if (state.isOpen) {
+            NewUnitDialog(sheet, onFormChange = viewModel::updateNewUnit, onSave = viewModel::saveNewUnit, onDismiss = viewModel::closeNewUnit)
+        }
     }
     preview?.let { current ->
         val review = state.review
@@ -514,6 +528,7 @@ private fun LineCard(
     onReset: () -> Unit,
     onFlag: () -> Unit,
     onEditInfo: () -> Unit,
+    onAddUnitHere: () -> Unit,
 ) {
     val colors = when {
         highlighted -> CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -543,10 +558,10 @@ private fun LineCard(
                         Text(line.attributes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                if (open) LineMenu(line, onReset, onFlag, onEditInfo)
+                if (open) LineMenu(line, onReset, onFlag, onEditInfo, onAddUnitHere)
             }
             if (line.line.isAddedUnit) {
-                Text(stringResource(Res.string.review_added_unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(if (line.line.isPendingUnit) Res.string.review_pending_unit else Res.string.review_added_unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
             }
             if (line.line.result == ReviewResult.ELSEWHERE && line.foundPath != null) {
                 Text(stringResource(Res.string.review_found_at, line.foundPath), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -562,7 +577,7 @@ private fun LineCard(
                     )
                 }
             }
-            if (line.line.isSerial) UnitActions(line, open, onResult) else QuantityActions(line, open, onCount, onStep, onCorrect)
+            if (line.line.isPendingUnit) Unit else if (line.line.isSerial) UnitActions(line, open, onResult) else QuantityActions(line, open, onCount, onStep, onCorrect)
         }
     }
 }
@@ -577,7 +592,7 @@ private fun StatusIcon(status: LineStatus) {
 }
 
 @Composable
-private fun LineMenu(line: ReviewLineUi, onReset: () -> Unit, onFlag: () -> Unit, onEditInfo: () -> Unit) {
+private fun LineMenu(line: ReviewLineUi, onReset: () -> Unit, onFlag: () -> Unit, onEditInfo: () -> Unit, onAddUnitHere: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -588,6 +603,12 @@ private fun LineMenu(line: ReviewLineUi, onReset: () -> Unit, onFlag: () -> Unit
                 DropdownMenuItem(text = { Text(stringResource(Res.string.review_edit_info)) }, onClick = {
                     expanded = false
                     onEditInfo()
+                })
+            }
+            if (!line.articleDeleted && line.line.isSerial) {
+                DropdownMenuItem(text = { Text(stringResource(Res.string.review_add_unit_here)) }, onClick = {
+                    expanded = false
+                    onAddUnitHere()
                 })
             }
             DropdownMenuItem(text = { Text(stringResource(Res.string.review_flag)) }, onClick = {
