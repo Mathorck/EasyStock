@@ -69,7 +69,6 @@
     <string name="location_contents_here">Directement ici</string>
     <string name="location_contents_empty">Rien n’est rangé ici.</string>
     <string name="location_contents_empty_here">Rien directement ici. Incluez les sous-emplacements pour voir leur contenu.</string>
-    <string name="location_contents_review">Réviser cet emplacement</string>
     <string name="location_contents_gone">Cet emplacement n’existe plus.</string>
     <string name="location_contents_open">Voir le contenu</string>
     <string name="location_contents_units">Unités ici</string>
