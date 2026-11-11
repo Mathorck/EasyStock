@@ -338,7 +338,7 @@ class ReviewDaoTest {
     }
 
     @Test
-    fun newUnitMustBeInTheScopeOfASerialArticle() = runBlocking {
+    fun newUnitMustBeInTheScopeOfASerialArticle() = runBlocking<Unit> {
         val id = reviews.startReview("room", now = 100, newId = newId)
 
         assertFailsWith<IllegalArgumentException> { reviews.addPendingUnit(id, "drill", "van", PendingUnit(), now = 110, newId = newId) }
