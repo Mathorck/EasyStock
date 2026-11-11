@@ -99,7 +99,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Full-screen subpages opened from the settings list. */
-enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo, Administration }
+enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo, Administration, Server }
 
 @Composable
 fun SettingsPage(onDataReset: () -> Unit = {}) {
@@ -121,6 +121,7 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
         SettingsSubpageId.Reviews -> ReviewsScreen(onBack = { subpage = null })
         SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
         SettingsSubpageId.Administration -> AdministrationScreen(onBack = { subpage = null })
+        SettingsSubpageId.Server -> Unit
         SettingsSubpageId.AppInfo -> AppInfoScreen(
             onBack = { subpage = null },
             onOpenBackup = { subpage = SettingsSubpageId.Backup },

@@ -91,11 +91,11 @@ class AppPermissionsTest {
         assertEquals(SettingsGates(allSubpages, resetData = true), SettingsGates.of(admin))
         assertEquals(SettingsGates(standaloneSubpages, resetData = true), SettingsGates.of(editor))
         assertEquals(
-            SettingsGates(setOf(SettingsSubpageId.Reviews, SettingsSubpageId.AppInfo), resetData = false),
+            SettingsGates(setOf(SettingsSubpageId.Reviews, SettingsSubpageId.AppInfo, SettingsSubpageId.Server), resetData = false),
             SettingsGates.of(viewer),
         )
-        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo), resetData = false), SettingsGates.of(guest))
-        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo), resetData = false), SettingsGates.of(unknown))
+        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo, SettingsSubpageId.Server), resetData = false), SettingsGates.of(guest))
+        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo, SettingsSubpageId.Server), resetData = false), SettingsGates.of(unknown))
     }
 
     @Test
@@ -112,10 +112,16 @@ class AppPermissionsTest {
 
     @Test
     fun administrationOnlyForAConnectedAdmin() {
-        // Standalone allows everything, but has no server: nothing new may show
+        // Standalone allows everything, but has no server to administer
         assertFalse(SettingsGates.of(AppPermissions.Standalone).server)
         assertFalse(SettingsSubpageId.Administration in SettingsGates.of(AppPermissions.Standalone).subpages)
         assertTrue(SettingsGates.of(admin).server)
         listOf(editor, viewer, guest, unknown).forEach { assertFalse(SettingsGates.of(it).server, "$it") }
+    }
+
+    @Test
+    fun theServerEntryForEveryone() {
+        listOf(AppPermissions.Standalone, admin, editor, viewer, guest, unknown)
+            .forEach { assertTrue(SettingsSubpageId.Server in SettingsGates.of(it).subpages, "$it") }
     }
 }

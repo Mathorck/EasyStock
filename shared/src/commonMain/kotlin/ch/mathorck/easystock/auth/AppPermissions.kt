@@ -112,7 +112,7 @@ data class SettingsGates(
     val catalogue: Boolean get() = CATALOGUE.any { it in subpages }
     val data: Boolean get() = SettingsSubpageId.Reviews in subpages || SettingsSubpageId.Backup in subpages
 
-    /** "Server" section (Administration). */
+    /** The Administration entry of the "Server" section (the section itself, with its Server entry, always shows). */
     val server: Boolean get() = SettingsSubpageId.Administration in subpages
 
     companion object {
@@ -131,7 +131,8 @@ data class SettingsGates(
                     SettingsSubpageId.Locations, SettingsSubpageId.Tags, SettingsSubpageId.Backup,
                     -> manage
                     SettingsSubpageId.Reviews -> permissions.can(Action.VIEW_REVIEWS)
-                    SettingsSubpageId.AppInfo -> true
+                    // Connect (standalone) or the own account (connected): every role
+                    SettingsSubpageId.AppInfo, SettingsSubpageId.Server -> true
                     // Server administration: only an Admin of a server. Never in standalone, where
                     // Action.ADMINISTER is allowed but there is no server to administer
                     SettingsSubpageId.Administration -> permissions.connected && permissions.role == Role.ADMIN
