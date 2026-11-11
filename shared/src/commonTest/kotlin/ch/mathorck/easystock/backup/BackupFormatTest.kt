@@ -138,6 +138,23 @@ class BackupFormatTest {
         assertNull(decoded.reviewLines.single().pendingItem)
     }
 
+    /** A fixed "info to fix" flag keeps its fix time in a backup, and a line written before version 8 has none. */
+    @Test
+    fun infoFixedAtOfAReviewLineRoundTripsAndOlderLinesHaveNone() {
+        val line = full().reviewLines.first().copy(infoFlagged = true, note = "Change the box", infoFixedAt = 4_200)
+        val data = BackupData(reviewLines = listOf(line))
+
+        val encoded = BackupCodec.encodeTable(data, BackupTable.STOCK_REVIEW_LINE).decodeToString()
+        assertTrue("\"info_fixed_at\":4200" in encoded)
+        assertEquals(line, BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) encoded.encodeToByteArray() else null }.reviewLines.single())
+
+        val rows = backupJson.parseToJsonElement(encoded).jsonArray
+        val old = JsonArray(rows.map { row -> JsonObject(row.jsonObject - "info_fixed_at") }).toString()
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) old.encodeToByteArray() else null }
+        assertNull(decoded.reviewLines.single().infoFixedAt)
+        assertTrue(decoded.reviewLines.single().infoFlagged)
+    }
+
     /** A schema 4 backup has no review tables: none, and the rest is read as before. */
     @Test
     fun schema4BackupHasNoReviews() {

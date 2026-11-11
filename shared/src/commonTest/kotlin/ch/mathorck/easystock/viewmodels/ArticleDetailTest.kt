@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.viewmodels
 
+import ch.mathorck.easystock.data.db.InfoFlag
 import ch.mathorck.easystock.data.db.LocationStock
 import ch.mathorck.easystock.data.db.MovementWithLocation
 import ch.mathorck.easystock.data.model.Location
@@ -83,5 +84,66 @@ class ArticleDetailTest {
         assertEquals("+1.5", formatSignedQuantity(1_500))
         assertEquals("-2", formatSignedQuantity(-2_000))
         assertEquals("0", formatSignedQuantity(0))
+    }
+
+    // ---------- Info to fix flags ----------
+
+    private fun flag(id: String, flaggedAt: Long, fixedAt: Long? = null, note: String? = "Change the box", location: String = "shelf", serial: String? = null) =
+        InfoFlag(id, note, location, "name-$location", serial, flaggedAt, fixedAt)
+
+    @Test
+    fun openFlagsLeaveOutFixedOnesAndUsePaths() {
+        val rows = openInfoFlagRows(
+            listOf(
+                flag("f2", 1_762_786_620_000, serial = "SN-1"),
+                flag("f1", 1_000, fixedAt = 2_000),
+                flag("f0", 0, note = "  ", location = "gone"),
+            ),
+            locations,
+            TimeZone.UTC,
+        )
+
+        assertEquals(
+            listOf(
+                InfoFlagRow("f2", "Change the box", "Workshop › Shelf A", "SN-1", "2025-11-10 14:57"),
+                // Blank note: none. Unknown location: the joined name.
+                InfoFlagRow("f0", null, "name-gone", null, "1970-01-01 00:00"),
+            ),
+            rows,
+        )
+    }
+
+    @Test
+    fun historyMergesMovementsAndFlagEventsNewestFirst() {
+        val rows = historyRows(
+            movements = listOf(
+                MovementWithLocation(movement("m3", "van", -1_000, occurredAt = 5_000), "Van"),
+                MovementWithLocation(movement("m2", "shelf", 2_000, occurredAt = 3_000), "Shelf A"),
+                MovementWithLocation(movement("m1", "shelf", 1_000, occurredAt = 1_000), "Shelf A"),
+            ),
+            flags = listOf(
+                flag("open", flaggedAt = 3_000),
+                flag("fixed", flaggedAt = 2_000, fixedAt = 6_000),
+            ),
+            locations = locations,
+            timeZone = TimeZone.UTC,
+        )
+
+        assertEquals(
+            listOf("fixed-fixed", "movement-m3", "movement-m2", "flagged-open", "flagged-fixed", "movement-m1"),
+            rows.map { it.key },
+        )
+        val fixed = rows[0] as HistoryRow.InfoFixed
+        assertEquals("1970-01-01 00:00", fixed.at)
+        assertEquals("Change the box", fixed.flag.note)
+        val flagged = rows[3] as HistoryRow.InfoFlagged
+        assertEquals("Workshop › Shelf A", flagged.flag.location)
+    }
+
+    @Test
+    fun historyWithOnlyFlagsIsNotEmpty() {
+        val rows = historyRows(emptyList(), listOf(flag("f", flaggedAt = 10)), locations, TimeZone.UTC)
+
+        assertEquals(listOf("flagged-f"), rows.map { it.key })
     }
 }

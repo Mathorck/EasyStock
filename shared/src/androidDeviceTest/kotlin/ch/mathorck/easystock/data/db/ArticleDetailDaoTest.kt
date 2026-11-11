@@ -1,6 +1,8 @@
 package ch.mathorck.easystock.data.db
 
 import androidx.room.Room
+import androidx.room.execSQL
+import androidx.room.useWriterConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.platform.app.InstrumentationRegistry
 import ch.mathorck.easystock.data.model.Article
@@ -343,5 +345,127 @@ class ArticleDetailDaoTest {
         articles.softDelete("a1", now = 20)
 
         assertFailsWith<ArticleNotFoundException> { detail.setImagePath("a1", photo1, now = 30) }
+    }
+
+    // ---------- Info to fix flags ----------
+
+    private suspend fun sql(statement: String) = db.useWriterConnection { it.execSQL(statement) }
+
+    private suspend fun review(id: String, status: String, finishedAt: Long?, deletedAt: Long? = null) = sql(
+        "INSERT INTO stock_review (id, location_id, status, started_at, finished_at, created_at, updated_at, deleted_at) " +
+            "VALUES ('$id', 'shelf', '$status', 1, ${finishedAt ?: "NULL"}, 1, 1, ${deletedAt ?: "NULL"})",
+    )
+
+    private suspend fun line(
+        id: String,
+        reviewId: String,
+        articleId: String = "a1",
+        flagged: Boolean = true,
+        note: String? = "Change the box",
+        location: String = "shelf",
+        itemId: String? = null,
+        deletedAt: Long? = null,
+    ) = sql(
+        "INSERT INTO stock_review_line (id, review_id, article_id, item_id, location_id, expected_quantity, result, " +
+            "info_flagged, note, created_at, updated_at, deleted_at) VALUES ('$id', '$reviewId', '$articleId', " +
+            "${itemId?.let { "'$it'" } ?: "NULL"}, '$location', 0, 'unchecked', ${if (flagged) 1 else 0}, " +
+            "${note?.let { "'$it'" } ?: "NULL"}, 1, 1, ${deletedAt ?: "NULL"})",
+    )
+
+    private suspend fun reviewLine(reviewId: String, id: String) = db.reviewDao().linesOf(reviewId).single { it.id == id }
+
+    @Test
+    fun infoFlagsOnlyFromFinishedReviews() = runBlocking<Unit> {
+        article("a1")
+        article("a2")
+        review("finished", "finished", finishedAt = 500)
+        review("older", "finished", finishedAt = 300)
+        review("open", "open", finishedAt = null)
+        review("cancelled", "cancelled", finishedAt = 400)
+        review("deleted", "finished", finishedAt = 450, deletedAt = 460)
+        line("flag", "finished", note = "Change the box", location = "old")
+        line("flag-old", "older", note = null)
+        line("not-flagged", "finished", flagged = false, note = "Leftover note")
+        line("deleted-line", "finished", deletedAt = 600)
+        line("other-article", "finished", articleId = "a2")
+        line("in-open", "open")
+        line("in-cancelled", "cancelled")
+        line("in-deleted", "deleted")
+
+        val flags = detail.observeInfoFlags("a1").first()
+
+        assertEquals(listOf("flag", "flag-old"), flags.map { it.lineId })
+        assertEquals("Change the box", flags[0].note)
+        assertEquals(500L, flags[0].flaggedAt)
+        // Soft-deleted location: still joined, by name
+        assertEquals("Old bin", flags[0].locationName)
+        assertNull(flags[0].fixedAt)
+        assertNull(flags[1].note)
+    }
+
+    @Test
+    fun infoFlagOfAUnitHasItsSerialNumber() = runBlocking<Unit> {
+        article("a1")
+        sql("INSERT INTO item (id, article_id, serial_number, status, location_id, created_at, updated_at) VALUES ('i1', 'a1', 'SN-1', 'available', 'shelf', 1, 1)")
+        review("r", "finished", finishedAt = 500)
+        line("unit", "r", itemId = "i1")
+
+        assertEquals("SN-1", detail.observeInfoFlags("a1").first().single().serialNumber)
+    }
+
+    @Test
+    fun markInfoFixedClosesTheFlagOnce() = runBlocking<Unit> {
+        article("a1")
+        review("r", "finished", finishedAt = 500)
+        line("flag", "r")
+
+        assertTrue(detail.markInfoFixed("flag", now = 700))
+        assertFalse(detail.markInfoFixed("flag", now = 800))
+
+        val flag = detail.observeInfoFlags("a1").first().single()
+        assertEquals(700L, flag.fixedAt)
+        val stored = reviewLine("r", "flag")
+        assertEquals(700L, stored.infoFixedAt)
+        // updated_at follows, so a backup merge keeps the fix
+        assertEquals(700L, stored.updatedAt)
+    }
+
+    @Test
+    fun markInfoFixedIgnoresOtherLines() = runBlocking<Unit> {
+        article("a1")
+        review("open", "open", finishedAt = null)
+        review("cancelled", "cancelled", finishedAt = 400)
+        review("r", "finished", finishedAt = 500)
+        line("in-open", "open")
+        line("in-cancelled", "cancelled")
+        line("not-flagged", "r", flagged = false)
+        line("deleted-line", "r", deletedAt = 600)
+
+        listOf("in-open", "in-cancelled", "not-flagged", "deleted-line", "missing").forEach {
+            assertFalse(detail.markInfoFixed(it, now = 700), it)
+        }
+        assertNull(reviewLine("open", "in-open").infoFixedAt)
+        assertEquals(1L, reviewLine("open", "in-open").updatedAt)
+    }
+
+    /** End to end: a flag set during a review shows on the article once the review is finished. */
+    @Test
+    fun flagFromAFinishedReviewShowsOnTheArticle() = runBlocking<Unit> {
+        article("a1")
+        move("a1", 2_000, "shelf")
+        var ids = 0
+        val reviews = db.reviewDao()
+        val reviewId = reviews.startReview("shelf", now = 100, newId = { "rid${ids++}" })
+        val lineId = reviews.linesOf(reviewId).single { it.articleId == "a1" }.id
+        reviews.setFlag(lineId, flagged = true, note = "  Change the box  ", now = 110)
+
+        assertTrue(detail.observeInfoFlags("a1").first().isEmpty())
+
+        reviews.finishReview(reviewId, emptyMap(), comment = "Review", now = 200, newId = { "rid${ids++}" })
+
+        val flag = detail.observeInfoFlags("a1").first().single()
+        assertEquals(lineId, flag.lineId)
+        assertEquals("Change the box", flag.note)
+        assertEquals(200L, flag.flaggedAt)
     }
 }
