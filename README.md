@@ -22,7 +22,23 @@
 
 ## Screenshots
 
-<!-- Filled in phase 2: centered grid, 3 per row, width 250, italic caption under each, files in docs/images/screenshots -->
+<table align="center">
+  <tr>
+    <td align="center" valign="top"><img src="docs/images/screenshots/stock-list.png" width="250" alt="Stock list with low-stock flags and attribute summaries"><br><sub><i>Stock list with low-stock flags and attribute summaries</i></sub></td>
+    <td align="center" valign="top"><img src="docs/images/screenshots/article-detail.png" width="250" alt="Article detail: photo, properties, stock and NFC tag"><br><sub><i>Article detail: photo, properties, stock and NFC tag</i></sub></td>
+    <td align="center" valign="top"><img src="docs/images/screenshots/scan-unknown-tag.png" width="250" alt="Scanning an unknown tag: link or create an article or a location"><br><sub><i>Scanning an unknown tag: link or create an article or a location</i></sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/images/screenshots/location-contents.png" width="250" alt="Scanning a location tag: its contents, sub-locations included"><br><sub><i>Scanning a location tag: its contents, sub-locations included</i></sub></td>
+    <td align="center" valign="top"><img src="docs/images/screenshots/locations.png" width="250" alt="Locations with hierarchy, icons and colors"><br><sub><i>Locations with hierarchy, icons and colors</i></sub></td>
+    <td align="center" valign="top"><img src="docs/images/screenshots/attribute-editor.png" width="250" alt="Measurement attribute with a unit per value"><br><sub><i>Measurement attribute with a unit per value</i></sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/images/screenshots/review-checklist.png" width="250" alt="Stock review: check each article or unit of a location"><br><sub><i>Stock review: check each article or unit of a location</i></sub></td>
+    <td align="center" valign="top"><img src="docs/images/screenshots/review-summary.png" width="250" alt="Review summary before applying the changes"><br><sub><i>Review summary before applying the changes</i></sub></td>
+    <td align="center" valign="top"><img src="docs/images/screenshots/backup.png" width="250" alt="Backup and transfer: file, QR code or Wi-Fi"><br><sub><i>Backup and transfer: file, QR code or Wi-Fi</i></sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -58,8 +74,8 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 ## 🏷️ Supported NFC tags
 
 - The app reads the tag UID in reader mode (NFC-A/B/F/V). It does not read or write NDEF data, so tags stay untouched.
-- One tag = one article. A scan looks the article up by its tag ID. Deleting an article frees its tag for reuse.
-- Location tags: _to be confirmed_.
+- One tag belongs to one article OR one location, never both. A scan looks it up by its tag ID. Deleting an article frees its tag for reuse.
+- A location can optionally have its own tag: scanning it shows the location contents, sub-locations included.
 - NFC needs a real device, the emulator can't scan.
 
 ---
@@ -67,7 +83,9 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 ## Features
 
 ### NFC scan
-- Scan a tag to open its article and its stock.
+- Scan an article tag to open the article and its stock.
+- Scan a location tag to see what is stored there, sub-locations included.
+- An unknown tag can be linked to an existing article or location, or used to create one.
 
 ### Stock and search
 - Quantities per article, filters, add or remove stock in one tap.
