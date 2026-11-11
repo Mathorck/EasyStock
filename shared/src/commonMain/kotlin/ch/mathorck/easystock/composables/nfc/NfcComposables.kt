@@ -172,8 +172,15 @@ fun TagPickerSheet(
             )
             else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp), modifier = Modifier.heightIn(max = 480.dp)) {
                 if (forLocation) {
+                    // Indented as a tree; while searching, the matches are scattered, so the full path is shown instead.
+                    val searching = state.query.isNotBlank()
                     items(state.locations.orEmpty(), key = { it.id }) { location ->
-                        PickerRow(location.name, location.path.takeIf { it != location.name }, onClick = { onPick(location.id) })
+                        PickerRow(
+                            location.name,
+                            location.path.takeIf { searching && it != location.name },
+                            onClick = { onPick(location.id) },
+                            indent = if (searching) 0 else location.depth,
+                        )
                     }
                 } else {
                     items(state.articles.orEmpty(), key = { it.id }) { article ->
@@ -190,13 +197,13 @@ internal fun articleSubtitle(sku: String?, attributes: String?): String? =
     listOfNotNull(sku?.takeIf { it.isNotBlank() }, attributes?.takeIf { it.isNotBlank() }).joinToString(ATTRIBUTE_SUMMARY_SEPARATOR).ifEmpty { null }
 
 @Composable
-private fun PickerRow(title: String, subtitle: String?, onClick: () -> Unit) {
+private fun PickerRow(title: String, subtitle: String?, onClick: () -> Unit, indent: Int = 0) {
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = subtitle?.let { text -> { Text(text) } },
         leadingContent = { Icon(painterResource(Res.drawable.ic_link), contentDescription = null) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.clickable(onClick = onClick).padding(start = (indent * 24).dp),
     )
 }
 
