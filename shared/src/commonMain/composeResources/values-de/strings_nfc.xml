@@ -14,7 +14,6 @@
     <string name="nfc_picker_no_results">Kein Artikel ohne Tag passt zu „%1$s“</string>
     <string name="nfc_error_save">Der Tag konnte nicht gespeichert werden. Bitte erneut versuchen.</string>
     <string name="nfc_move_title">Tag bereits zugeordnet</string>
-    <string name="nfc_move_message">Dieser Tag ist „%1$s“ zugeordnet. Zu diesem Artikel verschieben? „%1$s“ hat danach keinen Tag mehr.</string>
     <string name="nfc_move_confirm">Tag verschieben</string>
     <string name="nfc_tag_label">NFC-Tag</string>
     <string name="nfc_tag_none">Kein Tag zugeordnet</string>
@@ -33,4 +32,19 @@
     <string name="nfc_sheet_disabled">NFC ist ausgeschaltet. Aktivieren Sie es, um den Tag zu lesen.</string>
     <string name="nfc_sheet_unavailable">Dieses Gerät unterstützt kein NFC.</string>
     <string name="nfc_new_article_tag">Der neue Artikel erhält den NFC-Tag %1$s</string>
+    <string name="nfc_move_article_to_article">Dieser Tag ist dem Artikel „%1$s“ zugeordnet. Zum Artikel „%2$s“ verschieben? „%1$s“ hat danach keinen Tag mehr.</string>
+    <string name="nfc_move_article_to_location">Dieser Tag ist dem Artikel „%1$s“ zugeordnet. Zum Standort „%2$s“ verschieben? Der Artikel hat danach keinen Tag mehr.</string>
+    <string name="nfc_move_location_to_article">Dieser Tag ist dem Standort „%1$s“ zugeordnet. Zum Artikel „%2$s“ verschieben? Der Standort hat danach keinen Tag mehr.</string>
+    <string name="nfc_move_location_to_location">Dieser Tag ist dem Standort „%1$s“ zugeordnet. Zum Standort „%2$s“ verschieben? „%1$s“ hat danach keinen Tag mehr.</string>
+    <string name="nfc_link_existing_location">Mit einem bestehenden Standort verknüpfen</string>
+    <string name="nfc_create_location_with_tag">Neuen Standort mit diesem Tag erstellen</string>
+    <string name="nfc_picker_location_title">Tag einem Standort zuordnen</string>
+    <string name="nfc_picker_location_hint">Nur Standorte ohne Tag werden angezeigt. Das Scannen des Tags zeigt dann, was der Standort enthält.</string>
+    <string name="nfc_picker_location_search">Standorte suchen</string>
+    <string name="nfc_picker_location_empty">Alle Standorte haben bereits einen Tag. Erstellen Sie stattdessen einen neuen Standort für diesen Tag.</string>
+    <string name="nfc_picker_location_no_results">Kein Standort ohne Tag passt zu „%1$s“</string>
+    <string name="nfc_remove_location_message">Das Scannen dieses Tags zeigt diesen Standort nicht mehr an. Sie können ihn später wieder zuordnen.</string>
+    <string name="nfc_sheet_replace_location_hint">Der neue Tag ersetzt %1$s, der diesen Standort danach nicht mehr anzeigt.</string>
+    <string name="nfc_new_location_tag">Der neue Standort erhält den NFC-Tag %1$s</string>
+    <string name="nfc_location_tag_hint">Das Scannen des Tags zeigt, was der Standort enthält.</string>
 </resources>

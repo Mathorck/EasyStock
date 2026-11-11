@@ -86,8 +86,10 @@
     <string name="review_location_action">Réviser cet emplacement</string>
     <string name="review_chip">Réviser</string>
     <string name="review_tag_failed">Lecture du tag impossible. Tenez-le immobile et réessayez.</string>
-    <string name="review_tag_unknown">Ce tag n’est lié à aucun article.</string>
+    <string name="review_tag_unknown">Ce tag n’est lié à aucun article ni emplacement.</string>
     <string name="review_tag_not_in_review">Pas attendu ici : ajoutez-le comme objet trouvé.</string>
     <string name="review_tag_hint">Scannez un tag pour aller à sa ligne.</string>
     <string name="review_gone">Cette révision n’existe plus.</string>
+    <string name="review_tag_location_outside">Cet emplacement ne fait pas partie de cette révision.</string>
+    <string name="review_tag_location_empty">Rien à compter à cet emplacement dans cette révision.</string>
 </resources>

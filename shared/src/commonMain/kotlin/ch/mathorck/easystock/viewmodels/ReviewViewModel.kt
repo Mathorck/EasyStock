@@ -9,6 +9,7 @@ import ch.mathorck.easystock.data.db.FoundCandidate
 import ch.mathorck.easystock.data.db.ReviewClosedException
 import ch.mathorck.easystock.data.db.ReviewDao
 import ch.mathorck.easystock.data.db.ReviewSummaryRow
+import ch.mathorck.easystock.data.db.TagOwner
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -42,7 +44,34 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /** One-shot feedback of the review screens, shown once as a snackbar. */
-enum class ReviewMessage { CLOSED, FAILED, FINISHED, TAG_FAILED, TAG_UNKNOWN, TAG_NOT_IN_REVIEW }
+enum class ReviewMessage {
+    CLOSED, FAILED, FINISHED, TAG_FAILED, TAG_UNKNOWN, TAG_NOT_IN_REVIEW,
+
+    /** A location tag outside the review scope. */
+    TAG_LOCATION_OUTSIDE,
+
+    /** A location tag inside the scope, but no line there (with the current filter none at all). */
+    TAG_LOCATION_EMPTY,
+}
+
+/**
+ * The group to scroll to for a scanned location tag: the location's own group, else the first group of
+ * one of its sub-locations (groups are in tree order). Null when the location has no line in the review.
+ * [scope]: the review locations as a tree (parents followed by their children, see [buildLocationOptions]).
+ */
+fun groupForLocation(locationId: String, scope: List<LocationOption>, groups: List<ReviewGroup>): String? {
+    val start = scope.indexOfFirst { it.id == locationId }
+    if (start < 0) return null
+    val depth = scope[start].depth
+    val ids = HashSet<String>().apply {
+        add(locationId)
+        for (i in start + 1 until scope.size) {
+            if (scope[i].depth <= depth) break
+            add(scope[i].id)
+        }
+    }
+    return groups.firstOrNull { it.locationId in ids }?.locationId
+}
 
 /** Starts a review on [locationId], or resumes its open one. Returns the review id, null on failure. */
 @OptIn(ExperimentalUuidApi::class)
@@ -149,8 +178,8 @@ class ReviewViewModel(
     private val reviewId: String,
     private val dao: ReviewDao,
     attributeDao: AttributeDao,
-    /** Active article of an NFC tag ID (`article.barcode`). */
-    private val findArticleByTag: suspend (String) -> Article? = { null },
+    /** Active article or location of an NFC tag ID (`barcode`). */
+    private val findTagOwner: suspend (String) -> TagOwner? = { null },
     private val clock: Clock = Clock.System,
     private val newId: () -> String = { Uuid.random().toString() },
 ) : ViewModel() {
@@ -162,6 +191,9 @@ class ReviewViewModel(
 
     /** Line to scroll to after a tag scan, consumed by the screen. */
     val jumpTo = MutableStateFlow<String?>(null)
+
+    /** Location group (its id) to scroll to after a location tag scan, consumed by the screen. */
+    val jumpToGroup = MutableStateFlow<String?>(null)
 
     /** True when a scanned article is not in the review: the screen opens the "found item" search. */
     val openFound = MutableStateFlow(false)
@@ -291,21 +323,31 @@ class ReviewViewModel(
 
     // ---------- NFC ----------
 
-    /** A scanned tag jumps to the line of its article (the first unchecked one), all lines shown. */
+    /**
+     * A scanned tag jumps to the line of its article (the first unchecked one), all lines shown.
+     * A location tag jumps to the group of that location (or of its first sub-location with lines).
+     */
     fun onTag(event: TagEvent) {
         when (event) {
             TagEvent.Failed -> message.value = ReviewMessage.TAG_FAILED
             is TagEvent.Read -> viewModelScope.launch {
-                val article = try {
-                    findArticleByTag(event.tagId)
+                val owner = try {
+                    findTagOwner(event.tagId)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     null
                 }
-                if (article == null) {
-                    message.value = ReviewMessage.TAG_UNKNOWN
-                    return@launch
+                val article = when (owner) {
+                    is TagOwner.OfArticle -> owner.article
+                    is TagOwner.OfLocation -> {
+                        jumpToLocation(owner.location.id)
+                        return@launch
+                    }
+                    null -> {
+                        message.value = ReviewMessage.TAG_UNKNOWN
+                        return@launch
+                    }
                 }
                 val lines = state.value.lines.values.filter { it.line.articleId == article.id }
                 val target = lines.firstOrNull { it.status == LineStatus.UNCHECKED } ?: lines.firstOrNull()
@@ -323,8 +365,26 @@ class ReviewViewModel(
         }
     }
 
+    private suspend fun jumpToLocation(locationId: String) {
+        val current = state.first { !it.loading }
+        if (current.scopeLocations.none { it.id == locationId }) {
+            message.value = ReviewMessage.TAG_LOCATION_OUTSIDE
+            return
+        }
+        // All lines shown: the location may only have checked lines
+        filter.value = LineFilter.ALL
+        val all = state.first { !it.loading && it.filter == LineFilter.ALL }
+        val group = groupForLocation(locationId, all.scopeLocations, all.groups)
+        if (group == null) {
+            message.value = ReviewMessage.TAG_LOCATION_EMPTY
+            return
+        }
+        jumpToGroup.value = group
+    }
+
     fun consumeJump() {
         jumpTo.value = null
+        jumpToGroup.value = null
     }
 
     fun consumeOpenFound() {

@@ -261,7 +261,9 @@ fun validateBackup(data: BackupData) {
     unique(data.attributeDefinitions, { it.key }, "attribute key")
     unique(data.categoryAttributes, { "${it.categoryId}/${it.attributeId}" }, "category attribute")
     unique(data.articles, { it.sku }, "sku")
-    unique(data.articles, { it.barcode }, "barcode")
+    unique(data.locations, { it.barcode }, "location tag")
+    // One tag = one thing: an NFC tag is on one article or one location, never both
+    unique(data.articles.map { it.barcode } + data.locations.map { it.barcode }, { it }, "NFC tag")
     unique(data.items, { it.serialNumber }, "serial number")
 
     data.categoryAttributes.forEach {

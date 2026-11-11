@@ -124,6 +124,8 @@ import easystock.shared.generated.resources.review_reset
 import easystock.shared.generated.resources.review_tag_failed
 import easystock.shared.generated.resources.review_tag_hint
 import easystock.shared.generated.resources.review_tag_not_in_review
+import easystock.shared.generated.resources.review_tag_location_outside
+import easystock.shared.generated.resources.review_tag_location_empty
 import easystock.shared.generated.resources.review_tag_unknown
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.getString
@@ -138,7 +140,7 @@ import org.jetbrains.compose.resources.stringResource
 fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val db = rememberAppDatabase()
     val viewModel = viewModel(key = "review-$reviewId") {
-        ReviewViewModel(reviewId, db.reviewDao(), db.attributeDao(), findArticleByTag = db.articleDao()::findByBarcode)
+        ReviewViewModel(reviewId, db.reviewDao(), db.attributeDao(), findTagOwner = db.tagDao()::findOwner)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val preview by viewModel.preview.collectAsStateWithLifecycle()
@@ -190,6 +192,8 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
                     ReviewMessage.TAG_FAILED -> Res.string.review_tag_failed
                     ReviewMessage.TAG_UNKNOWN -> Res.string.review_tag_unknown
                     ReviewMessage.TAG_NOT_IN_REVIEW -> Res.string.review_tag_not_in_review
+                    ReviewMessage.TAG_LOCATION_OUTSIDE -> Res.string.review_tag_location_outside
+                    ReviewMessage.TAG_LOCATION_EMPTY -> Res.string.review_tag_location_empty
                 },
             ),
         )
@@ -198,6 +202,13 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
     LaunchedEffect(jumpTo, state.groups) {
         val lineId = jumpTo ?: return@LaunchedEffect
         val index = lazyIndexOf(state, lineId) ?: return@LaunchedEffect
+        listState.animateScrollToItem(index)
+        viewModel.consumeJump()
+    }
+    val jumpToGroup by viewModel.jumpToGroup.collectAsStateWithLifecycle()
+    LaunchedEffect(jumpToGroup, state.groups) {
+        val locationId = jumpToGroup ?: return@LaunchedEffect
+        val index = groupIndexOf(state, locationId) ?: return@LaunchedEffect
         listState.animateScrollToItem(index)
         viewModel.consumeJump()
     }
@@ -409,6 +420,16 @@ fun ReviewScreen(reviewId: String, onBack: () -> Unit, modifier: Modifier = Modi
             onSave = newArticleViewModel::save,
         )
     }
+}
+
+/** Index of the header of [locationId]'s group in the LazyColumn. */
+private fun groupIndexOf(state: ReviewUiState, locationId: String): Int? {
+    var index = 0
+    for (group in state.groups) {
+        if (group.locationId == locationId) return index
+        index += 1 + group.lines.size
+    }
+    return null
 }
 
 /** Index of [lineId] in the LazyColumn (group headers count as items). */

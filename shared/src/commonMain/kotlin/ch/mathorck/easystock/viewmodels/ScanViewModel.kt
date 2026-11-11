@@ -2,9 +2,12 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ch.mathorck.easystock.data.db.ArticleTags
 import ch.mathorck.easystock.data.db.TagLinkResult
+import ch.mathorck.easystock.data.db.TagOwner
+import ch.mathorck.easystock.data.db.TagStore
+import ch.mathorck.easystock.data.db.TagTarget
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.enums.ScanState
 import ch.mathorck.easystock.nfc.NfcAvailability
 import ch.mathorck.easystock.nfc.TagEvent
@@ -31,6 +34,19 @@ fun List<Article>.filterArticles(query: String): List<Article> {
     return filter { it.name.contains(q, ignoreCase = true) || it.sku?.contains(q, ignoreCase = true) == true }
 }
 
+/** Keeps the locations whose name or path contains [query], ignoring case. A blank query keeps all. */
+fun List<LocationOption>.filterLocations(query: String): List<LocationOption> {
+    val q = query.trim()
+    if (q.isEmpty()) return this
+    return filter { it.name.contains(q, ignoreCase = true) || it.path.contains(q, ignoreCase = true) }
+}
+
+/** The locations without a tag, with their full path (the parents may be tagged). */
+fun untaggedLocationOptions(locations: List<Location>): List<LocationOption> {
+    val untagged = locations.filterTo(HashSet()) { it.barcode == null }.mapTo(HashSet()) { it.id }
+    return buildLocationOptions(locations).filter { it.id in untagged }
+}
+
 /** Where the scan flow is. */
 sealed interface ScanPhase {
     data object Ready : ScanPhase
@@ -38,7 +54,7 @@ sealed interface ScanPhase {
     /** Looking the tag up. */
     data class Reading(val tagId: String) : ScanPhase
 
-    /** No active article holds [tagId]: link it or create an article. */
+    /** No active article or location holds [tagId]: link it to one, or create one with it. */
     data class NotFound(val tagId: String) : ScanPhase
 
     /** The tag could not be read, or the lookup failed. */
@@ -46,21 +62,33 @@ sealed interface ScanPhase {
 
     /** The detail of [articleId] is shown. */
     data class Opened(val articleId: String) : ScanPhase
+
+    /** The contents of [locationId] are shown. */
+    data class OpenedLocation(val locationId: String) : ScanPhase
 }
 
-/** The picker of articles without a tag, to link the unknown tag. */
+/** What the picker links the unknown tag to. */
+enum class TagPickerType { ARTICLE, LOCATION }
+
+/** The picker of articles or locations without a tag, to link the unknown tag. */
 data class TagPickerUiState(
+    val type: TagPickerType = TagPickerType.ARTICLE,
     val query: String = "",
-    /** Untagged articles matching [query]. Null while loading. */
+    /** Untagged articles matching [query], for [TagPickerType.ARTICLE]. Null while loading. */
     val articles: List<Article>? = null,
-    /** True when no article at all is untagged (as opposed to none matching the query). */
+    /** Untagged locations matching [query], for [TagPickerType.LOCATION]. Null while loading. */
+    val locations: List<LocationOption>? = null,
+    /** True when nothing at all is untagged (as opposed to none matching the query). */
     val noneUntagged: Boolean = false,
     val saving: Boolean = false,
     val saveFailed: Boolean = false,
-)
+) {
+    /** Still loading the list of its [type]. */
+    val loading: Boolean get() = if (type == TagPickerType.ARTICLE) articles == null else locations == null
+}
 
-/** Linking asks first: [owner] already holds [tagId], linking moves it to [articleId]. */
-data class TagMoveRequest(val tagId: String, val articleId: String, val owner: Article)
+/** Linking asks first: [owner] already holds [tagId], linking moves it to [target]. */
+data class TagMoveRequest(val tagId: String, val target: TagTarget, val owner: TagOwner)
 
 data class ScanUiState(
     val phase: ScanPhase = ScanPhase.Ready,
@@ -75,9 +103,13 @@ data class ScanUiState(
     /** The article whose detail is shown instead of the scan circle. */
     val openArticleId: String? get() = (phase as? ScanPhase.Opened)?.articleId
 
-    /** The page takes tags: not while a lookup runs, the detail is open or a dialog is shown. */
+    /** The location whose contents are shown instead of the scan circle. */
+    val openLocationId: String? get() = (phase as? ScanPhase.OpenedLocation)?.locationId
+
+    /** The page takes tags: not while a lookup runs, a detail is open or a dialog is shown. */
     val acceptsTags: Boolean
-        get() = phase !is ScanPhase.Reading && phase !is ScanPhase.Opened && picker == null && moveRequest == null
+        get() = phase !is ScanPhase.Reading && phase !is ScanPhase.Opened && phase !is ScanPhase.OpenedLocation &&
+            picker == null && moveRequest == null
 }
 
 /** The circle state: the phase, or the NFC availability while waiting. */
@@ -90,16 +122,17 @@ fun scanStateOf(phase: ScanPhase, availability: NfcAvailability): ScanState = wh
     is ScanPhase.Reading -> ScanState.Reading
     is ScanPhase.NotFound -> ScanState.NotFound
     ScanPhase.Error -> ScanState.Error
-    is ScanPhase.Opened -> ScanState.Success
+    is ScanPhase.Opened, is ScanPhase.OpenedLocation -> ScanState.Success
 }
 
 /**
- * The Scan page: a tag read opens its article, an unknown tag can be linked to an article without tag,
- * or used for a new article (the page opens the create form, then calls [openArticle]).
+ * The Scan page: a tag read opens its article, or the contents of its location. An unknown tag can be
+ * linked to an article or a location without tag, or used for a new one (the page opens the create
+ * form, then calls [openArticle] or [openLocation]).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScanViewModel(
-    private val tags: ArticleTags,
+    private val tags: TagStore,
     availability: Flow<NfcAvailability>,
     private val clock: Clock = Clock.System,
 ) : ViewModel() {
@@ -107,21 +140,34 @@ class ScanViewModel(
 
     /** Null while the picker is closed. */
     private val pickerQuery = MutableStateFlow<String?>(null)
+    private val pickerType = MutableStateFlow(TagPickerType.ARTICLE)
     private val pickerStatus = MutableStateFlow(FormSaveStatus())
     private val moveRequest = MutableStateFlow<TagMoveRequest?>(null)
 
-    private val picker: Flow<TagPickerUiState?> = combine(
-        pickerQuery.map { it != null }.distinctUntilChanged().flatMapLatest { open ->
-            if (open) tags.observeUntagged() else flowOf(null)
-        },
-        pickerQuery,
-        pickerStatus,
-    ) { untagged, query, status ->
+    /** The untagged rows of the open picker's type. */
+    private class PickerRows(val type: TagPickerType, val articles: List<Article>? = null, val locations: List<LocationOption>? = null)
+
+    /** Null while the picker is closed. */
+    private val pickerRows: Flow<PickerRows?> =
+        combine(pickerQuery.map { it != null }.distinctUntilChanged(), pickerType) { open, type -> type.takeIf { open } }
+            .distinctUntilChanged()
+            .flatMapLatest { type ->
+                when (type) {
+                    null -> flowOf(null)
+                    TagPickerType.ARTICLE -> tags.observeUntaggedArticles().map { PickerRows(type, articles = it) }
+                    TagPickerType.LOCATION -> tags.observeLocations().map { PickerRows(type, locations = untaggedLocationOptions(it)) }
+                }
+            }
+
+    private val picker: Flow<TagPickerUiState?> = combine(pickerRows, pickerQuery, pickerType, pickerStatus) { rows, query, type, status ->
         query?.let {
+            val current = rows?.takeIf { r -> r.type == type }
             TagPickerUiState(
+                type = type,
                 query = it,
-                articles = untagged?.filterArticles(it),
-                noneUntagged = untagged?.isEmpty() == true,
+                articles = current?.articles?.filterArticles(it),
+                locations = current?.locations?.filterLocations(it),
+                noneUntagged = current != null && current.articles.orEmpty().isEmpty() && current.locations.orEmpty().isEmpty(),
                 saving = status.saving,
                 saveFailed = status.failed,
             )
@@ -135,7 +181,9 @@ class ScanViewModel(
     /** A tag was held near the phone while the page [ScanUiState.acceptsTags]. */
     fun onTag(event: TagEvent) {
         val current = phase.value
-        if (current is ScanPhase.Reading || current is ScanPhase.Opened || pickerQuery.value != null || moveRequest.value != null) return
+        if (current is ScanPhase.Reading || current is ScanPhase.Opened || current is ScanPhase.OpenedLocation ||
+            pickerQuery.value != null || moveRequest.value != null
+        ) return
         when (event) {
             TagEvent.Failed -> phase.value = ScanPhase.Error
             is TagEvent.Read -> lookUp(event.tagId)
@@ -147,7 +195,11 @@ class ScanViewModel(
         phase.value = reading
         viewModelScope.launch {
             val result = try {
-                tags.findByTag(tagId)?.let { ScanPhase.Opened(it.id) } ?: ScanPhase.NotFound(tagId)
+                when (val owner = tags.findOwner(tagId)) {
+                    is TagOwner.OfArticle -> ScanPhase.Opened(owner.article.id)
+                    is TagOwner.OfLocation -> ScanPhase.OpenedLocation(owner.location.id)
+                    null -> ScanPhase.NotFound(tagId)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -158,7 +210,7 @@ class ScanViewModel(
         }
     }
 
-    /** Back to waiting for a tag (try again, cancel, or back from the article). */
+    /** Back to waiting for a tag (try again, cancel, or back from the article or location). */
     fun reset() {
         phase.value = ScanPhase.Ready
         closePicker()
@@ -172,9 +224,18 @@ class ScanViewModel(
         phase.value = ScanPhase.Opened(articleId)
     }
 
-    fun openPicker() {
+    /** Shows the contents of [locationId], e.g. the location just created with the tag. */
+    fun openLocation(locationId: String) {
+        closePicker()
+        moveRequest.value = null
+        phase.value = ScanPhase.OpenedLocation(locationId)
+    }
+
+    /** Opens the picker of untagged articles or locations ([type]) for the unknown tag. */
+    fun openPicker(type: TagPickerType = TagPickerType.ARTICLE) {
         if (phase.value !is ScanPhase.NotFound) return
         pickerStatus.value = FormSaveStatus()
+        pickerType.value = type
         pickerQuery.value = ""
     }
 
@@ -187,36 +248,43 @@ class ScanViewModel(
         pickerStatus.value = FormSaveStatus()
     }
 
-    /** Links the unknown tag to [articleId], then opens it. */
-    fun linkTo(articleId: String) {
+    /** Links the unknown tag to the article or location [id] (picker type), then opens it. */
+    fun linkTo(id: String) {
         val tagId = state.value.unknownTagId ?: return
-        if (pickerStatus.value.saving) return
-        link(tagId, articleId, confirmedOwnerId = null)
+        if (pickerStatus.value.saving || pickerQuery.value == null) return
+        val target = when (pickerType.value) {
+            TagPickerType.ARTICLE -> TagTarget.OfArticle(id)
+            TagPickerType.LOCATION -> TagTarget.OfLocation(id)
+        }
+        link(tagId, target, confirmedOwner = null)
     }
 
     /** The user agreed to move the tag from its owner. */
     fun confirmMove() {
         val request = moveRequest.value ?: return
         moveRequest.value = null
-        link(request.tagId, request.articleId, confirmedOwnerId = request.owner.id)
+        link(request.tagId, request.target, confirmedOwner = request.owner.target)
     }
 
     fun cancelMove() {
         moveRequest.value = null
     }
 
-    private fun link(tagId: String, articleId: String, confirmedOwnerId: String?) {
+    private fun link(tagId: String, target: TagTarget, confirmedOwner: TagTarget?) {
         pickerStatus.update { it.copy(saving = true, failed = false) }
         viewModelScope.launch {
             try {
-                when (val result = tags.link(articleId, tagId, confirmedOwnerId, clock.now().toEpochMilliseconds())) {
-                    TagLinkResult.Linked -> openArticle(articleId)
+                when (val result = tags.link(target, tagId, confirmedOwner, clock.now().toEpochMilliseconds())) {
+                    TagLinkResult.Linked -> when (target) {
+                        is TagTarget.OfArticle -> openArticle(target.id)
+                        is TagTarget.OfLocation -> openLocation(target.id)
+                    }
                     is TagLinkResult.LinkedElsewhere -> {
                         pickerStatus.update { it.copy(saving = false) }
-                        moveRequest.value = TagMoveRequest(tagId, articleId, result.owner)
+                        moveRequest.value = TagMoveRequest(tagId, target, result.owner)
                     }
                     // Deleted meanwhile: it leaves the list, pick another one
-                    TagLinkResult.ArticleGone -> pickerStatus.update { it.copy(saving = false) }
+                    TagLinkResult.TargetGone -> pickerStatus.update { it.copy(saving = false) }
                 }
             } catch (e: CancellationException) {
                 throw e

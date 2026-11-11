@@ -14,7 +14,6 @@
     <string name="nfc_picker_no_results">Aucun article sans tag ne correspond à « %1$s »</string>
     <string name="nfc_error_save">Impossible d’enregistrer le tag. Réessayez.</string>
     <string name="nfc_move_title">Tag déjà lié</string>
-    <string name="nfc_move_message">Ce tag est lié à « %1$s ». Le déplacer sur cet article ? « %1$s » n’aura plus de tag.</string>
     <string name="nfc_move_confirm">Déplacer le tag</string>
     <string name="nfc_tag_label">Tag NFC</string>
     <string name="nfc_tag_none">Aucun tag lié</string>
@@ -33,4 +32,19 @@
     <string name="nfc_sheet_disabled">Le NFC est désactivé. Activez-le pour lire le tag.</string>
     <string name="nfc_sheet_unavailable">Cet appareil ne prend pas en charge le NFC.</string>
     <string name="nfc_new_article_tag">Le nouvel article reçoit le tag NFC %1$s</string>
+    <string name="nfc_move_article_to_article">Ce tag est sur l’article « %1$s ». Le déplacer sur l’article « %2$s » ? « %1$s » n’aura plus de tag.</string>
+    <string name="nfc_move_article_to_location">Ce tag est sur l’article « %1$s ». Le déplacer sur l’emplacement « %2$s » ? L’article n’aura plus de tag.</string>
+    <string name="nfc_move_location_to_article">Ce tag est sur l’emplacement « %1$s ». Le déplacer sur l’article « %2$s » ? L’emplacement n’aura plus de tag.</string>
+    <string name="nfc_move_location_to_location">Ce tag est sur l’emplacement « %1$s ». Le déplacer sur l’emplacement « %2$s » ? « %1$s » n’aura plus de tag.</string>
+    <string name="nfc_link_existing_location">Lier à un emplacement existant</string>
+    <string name="nfc_create_location_with_tag">Créer un nouvel emplacement avec ce tag</string>
+    <string name="nfc_picker_location_title">Lier le tag à un emplacement</string>
+    <string name="nfc_picker_location_hint">Seuls les emplacements sans tag sont listés. Scanner le tag affichera ensuite ce que contient l’emplacement.</string>
+    <string name="nfc_picker_location_search">Rechercher un emplacement</string>
+    <string name="nfc_picker_location_empty">Tous les emplacements ont déjà un tag. Créez plutôt un nouvel emplacement pour ce tag.</string>
+    <string name="nfc_picker_location_no_results">Aucun emplacement sans tag ne correspond à « %1$s »</string>
+    <string name="nfc_remove_location_message">Scanner ce tag n’affichera plus cet emplacement. Vous pourrez le lier à nouveau plus tard.</string>
+    <string name="nfc_sheet_replace_location_hint">Le nouveau tag remplace %1$s, qui n’affichera plus cet emplacement.</string>
+    <string name="nfc_new_location_tag">Le nouvel emplacement reçoit le tag NFC %1$s</string>
+    <string name="nfc_location_tag_hint">Scanner le tag affiche ce que contient l’emplacement.</string>
 </resources>

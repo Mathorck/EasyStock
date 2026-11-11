@@ -14,7 +14,6 @@
     <string name="nfc_picker_no_results">No article without a tag matches “%1$s”</string>
     <string name="nfc_error_save">Could not save the tag. Try again.</string>
     <string name="nfc_move_title">Tag already linked</string>
-    <string name="nfc_move_message">This tag is linked to “%1$s”. Move it to this article? “%1$s” will no longer have a tag.</string>
     <string name="nfc_move_confirm">Move tag</string>
     <string name="nfc_tag_label">NFC tag</string>
     <string name="nfc_tag_none">No tag linked</string>
@@ -33,4 +32,19 @@
     <string name="nfc_sheet_disabled">NFC is turned off. Turn it on to read the tag.</string>
     <string name="nfc_sheet_unavailable">This device does not support NFC.</string>
     <string name="nfc_new_article_tag">The new article gets the NFC tag %1$s</string>
+    <string name="nfc_move_article_to_article">This tag is on the article “%1$s”. Move it to the article “%2$s”? “%1$s” will no longer have a tag.</string>
+    <string name="nfc_move_article_to_location">This tag is on the article “%1$s”. Move it to the location “%2$s”? The article will no longer have a tag.</string>
+    <string name="nfc_move_location_to_article">This tag is on the location “%1$s”. Move it to the article “%2$s”? The location will no longer have a tag.</string>
+    <string name="nfc_move_location_to_location">This tag is on the location “%1$s”. Move it to the location “%2$s”? “%1$s” will no longer have a tag.</string>
+    <string name="nfc_link_existing_location">Link to an existing location</string>
+    <string name="nfc_create_location_with_tag">Create a new location with this tag</string>
+    <string name="nfc_picker_location_title">Link the tag to a location</string>
+    <string name="nfc_picker_location_hint">Only locations without a tag are listed. Scanning the tag then shows what the location holds.</string>
+    <string name="nfc_picker_location_search">Search locations</string>
+    <string name="nfc_picker_location_empty">Every location already has a tag. Create a new location for this tag instead.</string>
+    <string name="nfc_picker_location_no_results">No location without a tag matches “%1$s”</string>
+    <string name="nfc_remove_location_message">Scanning this tag will no longer show this location. You can link it again later.</string>
+    <string name="nfc_sheet_replace_location_hint">The new tag replaces %1$s, which will no longer show this location.</string>
+    <string name="nfc_new_location_tag">The new location gets the NFC tag %1$s</string>
+    <string name="nfc_location_tag_hint">Scanning the tag shows what the location holds.</string>
 </resources>

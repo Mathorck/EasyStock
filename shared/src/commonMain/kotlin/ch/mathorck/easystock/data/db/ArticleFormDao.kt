@@ -6,6 +6,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Category
+import ch.mathorck.easystock.data.model.Location
 import kotlinx.coroutines.flow.Flow
 
 /** The SKU is already used by an article, deleted ones included (the unique index covers them). */
@@ -42,6 +43,13 @@ abstract class ArticleFormDao {
     @Query("UPDATE article SET barcode = NULL, updated_at = :now WHERE id = :id")
     protected abstract suspend fun clearBarcode(id: String, now: Long)
 
+    /** Any location holding the tag, soft-deleted ones included: one tag = one thing (see [TagDao]). */
+    @Query("SELECT * FROM location WHERE barcode = :tagId LIMIT 1")
+    protected abstract suspend fun findLocationTagHolder(tagId: String): Location?
+
+    @Query("UPDATE location SET barcode = NULL, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun clearLocationTag(id: String, now: Long)
+
     @Insert
     protected abstract suspend fun insertCategory(category: Category)
 
@@ -54,7 +62,7 @@ abstract class ArticleFormDao {
      * already has its name (ignoring case): that one is reused.
      * An NFC tag ([Article.barcode]) still held by a soft-deleted row is freed first.
      * Throws [DuplicateSkuException], [DeletedCategoryNameException] or [TagAlreadyLinkedException]
-     * (an active article holds the tag); nothing is saved then.
+     * (an active article or location holds the tag); nothing is saved then.
      */
     @Transaction
     open suspend fun createArticle(article: Article, newCategory: Category?): Article {
@@ -64,6 +72,11 @@ abstract class ArticleFormDao {
             if (holder != null) {
                 if (holder.deletedAt == null) throw TagAlreadyLinkedException(tagId)
                 clearBarcode(holder.id, article.createdAt)
+            }
+            val location = findLocationTagHolder(tagId)
+            if (location != null) {
+                if (location.deletedAt == null) throw TagAlreadyLinkedException(tagId)
+                clearLocationTag(location.id, article.createdAt)
             }
         }
         var categoryId = article.categoryId

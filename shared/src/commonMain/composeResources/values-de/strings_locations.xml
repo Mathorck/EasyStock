@@ -64,4 +64,18 @@
     <string name="locations_color_orange">Orange</string>
     <string name="locations_color_brown">Braun</string>
     <string name="locations_color_blue_grey">Blaugrau</string>
+    <string name="location_contents_include_sub">Unterstandorte einbeziehen</string>
+    <string name="location_contents_sub_locations">Unterstandorte</string>
+    <string name="location_contents_here">Direkt hier</string>
+    <string name="location_contents_empty">Hier ist nichts gelagert.</string>
+    <string name="location_contents_empty_here">Direkt hier ist nichts. Beziehe die Unterstandorte ein, um ihren Inhalt zu sehen.</string>
+    <string name="location_contents_review">Diesen Standort prüfen</string>
+    <string name="location_contents_gone">Dieser Standort existiert nicht mehr.</string>
+    <string name="location_contents_open">Inhalt anzeigen</string>
+    <string name="location_contents_units">Einheiten hier</string>
+    <string name="locations_has_tag">Hat einen NFC-Tag</string>
+    <plurals name="location_contents_articles">
+        <item quantity="one">%1$d Artikel</item>
+        <item quantity="other">%1$d Artikel</item>
+    </plurals>
 </resources>
