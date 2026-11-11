@@ -39,4 +39,24 @@ class SessionDaoTest {
         }
         assertEquals("viewer", db.sessionDao().observeRole().first())
     }
+
+    @Test
+    fun noSyncStateRowInStandalone() = runBlocking<Unit> {
+        assertNull(db.sessionDao().observeSyncState().first())
+    }
+
+    @Test
+    fun syncStateRow() = runBlocking<Unit> {
+        val fp = "ab".repeat(32)
+        db.useWriterConnection {
+            it.execSQL(
+                "INSERT INTO sync_state (id, server_url, cert_fingerprint, user_id, role) " +
+                    "VALUES (1, 'https://nas:8443', '$fp', 'u1', 'admin')",
+            )
+        }
+        val state = db.sessionDao().observeSyncState().first()!!
+        assertEquals("https://nas:8443", state.serverUrl)
+        assertEquals(fp, state.certFingerprint)
+        assertEquals("admin", state.role)
+    }
 }

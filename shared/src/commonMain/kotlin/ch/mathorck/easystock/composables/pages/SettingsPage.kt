@@ -39,6 +39,11 @@ import ch.mathorck.easystock.auth.SettingsGates
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.composables.settings.AppInfoScreen
+import ch.mathorck.easystock.composables.server.admin.AdministrationScreen
+import easystock.shared.generated.resources.admin_title
+import easystock.shared.generated.resources.ic_dns
+import easystock.shared.generated.resources.settings_administration_summary
+import easystock.shared.generated.resources.settings_section_server
 import ch.mathorck.easystock.viewmodels.BackupStep
 import ch.mathorck.easystock.viewmodels.BackupViewModel
 import kotlinx.coroutines.delay
@@ -94,7 +99,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Full-screen subpages opened from the settings list. */
-enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo }
+enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo, Administration }
 
 @Composable
 fun SettingsPage(onDataReset: () -> Unit = {}) {
@@ -115,6 +120,7 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
         SettingsSubpageId.Tags -> TagsScreen(onBack = { subpage = null })
         SettingsSubpageId.Reviews -> ReviewsScreen(onBack = { subpage = null })
         SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
+        SettingsSubpageId.Administration -> AdministrationScreen(onBack = { subpage = null })
         SettingsSubpageId.AppInfo -> AppInfoScreen(
             onBack = { subpage = null },
             onOpenBackup = { subpage = SettingsSubpageId.Backup },
@@ -221,6 +227,17 @@ fun SettingsContent(
                 summary = stringResource(Res.string.settings_backup_summary),
                 icon = Res.drawable.ic_backup,
                 onClick = { onOpen(SettingsSubpageId.Backup) },
+            )
+        }
+
+        // Only for a connected Admin: nothing of this in standalone
+        if (gates.server) {
+            SectionHeader(stringResource(Res.string.settings_section_server))
+            SubpageItem(
+                title = stringResource(Res.string.admin_title),
+                summary = stringResource(Res.string.settings_administration_summary),
+                icon = Res.drawable.ic_dns,
+                onClick = { onOpen(SettingsSubpageId.Administration) },
             )
         }
 
@@ -364,6 +381,18 @@ private fun SettingsPageGuestPreview() {
             language = AppLanguage.System,
             onLanguageSelected = {},
             gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.GUEST)),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsPageAdminPreview() {
+    EasyStockTheme {
+        SettingsContent(
+            language = AppLanguage.System,
+            onLanguageSelected = {},
+            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.ADMIN)),
         )
     }
 }

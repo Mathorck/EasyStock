@@ -16,6 +16,9 @@ class AppPermissionsTest {
 
     private val allSubpages = SettingsSubpageId.entries.toSet()
 
+    /** Everything but the server administration. */
+    private val standaloneSubpages = allSubpages - SettingsSubpageId.Administration
+
     @Test
     fun storedRoleGivesThePermissions() {
         assertEquals(AppPermissions(connected = false, role = null), AppPermissions.fromStoredRole(null))
@@ -35,7 +38,7 @@ class AppPermissionsTest {
         assertEquals(UnknownTagGates(link = true, create = true), UnknownTagGates.of(p))
         assertEquals(ReviewGates(view = true, run = true), ReviewGates.of(p))
         assertEquals(StockListGates(createArticle = true, stockActions = true), StockListGates.of(p))
-        assertEquals(SettingsGates(allSubpages, resetData = true), SettingsGates.of(p))
+        assertEquals(SettingsGates(standaloneSubpages, resetData = true), SettingsGates.of(p))
         Action.entries.forEach { assertTrue(p.can(it), "$it") }
     }
 
@@ -86,7 +89,7 @@ class AppPermissionsTest {
     @Test
     fun settingsPerRole() {
         assertEquals(SettingsGates(allSubpages, resetData = true), SettingsGates.of(admin))
-        assertEquals(SettingsGates(allSubpages, resetData = true), SettingsGates.of(editor))
+        assertEquals(SettingsGates(standaloneSubpages, resetData = true), SettingsGates.of(editor))
         assertEquals(
             SettingsGates(setOf(SettingsSubpageId.Reviews, SettingsSubpageId.AppInfo), resetData = false),
             SettingsGates.of(viewer),
@@ -105,5 +108,14 @@ class AppPermissionsTest {
         assertTrue(SettingsGates.of(viewer).data)
         assertFalse(SettingsGates.of(guest).catalogue)
         assertFalse(SettingsGates.of(guest).data)
+    }
+
+    @Test
+    fun administrationOnlyForAConnectedAdmin() {
+        // Standalone allows everything, but has no server: nothing new may show
+        assertFalse(SettingsGates.of(AppPermissions.Standalone).server)
+        assertFalse(SettingsSubpageId.Administration in SettingsGates.of(AppPermissions.Standalone).subpages)
+        assertTrue(SettingsGates.of(admin).server)
+        listOf(editor, viewer, guest, unknown).forEach { assertFalse(SettingsGates.of(it).server, "$it") }
     }
 }
