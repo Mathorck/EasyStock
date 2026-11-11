@@ -97,7 +97,6 @@
     <string name="server_account_short_code">Your guest code</string>
     <string name="server_account_short_code_hint">Give this code to the administrator, so they can find you.</string>
     <string name="server_account_last_sync">Last sync</string>
-    <string name="server_account_sync_unavailable">Never: sync is not available yet in this version</string>
     <string name="server_account_offline">The server can’t be reached: showing what is stored on this phone.</string>
     <string name="server_account_administration">Administration</string>
     <string name="server_promotion_banner">The administrator gave you the %1$s role. Choose a username and a password to finish.</string>
@@ -110,7 +109,6 @@
     <string name="server_logout_guest_message">Your guest account will be deleted on the server, and all the data and photos on this phone are erased.</string>
     <string name="server_logout_pending">%1$d changes have not been sent to the server yet.</string>
     <string name="server_logout_sync_first">Sync, then log out</string>
-    <string name="server_logout_sync_unavailable">Sync is not available yet in this version.</string>
     <string name="server_logout_lose">Log out and lose them</string>
     <string name="server_logout_confirm">Log out</string>
     <string name="server_logout_running">Logging out…</string>

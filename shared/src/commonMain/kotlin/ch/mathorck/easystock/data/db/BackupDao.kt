@@ -77,6 +77,7 @@ abstract class BackupDao {
     @Query("DELETE FROM image_hash") protected abstract suspend fun deleteImageHashes()
     @Query("DELETE FROM pending_push") protected abstract suspend fun deletePendingPush()
     @Query("UPDATE sync_state SET applying = :applying") protected abstract suspend fun setApplying(applying: Boolean)
+    @Query("SELECT EXISTS(SELECT 1 FROM sync_state)") abstract suspend fun isConnected(): Boolean
 
     // Frees unique values before the updates, so two rows can swap a value (name, SKU, tag, serial)
     @Query("UPDATE category SET name = :name WHERE id = :id") protected abstract suspend fun renameCategory(id: String, name: String)
@@ -137,9 +138,13 @@ abstract class BackupDao {
         wipeAll()
     }
 
-    /** Wipes every synced table and writes [data]. `item.location_id` is recomputed from the movements. */
+    /**
+     * Wipes every synced table and writes [data]. `item.location_id` is recomputed from the movements.
+     * Refused while connected to a server: it would hard-delete synced rows (the screen offers only Merge then).
+     */
     @Transaction
     open suspend fun replaceAll(data: BackupData) {
+        check(!isConnected()) { "A backup replace is not allowed while connected to a server" }
         wipeAll()
         val rows = data.withItemLocations()
         insertCategories(rows.categories)

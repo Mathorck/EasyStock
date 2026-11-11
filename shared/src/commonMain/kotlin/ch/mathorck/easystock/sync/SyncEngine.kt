@@ -85,12 +85,14 @@ class SyncEngine(
 
     private var downloads: Job? = null
 
+    /** The server that answered 426: paused until the app is updated (restarted) or another server is joined. Read and written in cycles only (one at a time). */
+    private var pausedFor: String? = null
+
     /**
      * Runs one cycle now, after the running one if any. The cycle runs in the engine scope: a wipe
      * cancels it ([SyncCoordinator.stopAndLock]), never the caller.
      */
     suspend fun sync(): SyncResult {
-        if (_status.value.paused) return SyncResult.PAUSED
         val cycle = scope.async { SyncCoordinator.cycle(coroutineContext[Job]) { cycle() } }
         return try {
             cycle.await()
@@ -107,8 +109,17 @@ class SyncEngine(
     }
 
     private suspend fun cycle(): SyncResult {
-        val state = store.syncState() ?: return SyncResult.NOT_CONNECTED
-        if (_status.value.paused) return SyncResult.PAUSED
+        val state = store.syncState() ?: run {
+            // Left the server: nothing of that session is shown any more
+            pausedFor = null
+            _status.value = SyncStatus()
+            return SyncResult.NOT_CONNECTED
+        }
+        if (pausedFor == state.serverUrl) return SyncResult.PAUSED
+        if (pausedFor != null) {
+            pausedFor = null
+            _status.value = SyncStatus()
+        }
         _status.update { it.copy(running = true, fullPullRows = if (state.since == 0L) 0 else null) }
         return try {
             val remote = remote(state)
@@ -124,7 +135,8 @@ class SyncEngine(
             SyncResult.NOT_CONNECTED
         } catch (e: ApiException) {
             val error = syncErrorOf(e)
-            _status.update { it.copy(error = error, paused = it.paused || error == SyncError.APP_TOO_OLD) }
+            if (error == SyncError.APP_TOO_OLD) pausedFor = state.serverUrl
+            _status.update { it.copy(error = error, paused = error == SyncError.APP_TOO_OLD) }
             if (error == SyncError.APP_TOO_OLD) SyncResult.PAUSED else SyncResult.FAILED
         } catch (e: Exception) {
             // A row the database refused (a reference still missing after the last page...): tried again next time

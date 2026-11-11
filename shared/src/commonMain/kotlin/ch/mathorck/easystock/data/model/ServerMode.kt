@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.data.model
 
 import androidx.room.ColumnInfo
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -76,6 +77,12 @@ data class RejectedChange(
     @ColumnInfo(name = "rejected_at") val rejectedAt: Long,
     /** When the user saw it, null = counted in the Settings badge. */
     @ColumnInfo(name = "seen_at") val seenAt: Long? = null,
+)
+
+/** A [RejectedChange] with the name of its local row, null when the row is gone. Not a table. */
+data class RejectedChangeRow(
+    @Embedded val change: RejectedChange,
+    val label: String?,
 )
 
 /**

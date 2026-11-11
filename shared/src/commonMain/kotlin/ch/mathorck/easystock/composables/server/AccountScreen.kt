@@ -55,6 +55,15 @@ import ch.mathorck.easystock.server.MeAnswer
 import ch.mathorck.easystock.server.ServerConnection
 import ch.mathorck.easystock.server.WireRole
 import ch.mathorck.easystock.server.rememberServerClient
+import ch.mathorck.easystock.sync.SyncError
+import ch.mathorck.easystock.sync.SyncStatus
+import ch.mathorck.easystock.sync.rememberSyncEngine
+import androidx.compose.material3.Badge
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.MutableStateFlow
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.server.AccountUiState
 import ch.mathorck.easystock.viewmodels.server.AccountViewModel
@@ -73,7 +82,6 @@ import easystock.shared.generated.resources.server_account_offline
 import easystock.shared.generated.resources.server_account_role
 import easystock.shared.generated.resources.server_account_short_code
 import easystock.shared.generated.resources.server_account_short_code_hint
-import easystock.shared.generated.resources.server_account_sync_unavailable
 import easystock.shared.generated.resources.server_cancel
 import easystock.shared.generated.resources.server_error_title
 import easystock.shared.generated.resources.server_field_password
@@ -93,7 +101,19 @@ import easystock.shared.generated.resources.server_logout_pending
 import easystock.shared.generated.resources.server_logout_running
 import easystock.shared.generated.resources.server_logout_stay
 import easystock.shared.generated.resources.server_logout_sync_first
-import easystock.shared.generated.resources.server_logout_sync_unavailable
+import easystock.shared.generated.resources.logout_sync_failed
+import easystock.shared.generated.resources.logout_syncing
+import easystock.shared.generated.resources.ic_sync
+import easystock.shared.generated.resources.rejected_summary
+import easystock.shared.generated.resources.rejected_title
+import easystock.shared.generated.resources.sync_error_app_too_old
+import easystock.shared.generated.resources.sync_error_forbidden
+import easystock.shared.generated.resources.sync_error_network
+import easystock.shared.generated.resources.sync_error_server
+import easystock.shared.generated.resources.sync_full_pull
+import easystock.shared.generated.resources.sync_never
+import easystock.shared.generated.resources.sync_now
+import easystock.shared.generated.resources.sync_running
 import easystock.shared.generated.resources.server_logout_title
 import easystock.shared.generated.resources.server_ok
 import easystock.shared.generated.resources.server_promotion_banner
@@ -109,6 +129,9 @@ internal class AccountActions(
     val askLogout: () -> Unit = {},
     val cancelLogout: () -> Unit = {},
     val confirmLogout: () -> Unit = {},
+    val syncThenLogout: () -> Unit = {},
+    val syncNow: () -> Unit = {},
+    val openRejected: () -> Unit = {},
     val logoutOffline: () -> Unit = {},
     val stayConnected: () -> Unit = {},
     val openPromotion: () -> Unit = {},
@@ -136,12 +159,18 @@ fun AccountScreen(
     val session = rememberSessionStore()
     val dataReset = rememberDataReset()
     val client = rememberServerClient(syncState) ?: return
+    val engine = rememberSyncEngine()
+    var showRejected by rememberSaveable { mutableStateOf(false) }
     val loggedOut by rememberUpdatedState(onLoggedOut)
     // One view model per client: a new connection (after a logout) gets a fresh one
     val vm = viewModel(key = "server-account-${client.hashCode()}") {
         AccountViewModel(
             api = KtorAccountApi(client),
             pendingChanges = dao::outboxCount,
+            syncFirst = {
+                engine?.sync()
+                dao.outboxCount()
+            },
             onMe = { me ->
                 if (me.role.isNotEmpty()) dao.updateRole(storedRoleOf(me.role))
                 if (me.id.isNotEmpty()) dao.upsertServerUser(ServerUser(me.id, me.displayName))
@@ -154,6 +183,8 @@ fun AccountScreen(
                     dao.promoted(storedRoleOf(user.role))
                     dao.upsertServerUser(ServerUser(user.id, user.displayName))
                 }
+                // promoted() set since to 0: the full pull of what the new role can see
+                engine?.requestSync()
             },
             wipe = {
                 dataReset.run()
@@ -163,21 +194,36 @@ fun AccountScreen(
     }
     LaunchedEffect(vm) { vm.refresh() }
     val state by vm.state.collectAsStateWithLifecycle()
+    val statusFlow = remember(engine) { engine?.status ?: MutableStateFlow(SyncStatus()) }
+    val syncStatus by statusFlow.collectAsStateWithLifecycle()
+    val syncDao = remember(db) { db.syncDao() }
+    val rejectedFlow = remember(syncDao) { syncDao.observeRejectedChanges() }
+    val rejected by rejectedFlow.collectAsStateWithLifecycle(emptyList())
     val nameFlow = remember(dao, syncState.userId) { dao.observeDisplayName(syncState.userId) }
     val storedName by nameFlow.collectAsStateWithLifecycle(null)
     val role = Role.fromDb(syncState.role)
+    if (showRejected) {
+        RejectedChangesScreen(onBack = { showRejected = false })
+        return
+    }
     NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = onBack)
     AccountContent(
         connection = ServerConnection.of(syncState),
         role = role,
         storedName = storedName,
         lastSyncAt = syncState.lastSyncAt,
+        syncStatus = syncStatus,
+        rejected = rejected.size,
+        unseenRejected = rejected.count { it.seenAt == null },
         state = state,
         onBack = onBack,
         actions = AccountActions(
             askLogout = { vm.askLogout(guest = role == Role.GUEST) },
             cancelLogout = vm::cancelLogout,
             confirmLogout = vm::confirmLogout,
+            syncThenLogout = vm::syncThenLogout,
+            syncNow = { engine?.requestSync() },
+            openRejected = { showRejected = true },
             logoutOffline = vm::logoutOffline,
             stayConnected = vm::stayConnected,
             openPromotion = vm::openPromotion,
@@ -200,6 +246,9 @@ internal fun AccountContent(
     state: AccountUiState,
     onBack: () -> Unit,
     actions: AccountActions,
+    syncStatus: SyncStatus = SyncStatus(),
+    rejected: Int = 0,
+    unseenRejected: Int = 0,
 ) {
     val me = state.me
     SettingsSubpage(title = stringResource(Res.string.settings_server), onBack = onBack) {
@@ -223,11 +272,22 @@ internal fun AccountContent(
             InfoRow(stringResource(Res.string.server_account_role), role?.let { stringResource(it.label()) } ?: "")
             val shortCode = me?.shortCode
             if (role == Role.GUEST && !shortCode.isNullOrBlank()) ShortCodeCard(shortCode)
-            InfoRow(
-                stringResource(Res.string.server_account_last_sync),
-                lastSyncAt?.let { serverTime(Instant.fromEpochMilliseconds(it).toString()) }
-                    ?: stringResource(Res.string.server_account_sync_unavailable),
-            )
+            SyncRow(lastSyncAt, syncStatus, actions.syncNow)
+            if (rejected > 0) {
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.rejected_title)) },
+                    supportingContent = { Text(stringResource(Res.string.rejected_summary, rejected)) },
+                    leadingContent = { Icon(painterResource(Res.drawable.ic_warning), contentDescription = null) },
+                    trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (unseenRejected > 0) Badge { Text("$unseenRejected") }
+                            Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null)
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                    modifier = Modifier.clickable(onClick = actions.openRejected),
+                )
+            }
             if (role == Role.ADMIN) {
                 ListItem(
                     headlineContent = { Text(stringResource(Res.string.server_account_administration)) },
@@ -255,6 +315,50 @@ internal fun AccountContent(
             confirmButton = { TextButton(onClick = actions.dismissError) { Text(stringResource(Res.string.server_ok)) } },
         )
     }
+}
+
+/** Last sync, the running sync (with the full pull progress) or why the last one failed, and "Sync now". */
+@Composable
+private fun SyncRow(lastSyncAt: Long?, status: SyncStatus, onSyncNow: () -> Unit) {
+    ListItem(
+        overlineContent = { Text(stringResource(Res.string.server_account_last_sync)) },
+        headlineContent = {
+            Text(
+                lastSyncAt?.let { serverTime(Instant.fromEpochMilliseconds(it).toString()) }
+                    ?: stringResource(Res.string.sync_never),
+            )
+        },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val error = status.error
+                when {
+                    status.running -> {
+                        val rows = status.fullPullRows
+                        Text(if (rows != null) stringResource(Res.string.sync_full_pull, rows) else stringResource(Res.string.sync_running))
+                        LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
+                    }
+                    error != null && error != SyncError.SESSION_REVOKED -> Text(
+                        stringResource(
+                            when (error) {
+                                SyncError.APP_TOO_OLD -> Res.string.sync_error_app_too_old
+                                SyncError.FORBIDDEN -> Res.string.sync_error_forbidden
+                                SyncError.NETWORK -> Res.string.sync_error_network
+                                else -> Res.string.sync_error_server
+                            },
+                        ),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            TextButton(onClick = onSyncNow, enabled = !status.running && !status.paused) {
+                Icon(painterResource(Res.drawable.ic_sync), contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(stringResource(Res.string.sync_now), modifier = Modifier.padding(start = 4.dp))
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+    )
 }
 
 @Composable
@@ -321,11 +425,12 @@ private fun LogoutDialogs(step: LogoutStep?, actions: AccountActions) {
                                 modifier = Modifier.padding(start = 8.dp),
                             )
                         }
-                        // The sync engine comes later: the choice is shown, but can't be taken yet
-                        OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                        if (step.syncFailed) {
+                            Text(stringResource(Res.string.logout_sync_failed), style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(onClick = actions.syncThenLogout, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(Res.string.server_logout_sync_first))
                         }
-                        Text(stringResource(Res.string.server_logout_sync_unavailable), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -339,13 +444,16 @@ private fun LogoutDialogs(step: LogoutStep?, actions: AccountActions) {
             },
             dismissButton = { TextButton(onClick = actions.cancelLogout) { Text(stringResource(Res.string.server_cancel)) } },
         )
-        LogoutStep.Working, LogoutStep.Done -> AlertDialog(
+        is LogoutStep.Syncing, LogoutStep.Working, LogoutStep.Done -> AlertDialog(
             onDismissRequest = {},
             properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(24.dp))
-                    Text(stringResource(Res.string.server_logout_running), modifier = Modifier.padding(start = 16.dp))
+                    Text(
+                        stringResource(if (step is LogoutStep.Syncing) Res.string.logout_syncing else Res.string.server_logout_running),
+                        modifier = Modifier.padding(start = 16.dp),
+                    )
                 }
             },
             confirmButton = {},

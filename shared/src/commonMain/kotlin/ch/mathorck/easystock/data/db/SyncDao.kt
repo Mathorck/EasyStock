@@ -20,6 +20,7 @@ import ch.mathorck.easystock.data.model.LowStockAlert
 import ch.mathorck.easystock.data.model.OutboxEntry
 import ch.mathorck.easystock.data.model.PendingPush
 import ch.mathorck.easystock.data.model.RejectedChange
+import ch.mathorck.easystock.data.model.RejectedChangeRow
 import ch.mathorck.easystock.data.model.ServerUser
 import ch.mathorck.easystock.data.model.StockMovement
 import ch.mathorck.easystock.data.model.StockReview
@@ -100,6 +101,10 @@ abstract class SyncDao {
     @Query("SELECT * FROM outbox ORDER BY changed_at, table_name, row_id LIMIT :limit")
     abstract suspend fun outbox(limit: Int): List<OutboxEntry>
 
+    /** Emits at each outbox change: the debounced sync trigger. */
+    @Query("SELECT COUNT(*) FROM outbox")
+    abstract fun observeOutboxCount(): Flow<Int>
+
     @Query("SELECT row_id FROM outbox WHERE table_name = :table")
     protected abstract suspend fun outboxIds(table: String): List<String>
 
@@ -113,6 +118,30 @@ abstract class SyncDao {
 
     @Query("SELECT * FROM rejected_change ORDER BY rejected_at DESC")
     abstract fun observeRejectedChanges(): Flow<List<RejectedChange>>
+
+    /** The rejected changes, newest first, with the name of the local row (null when it is gone). */
+    @Query(
+        """
+        SELECT r.*, CASE r.table_name
+            WHEN 'category' THEN (SELECT name FROM category WHERE id = r.row_id)
+            WHEN 'attribute_definition' THEN (SELECT label FROM attribute_definition WHERE id = r.row_id)
+            WHEN 'category_attribute' THEN (SELECT c.name || ' · ' || d.label FROM category_attribute ca
+                JOIN category c ON c.id = ca.category_id JOIN attribute_definition d ON d.id = ca.attribute_id
+                WHERE ca.id = r.row_id)
+            WHEN 'location' THEN (SELECT name FROM location WHERE id = r.row_id)
+            WHEN 'article' THEN (SELECT name FROM article WHERE id = r.row_id)
+            WHEN 'item' THEN (SELECT a.name FROM item i JOIN article a ON a.id = i.article_id WHERE i.id = r.row_id)
+            WHEN 'stock_movement' THEN (SELECT a.name FROM stock_movement m JOIN article a ON a.id = m.article_id
+                WHERE m.id = r.row_id)
+            WHEN 'stock_review' THEN (SELECT l.name FROM stock_review s JOIN location l ON l.id = s.location_id
+                WHERE s.id = r.row_id)
+            WHEN 'stock_review_line' THEN (SELECT a.name FROM stock_review_line sl JOIN article a ON a.id = sl.article_id
+                WHERE sl.id = r.row_id)
+        END AS label
+        FROM rejected_change r ORDER BY r.rejected_at DESC
+        """,
+    )
+    abstract fun observeRejectedChangeRows(): Flow<List<RejectedChangeRow>>
 
     @Query("SELECT COUNT(*) FROM rejected_change WHERE seen_at IS NULL")
     abstract fun observeUnseenRejectedCount(): Flow<Int>

@@ -97,7 +97,6 @@
     <string name="server_account_short_code">Ihr Gastcode</string>
     <string name="server_account_short_code_hint">Geben Sie diesen Code dem Administrator, damit er Sie findet.</string>
     <string name="server_account_last_sync">Letzte Synchronisierung</string>
-    <string name="server_account_sync_unavailable">Nie: Die Synchronisierung ist in dieser Version noch nicht verfügbar</string>
     <string name="server_account_offline">Der Server ist nicht erreichbar: Es wird angezeigt, was auf diesem Telefon gespeichert ist.</string>
     <string name="server_account_administration">Administration</string>
     <string name="server_promotion_banner">Der Administrator hat Ihnen die Rolle %1$s gegeben. Wählen Sie einen Benutzernamen und ein Passwort, um abzuschließen.</string>
@@ -110,7 +109,6 @@
     <string name="server_logout_guest_message">Ihr Gastkonto wird auf dem Server gelöscht, und alle Daten und Fotos auf diesem Telefon werden gelöscht.</string>
     <string name="server_logout_pending">%1$d Änderungen wurden noch nicht an den Server gesendet.</string>
     <string name="server_logout_sync_first">Synchronisieren, dann abmelden</string>
-    <string name="server_logout_sync_unavailable">Die Synchronisierung ist in dieser Version noch nicht verfügbar.</string>
     <string name="server_logout_lose">Abmelden und verwerfen</string>
     <string name="server_logout_confirm">Abmelden</string>
     <string name="server_logout_running">Abmeldung…</string>

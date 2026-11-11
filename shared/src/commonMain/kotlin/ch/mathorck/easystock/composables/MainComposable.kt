@@ -21,7 +21,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.mathorck.easystock.auth.AppPermissions
 import ch.mathorck.easystock.auth.LocalPermissions
 import ch.mathorck.easystock.data.db.rememberAppDatabase
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import ch.mathorck.easystock.sync.SyncHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,11 +70,18 @@ private fun MainContent() {
     val resetDone = stringResource(Res.string.app_info_reset_done)
     val loggedOut = stringResource(Res.string.server_logged_out)
     ServerSessionWatcher(onWiped = { page = Page.Stock })
+    val connected = LocalPermissions.current.connected
+    SyncHost(connected)
+    val db = rememberAppDatabase()
+    val unseenFlow = remember(db, connected) {
+        if (connected) db.syncDao().observeUnseenRejectedCount() else flowOf(0)
+    }
+    val unseenRejected by unseenFlow.collectAsStateWithLifecycle(0)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = { NavBarComposable(currentPage = page, onPageSelected = { page = it }) },
+        bottomBar = { NavBarComposable(currentPage = page, onPageSelected = { page = it }, settingsBadge = unseenRejected) },
     ) { innerPadding ->
         Box(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),

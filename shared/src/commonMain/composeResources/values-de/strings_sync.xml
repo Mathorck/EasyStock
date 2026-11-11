@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Synchronisierung mit dem Server -->
+    <string name="sync_never">Nie</string>
+    <string name="sync_now">Jetzt synchronisieren</string>
+    <string name="sync_running">Synchronisierung…</string>
+    <string name="sync_full_pull">Serverdaten werden geladen: %1$d Datensätze</string>
+    <string name="sync_error_network">Die letzte Synchronisierung ist fehlgeschlagen: Der Server ist nicht erreichbar. Sie wird später erneut versucht.</string>
+    <string name="sync_error_app_too_old">Diese App-Version ist für den Server zu alt. Aktualisieren Sie die App: Die Synchronisierung ist bis dahin pausiert.</string>
+    <string name="sync_error_forbidden">Der Server hat die Synchronisierung für Ihre Rolle abgelehnt.</string>
+    <string name="sync_error_server">Die letzte Synchronisierung ist auf dem Server fehlgeschlagen. Sie wird später erneut versucht.</string>
+
+    <string name="logout_syncing">Ihre Änderungen werden gesendet…</string>
+    <string name="logout_sync_failed">Nicht alle Änderungen konnten gesendet werden. Versuchen Sie es später erneut, oder melden Sie sich ab und verlieren Sie sie.</string>
+
+    <!-- Einstellungen › Server › Nicht angenommene Änderungen -->
+    <string name="rejected_title">Nicht angenommene Änderungen</string>
+    <string name="rejected_summary">%1$d vom Server abgelehnte Änderungen</string>
+    <string name="rejected_empty">Der Server hat alle Ihre Änderungen angenommen.</string>
+    <string name="rejected_hint">Diese Änderungen bleiben nur auf diesem Telefon. Die anderen Telefone sehen sie nicht.</string>
+    <string name="rejected_dismiss">Ausblenden</string>
+    <string name="rejected_at">Abgelehnt am %1$s</string>
+    <string name="rejected_deleted_row">(nicht mehr auf diesem Telefon)</string>
+
+    <string name="rejected_table_category">Kategorie</string>
+    <string name="rejected_table_attribute_definition">Attribut</string>
+    <string name="rejected_table_category_attribute">Attribut einer Kategorie</string>
+    <string name="rejected_table_location">Lagerort</string>
+    <string name="rejected_table_article">Artikel</string>
+    <string name="rejected_table_item">Einheit</string>
+    <string name="rejected_table_stock_movement">Bewegung</string>
+    <string name="rejected_table_stock_review">Inventur</string>
+    <string name="rejected_table_stock_review_line">Inventurposition</string>
+
+    <string name="rejected_reason_not_allowed">Ihre Rolle erlaubt diese Änderung nicht.</string>
+    <string name="rejected_reason_invalid">Ein Wert ist ungültig.</string>
+    <string name="rejected_reason_missing_reference">Sie verweist auf einen Datensatz, den der Server nicht hat.</string>
+    <string name="rejected_reason_review_open">Für diesen Lagerort ist bereits eine Inventur offen.</string>
+    <string name="rejected_reason_conflict">Sie steht im Konflikt mit einer Änderung auf einem anderen Telefon.</string>
+    <string name="rejected_reason_unknown">Vom Server abgelehnt (%1$s).</string>
+
+    <!-- Sicherung im verbundenen Modus -->
+    <string name="backup_replace_connected">Ersetzen ist nicht verfügbar, solange dieses Telefon mit einem Server verbunden ist: Es würde die Serverdaten auf diesem Telefon löschen. Melden Sie sich zuerst ab, oder verwenden Sie Zusammenführen.</string>
+    <string name="backup_merge_connected_role">Ihre Rolle auf dem Server erlaubt keinen Import einer Sicherung.</string>
+    <string name="backup_merge_connected_note">Die importierten Datensätze werden bei der nächsten Synchronisierung an den Server gesendet.</string>
+</resources>

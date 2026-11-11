@@ -193,6 +193,11 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import ch.mathorck.easystock.auth.Action
+import ch.mathorck.easystock.auth.LocalPermissions
+import easystock.shared.generated.resources.backup_merge_connected_note
+import easystock.shared.generated.resources.backup_merge_connected_role
+import easystock.shared.generated.resources.backup_replace_connected
 
 /**
  * Settings › Backup and transfer. Send (QR code, Wi-Fi, file) or receive (scan, file) all data.
@@ -448,10 +453,31 @@ private fun PreviewStep(backup: OpenedBackup, onImport: (ImportMode) -> Unit, on
         counts.forEach { (table, count) -> CountLine(stringResource(table.label()), count) }
         if (backup.photos > 0) CountLine(stringResource(Res.string.backup_table_photos), backup.photos)
     }
+    // Connected: a merge goes to the outbox like any local change (Admin and Editor only); a replace
+    // would hard-delete synced rows, so it is not offered
+    val permissions = LocalPermissions.current
+    val canMerge = permissions.can(Action.MANAGE_SETTINGS) && (!permissions.connected || permissions.can(Action.PUSH_CHANGES))
+    val canReplace = !permissions.connected
     Card {
-        Option(Res.drawable.ic_download, stringResource(Res.string.backup_merge), stringResource(Res.string.backup_merge_summary), onClick = { onImport(ImportMode.MERGE) })
+        Option(
+            Res.drawable.ic_download,
+            stringResource(Res.string.backup_merge),
+            when {
+                !canMerge -> stringResource(Res.string.backup_merge_connected_role)
+                permissions.connected -> stringResource(Res.string.backup_merge_summary) + " " + stringResource(Res.string.backup_merge_connected_note)
+                else -> stringResource(Res.string.backup_merge_summary)
+            },
+            enabled = canMerge,
+            onClick = { onImport(ImportMode.MERGE) },
+        )
         HorizontalDivider()
-        Option(Res.drawable.ic_warning, stringResource(Res.string.backup_replace), stringResource(Res.string.backup_replace_summary), onClick = { confirmReplace = true })
+        Option(
+            Res.drawable.ic_warning,
+            stringResource(Res.string.backup_replace),
+            stringResource(if (canReplace) Res.string.backup_replace_summary else Res.string.backup_replace_connected),
+            enabled = canReplace,
+            onClick = { confirmReplace = true },
+        )
     }
     TextButton(onClick = onCancel) { Text(stringResource(Res.string.backup_cancel)) }
 

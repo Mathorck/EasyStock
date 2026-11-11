@@ -3,6 +3,8 @@ package ch.mathorck.easystock.composables
 import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -22,14 +24,27 @@ import easystock.shared.generated.resources.nav_stock
 import easystock.shared.generated.resources.nav_settings
 
 @Composable
-fun NavBarComposable(currentPage: Page, onPageSelected: (Page) -> Unit) {
+fun NavBarComposable(
+    currentPage: Page,
+    onPageSelected: (Page) -> Unit,
+    /** Unread "Changes not accepted" entries, shown on the Settings tab. */
+    settingsBadge: Int = 0,
+) {
     NavigationBar {
         Page.entries.forEach { page ->
             val label = stringResource(page.label())
             NavigationBarItem(
                 selected = page == currentPage,
                 onClick = { onPageSelected(page) },
-                icon = { Icon(painterResource(page.icon()), contentDescription = label) },
+                icon = {
+                    if (page == Page.Settings && settingsBadge > 0) {
+                        BadgedBox(badge = { Badge { Text("$settingsBadge") } }) {
+                            Icon(painterResource(page.icon()), contentDescription = label)
+                        }
+                    } else {
+                        Icon(painterResource(page.icon()), contentDescription = label)
+                    }
+                },
                 label = { Text(label) },
             )
         }

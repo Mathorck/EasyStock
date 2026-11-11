@@ -21,8 +21,14 @@ import kotlinx.coroutines.launch
 
 /** The logout, step by step. */
 sealed interface LogoutStep {
-    /** [pending]: local changes not sent yet (they are lost). [guest]: the account is deleted. */
-    data class Confirm(val pending: Int, val guest: Boolean) : LogoutStep
+    /**
+     * [pending]: local changes not sent yet (they are lost). [guest]: the account is deleted.
+     * [syncFailed]: "Sync, then log out" could not send them all.
+     */
+    data class Confirm(val pending: Int, val guest: Boolean, val syncFailed: Boolean = false) : LogoutStep
+
+    /** "Sync, then log out": the changes are being sent. */
+    data class Syncing(val guest: Boolean) : LogoutStep
 
     data object Working : LogoutStep
 
@@ -62,6 +68,8 @@ data class AccountUiState(
 class AccountViewModel(
     private val api: AccountApi,
     private val pendingChanges: suspend () -> Int,
+    /** Runs a sync cycle, then answers the local changes still not sent. */
+    private val syncFirst: suspend () -> Int,
     /** Stores the role and display name `GET /me` answered. */
     private val onMe: suspend (MeAnswer) -> Unit,
     /** Saves the tokens of a completed promotion and its new role. */
@@ -100,12 +108,38 @@ class AccountViewModel(
         }
     }
 
-    fun cancelLogout() = _state.update { if (it.logout == LogoutStep.Working) it else it.copy(logout = null) }
+    fun cancelLogout() = _state.update {
+        if (it.logout == LogoutStep.Working || it.logout is LogoutStep.Syncing) it else it.copy(logout = null)
+    }
 
     /** Tells the server, then wipes the phone. */
     fun confirmLogout() {
+        if (_state.value.logout !is LogoutStep.Confirm) return
+        logoutNow()
+    }
+
+    /** Sends the local changes first; logs out only when none is left, else asks again. */
+    fun syncThenLogout() {
         val step = _state.value.logout
         if (step !is LogoutStep.Confirm) return
+        _state.update { it.copy(logout = LogoutStep.Syncing(step.guest)) }
+        viewModelScope.launch {
+            val left = try {
+                syncFirst()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (left == 0) {
+                logoutNow()
+            } else {
+                _state.update { it.copy(logout = LogoutStep.Confirm(left ?: step.pending, step.guest, syncFailed = true)) }
+            }
+        }
+    }
+
+    private fun logoutNow() {
         _state.update { it.copy(logout = LogoutStep.Working) }
         viewModelScope.launch {
             ServerSessionEvents.leaving = true

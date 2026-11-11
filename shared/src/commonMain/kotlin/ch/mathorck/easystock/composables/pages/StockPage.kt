@@ -123,6 +123,8 @@ import easystock.shared.generated.resources.stock_low
 import easystock.shared.generated.resources.stock_no_results
 import easystock.shared.generated.resources.stock_search_hint
 import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import ch.mathorck.easystock.sync.rememberSyncEngine
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -153,17 +155,19 @@ fun StockPage() {
         if (articleId != null) {
             ArticleDetailScreen(articleId = articleId, onBack = { selectedArticleId = null })
         } else {
-            StockContent(
-                state = state,
-                query = query,
-                onQueryChange = viewModel::onQueryChange,
-                onFiltersChange = viewModel::onFiltersChange,
-                onClearFilters = viewModel::onClearFilters,
-                onArticleClick = { selectedArticleId = it },
-                listState = listState,
-                // Keeps the last row above the FAB
-                contentPadding = PaddingValues(bottom = 88.dp),
-            )
+            SyncRefreshBox {
+                StockContent(
+                    state = state,
+                    query = query,
+                    onQueryChange = viewModel::onQueryChange,
+                    onFiltersChange = viewModel::onFiltersChange,
+                    onClearFilters = viewModel::onClearFilters,
+                    onArticleClick = { selectedArticleId = it },
+                    listState = listState,
+                    // Keeps the last row above the FAB
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                )
+            }
             if (StockListGates.of(LocalPermissions.current).createArticle) {
                 FloatingActionButton(
                     onClick = newArticleViewModel::start,
@@ -183,6 +187,33 @@ fun StockPage() {
             onSave = newArticleViewModel::save,
         )
     }
+}
+
+/** Pull to refresh runs a sync, only when connected to a server: standalone, the list shows as is. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SyncRefreshBox(content: @Composable () -> Unit) {
+    val engine = if (LocalPermissions.current.connected) rememberSyncEngine() else null
+    if (engine == null) {
+        content()
+        return
+    }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = {
+            refreshing = true
+            scope.launch {
+                try {
+                    engine.sync()
+                } finally {
+                    refreshing = false
+                }
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) { content() }
 }
 
 private enum class StockPicker { Location, Category, Type, Tag, Attribute }

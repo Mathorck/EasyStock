@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Synchronisation avec le serveur -->
+    <string name="sync_never">Jamais</string>
+    <string name="sync_now">Synchroniser maintenant</string>
+    <string name="sync_running">Synchronisation…</string>
+    <string name="sync_full_pull">Téléchargement des données du serveur : %1$d enregistrements</string>
+    <string name="sync_error_network">La dernière synchronisation a échoué : le serveur est injoignable. Elle sera réessayée plus tard.</string>
+    <string name="sync_error_app_too_old">Cette version de l’app est trop ancienne pour le serveur. Mettez l’app à jour : la synchronisation est en pause d’ici là.</string>
+    <string name="sync_error_forbidden">Le serveur a refusé la synchronisation pour votre rôle.</string>
+    <string name="sync_error_server">La dernière synchronisation a échoué sur le serveur. Elle sera réessayée plus tard.</string>
+
+    <string name="logout_syncing">Envoi de vos modifications…</string>
+    <string name="logout_sync_failed">Toutes les modifications n’ont pas pu être envoyées. Réessayez plus tard, ou déconnectez-vous en les perdant.</string>
+
+    <!-- Paramètres › Serveur › Modifications refusées -->
+    <string name="rejected_title">Modifications refusées</string>
+    <string name="rejected_summary">%1$d modifications refusées par le serveur</string>
+    <string name="rejected_empty">Le serveur a accepté toutes vos modifications.</string>
+    <string name="rejected_hint">Ces modifications restent sur ce téléphone uniquement. Les autres téléphones ne les voient pas.</string>
+    <string name="rejected_dismiss">Ignorer</string>
+    <string name="rejected_at">Refusée le %1$s</string>
+    <string name="rejected_deleted_row">(n’est plus sur ce téléphone)</string>
+
+    <string name="rejected_table_category">Catégorie</string>
+    <string name="rejected_table_attribute_definition">Attribut</string>
+    <string name="rejected_table_category_attribute">Attribut d’une catégorie</string>
+    <string name="rejected_table_location">Emplacement</string>
+    <string name="rejected_table_article">Article</string>
+    <string name="rejected_table_item">Unité</string>
+    <string name="rejected_table_stock_movement">Mouvement</string>
+    <string name="rejected_table_stock_review">Inventaire</string>
+    <string name="rejected_table_stock_review_line">Ligne d’inventaire</string>
+
+    <string name="rejected_reason_not_allowed">Votre rôle ne permet pas cette modification.</string>
+    <string name="rejected_reason_invalid">Une valeur n’est pas valide.</string>
+    <string name="rejected_reason_missing_reference">Elle fait référence à un enregistrement que le serveur n’a pas.</string>
+    <string name="rejected_reason_review_open">Un inventaire est déjà ouvert pour cet emplacement.</string>
+    <string name="rejected_reason_conflict">Elle est en conflit avec une modification faite sur un autre téléphone.</string>
+    <string name="rejected_reason_unknown">Refusée par le serveur (%1$s).</string>
+
+    <!-- Sauvegarde en mode connecté -->
+    <string name="backup_replace_connected">Remplacer n’est pas disponible tant que ce téléphone est connecté à un serveur : cela effacerait les données du serveur sur ce téléphone. Déconnectez-vous d’abord, ou utilisez Fusionner.</string>
+    <string name="backup_merge_connected_role">Votre rôle sur le serveur ne permet pas d’importer une sauvegarde.</string>
+    <string name="backup_merge_connected_note">Les enregistrements importés sont envoyés au serveur à la prochaine synchronisation.</string>
+</resources>

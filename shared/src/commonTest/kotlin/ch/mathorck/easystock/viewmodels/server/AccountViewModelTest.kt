@@ -57,11 +57,17 @@ class AccountViewModelTest {
     private val stored = mutableListOf<MeAnswer>()
     private val promotedWith = mutableListOf<TokenAnswer>()
     private var wipes = 0
+    private var syncs = 0
+    private var leftAfterSync = 0
     private var leavingDuringLogout = false
 
     private fun vm() = AccountViewModel(
         api = api,
         pendingChanges = { pending },
+        syncFirst = {
+            syncs++
+            leftAfterSync
+        },
         onMe = { stored += it },
         onPromoted = { promotedWith += it },
         wipe = {
@@ -119,6 +125,30 @@ class AccountViewModelTest {
         assertEquals(LogoutStep.Confirm(3, guest = false), vm.state.value.logout)
         vm.cancelLogout()
         assertNull(vm.state.value.logout)
+        assertEquals(0, wipes)
+    }
+
+    @Test
+    fun syncThenLogoutLogsOutWhenEverythingIsSent() {
+        pending = 2
+        val vm = vm()
+        vm.askLogout(guest = false)
+        vm.syncThenLogout()
+        assertEquals(1, syncs)
+        assertEquals(1, api.logouts)
+        assertEquals(1, wipes)
+        assertEquals(LogoutStep.Done, vm.state.value.logout)
+    }
+
+    @Test
+    fun syncThenLogoutAsksAgainWhenChangesAreLeft() {
+        pending = 2
+        leftAfterSync = 1
+        val vm = vm()
+        vm.askLogout(guest = false)
+        vm.syncThenLogout()
+        assertEquals(LogoutStep.Confirm(1, guest = false, syncFailed = true), vm.state.value.logout)
+        assertEquals(0, api.logouts)
         assertEquals(0, wipes)
     }
 

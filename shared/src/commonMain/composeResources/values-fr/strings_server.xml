@@ -97,7 +97,6 @@
     <string name="server_account_short_code">Votre code Invité</string>
     <string name="server_account_short_code_hint">Donnez ce code à l’administrateur, pour qu’il vous retrouve.</string>
     <string name="server_account_last_sync">Dernière synchronisation</string>
-    <string name="server_account_sync_unavailable">Jamais : la synchronisation n’est pas encore disponible dans cette version</string>
     <string name="server_account_offline">Le serveur est injoignable : affichage de ce qui est enregistré sur ce téléphone.</string>
     <string name="server_account_administration">Administration</string>
     <string name="server_promotion_banner">L’administrateur vous a donné le rôle %1$s. Choisissez un nom d’utilisateur et un mot de passe pour terminer.</string>
@@ -110,7 +109,6 @@
     <string name="server_logout_guest_message">Votre compte Invité sera supprimé sur le serveur, et toutes les données et photos de ce téléphone sont effacées.</string>
     <string name="server_logout_pending">%1$d modifications n’ont pas encore été envoyées au serveur.</string>
     <string name="server_logout_sync_first">Synchroniser, puis se déconnecter</string>
-    <string name="server_logout_sync_unavailable">La synchronisation n’est pas encore disponible dans cette version.</string>
     <string name="server_logout_lose">Se déconnecter et les perdre</string>
     <string name="server_logout_confirm">Se déconnecter</string>
     <string name="server_logout_running">Déconnexion…</string>

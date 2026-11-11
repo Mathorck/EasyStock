@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sync with the server -->
+    <string name="sync_never">Never</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_running">Syncing…</string>
+    <string name="sync_full_pull">Downloading the server data: %1$d records</string>
+    <string name="sync_error_network">The last sync failed: the server can’t be reached. It is tried again later.</string>
+    <string name="sync_error_app_too_old">This version of the app is too old for the server. Update the app: sync is paused until then.</string>
+    <string name="sync_error_forbidden">The server refused the sync for your role.</string>
+    <string name="sync_error_server">The last sync failed on the server. It is tried again later.</string>
+
+    <string name="logout_syncing">Sending your changes…</string>
+    <string name="logout_sync_failed">Not all changes could be sent. Try again later, or log out and lose them.</string>
+
+    <!-- Settings › Server › Changes not accepted -->
+    <string name="rejected_title">Changes not accepted</string>
+    <string name="rejected_summary">%1$d changes the server refused</string>
+    <string name="rejected_empty">The server accepted all your changes.</string>
+    <string name="rejected_hint">These changes stay on this phone only. The other phones don’t see them.</string>
+    <string name="rejected_dismiss">Dismiss</string>
+    <string name="rejected_at">Refused on %1$s</string>
+    <string name="rejected_deleted_row">(no longer on this phone)</string>
+
+    <string name="rejected_table_category">Category</string>
+    <string name="rejected_table_attribute_definition">Attribute</string>
+    <string name="rejected_table_category_attribute">Attribute of a category</string>
+    <string name="rejected_table_location">Location</string>
+    <string name="rejected_table_article">Article</string>
+    <string name="rejected_table_item">Unit</string>
+    <string name="rejected_table_stock_movement">Movement</string>
+    <string name="rejected_table_stock_review">Stock review</string>
+    <string name="rejected_table_stock_review_line">Review line</string>
+
+    <string name="rejected_reason_not_allowed">Your role does not allow this change.</string>
+    <string name="rejected_reason_invalid">A value is not valid.</string>
+    <string name="rejected_reason_missing_reference">It refers to a record the server doesn’t have.</string>
+    <string name="rejected_reason_review_open">A stock review is already open for this location.</string>
+    <string name="rejected_reason_conflict">It conflicts with a change made on another phone.</string>
+    <string name="rejected_reason_unknown">Refused by the server (%1$s).</string>
+
+    <!-- Backup while connected -->
+    <string name="backup_replace_connected">Replace is not available while this phone is connected to a server: it would erase the server data of this phone. Log out first, or use Merge.</string>
+    <string name="backup_merge_connected_role">Your role on the server does not allow importing a backup.</string>
+    <string name="backup_merge_connected_note">The imported records are sent to the server at the next sync.</string>
+</resources>
