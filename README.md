@@ -39,7 +39,7 @@ Target hardware budget: 100 CHF. 3D-printable NFC tag holders will be published 
 ## 🎓 School project
 
 <p align="center">
-  <a href="https://www.cpne.ch"><img src="docs/images/cpne-logo.png" alt="CPNE logo" height="80"></a>
+  <a href="https://www.cpne.ch"><img src="docs/images/cpne-logo.png" alt="CPNE logo" height="60"></a>
 </p>
 
 EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de formation professionnelle neuchâtelois, Technologies et Industrie pole (CPNE-TI).
