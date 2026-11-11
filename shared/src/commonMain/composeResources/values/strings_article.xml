@@ -39,4 +39,16 @@
     <string name="article_error_category_deleted">A deleted category already has this name</string>
     <string name="article_error_quantity">Enter a number with up to 3 decimals</string>
     <string name="article_error_save">Could not save the article. Try again.</string>
+    <string name="article_info_flag_title">Info to fix</string>
+    <string name="article_info_flag_no_note">No note</string>
+    <string name="article_info_flag_source">Review finished %1$s · %2$s</string>
+    <string name="article_info_flag_unit">Unit %1$s</string>
+    <string name="article_info_fixed_action">Fixed</string>
+    <string name="article_info_fixed_confirm_title">Mark as fixed?</string>
+    <string name="article_info_fixed_confirm_text">The flag leaves this page. It stays in the history.</string>
+    <string name="article_info_fixed_confirm">Mark as fixed</string>
+    <string name="article_info_fixed_cancel">Cancel</string>
+    <string name="article_history_info_flagged">Info to fix flagged</string>
+    <string name="article_history_info_flagged_note">Info to fix flagged: %1$s</string>
+    <string name="article_history_info_fixed">Info fixed</string>
 </resources>

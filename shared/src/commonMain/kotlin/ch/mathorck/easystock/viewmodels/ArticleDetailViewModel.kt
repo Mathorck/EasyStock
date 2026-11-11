@@ -10,6 +10,7 @@ import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
 import ch.mathorck.easystock.data.db.DeletedCategoryNameException
 import ch.mathorck.easystock.data.db.DuplicateSkuException
+import ch.mathorck.easystock.data.db.InfoFlag
 import ch.mathorck.easystock.data.db.LocationStock
 import ch.mathorck.easystock.data.db.MovementWithLocation
 import ch.mathorck.easystock.data.model.Article
@@ -92,6 +93,76 @@ fun movementRows(movements: List<MovementWithLocation>, locations: List<Location
     }
 }
 
+/**
+ * An open "info to fix" flag of the article, from a finished review. [location] is the path of the line
+ * location, [flaggedAt] the review finish time (local time zone), [serialNumber] set for a unit.
+ */
+data class InfoFlagRow(
+    val lineId: String,
+    val note: String?,
+    val location: String,
+    val serialNumber: String?,
+    val flaggedAt: String,
+)
+
+/** One entry of the article history: a stock movement, or an "info to fix" flag raised or fixed. */
+sealed interface HistoryRow {
+    /** Unique among the rows, for the list keys. */
+    val key: String
+
+    data class Movement(val movement: MovementRow) : HistoryRow {
+        override val key: String get() = "movement-${movement.id}"
+    }
+
+    /** Flag raised in a review, dated when the review was finished. */
+    data class InfoFlagged(val flag: InfoFlagRow, val at: String) : HistoryRow {
+        override val key: String get() = "flagged-${flag.lineId}"
+    }
+
+    /** Flag marked as fixed. */
+    data class InfoFixed(val flag: InfoFlagRow, val at: String) : HistoryRow {
+        override val key: String get() = "fixed-${flag.lineId}"
+    }
+}
+
+/** Open flags (not fixed yet), in the given order (the query sorts the newest review first). */
+fun openInfoFlagRows(flags: List<InfoFlag>, locations: List<Location>, timeZone: TimeZone): List<InfoFlagRow> {
+    val paths = buildLocationOptions(locations).associate { it.id to it.path }
+    return flags.filter { it.fixedAt == null }.map { it.toRow(paths, timeZone) }
+}
+
+private fun InfoFlag.toRow(paths: Map<String, String>, timeZone: TimeZone) = InfoFlagRow(
+    lineId = lineId,
+    note = note?.takeIf { it.isNotBlank() },
+    location = paths[locationId] ?: locationName,
+    serialNumber = serialNumber?.takeIf { it.isNotBlank() },
+    flaggedAt = formatDateTime(flaggedAt, timeZone),
+)
+
+/**
+ * Movements and flag events merged, newest first. A flag gives a "flagged" entry at the review finish time and,
+ * once fixed, a "fixed" entry. At the same time a movement comes before a flag event (the order is stable).
+ */
+fun historyRows(
+    movements: List<MovementWithLocation>,
+    flags: List<InfoFlag>,
+    locations: List<Location>,
+    timeZone: TimeZone,
+): List<HistoryRow> {
+    val paths = buildLocationOptions(locations).associate { it.id to it.path }
+    val movementEntries = movements.zip(movementRows(movements, locations, timeZone)) { raw, row ->
+        raw.movement.occurredAt to HistoryRow.Movement(row)
+    }
+    val flagEntries = flags.flatMap { flag ->
+        val row = flag.toRow(paths, timeZone)
+        listOfNotNull(
+            flag.fixedAt?.let { it to HistoryRow.InfoFixed(row, formatDateTime(it, timeZone)) },
+            flag.flaggedAt to HistoryRow.InfoFlagged(row, row.flaggedAt),
+        )
+    }
+    return (movementEntries + flagEntries).sortedByDescending { it.first }.map { it.second }
+}
+
 private val DATE_TIME_FORMAT = LocalDateTime.Format {
     year()
     char('-')
@@ -119,7 +190,10 @@ data class ArticleDetailUiState(
     val categoryName: String? = null,
     val totalMilli: Long = 0,
     val locations: List<LocationStockRow> = emptyList(),
-    val movements: List<MovementRow> = emptyList(),
+    /** Movements and "info to fix" events, newest first. */
+    val history: List<HistoryRow> = emptyList(),
+    /** Open "info to fix" flags from finished reviews. */
+    val infoFlags: List<InfoFlagRow> = emptyList(),
     /** Attribute values of the article, empty ones skipped, in the category order. */
     val properties: List<AttributeRow> = emptyList(),
 ) {
@@ -144,17 +218,18 @@ class ArticleDetailViewModel(
     val state: StateFlow<ArticleDetailUiState> = combine(
         dao.observeArticle(articleId),
         dao.observeStockByLocation(articleId),
-        dao.observeMovements(articleId),
+        combine(dao.observeMovements(articleId), dao.observeInfoFlags(articleId), ::Pair),
         dao.observeAllLocations(),
         combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
-    ) { article, stock, movements, locations, catalog ->
+    ) { article, stock, (movements, flags), locations, catalog ->
         ArticleDetailUiState(
             loading = false,
             article = article?.article,
             categoryName = article?.categoryName,
             totalMilli = stock.sumOf { it.stockMilli },
             locations = locationStockRows(stock, locations),
-            movements = movementRows(movements, locations, timeZone),
+            history = historyRows(movements, flags, locations, timeZone),
+            infoFlags = openInfoFlagRows(flags, locations, timeZone),
             properties = article?.article?.let { catalog.rows(it.categoryId, it.attributes) }.orEmpty(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleDetailUiState())
@@ -242,6 +317,19 @@ class ArticleDetailViewModel(
             } catch (e: Exception) {
                 // Deleted meanwhile, or the write failed: the new file is not used
                 if (path != null) images.delete(path)
+            }
+        }
+    }
+
+    /** Marks an open "info to fix" flag as fixed: it leaves the card and a "fixed" entry joins the history. */
+    fun markInfoFixed(lineId: String) {
+        viewModelScope.launch {
+            try {
+                dao.markInfoFixed(lineId, clock.now().toEpochMilliseconds())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The write failed: the flag stays open and can be marked again
             }
         }
     }

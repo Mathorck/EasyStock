@@ -33,6 +33,21 @@ data class MovementWithLocation(
     @ColumnInfo(name = "location_name") val locationName: String,
 )
 
+/**
+ * A review line of the article flagged "info to fix", from a finished review. Open while [fixedAt] is null.
+ * [serialNumber] is set for a serial unit line.
+ */
+data class InfoFlag(
+    @ColumnInfo(name = "line_id") val lineId: String,
+    val note: String?,
+    @ColumnInfo(name = "location_id") val locationId: String,
+    @ColumnInfo(name = "location_name") val locationName: String,
+    @ColumnInfo(name = "serial_number") val serialNumber: String?,
+    /** When the review was finished: the flag is known from then on. */
+    @ColumnInfo(name = "finished_at") val flaggedAt: Long,
+    @ColumnInfo(name = "info_fixed_at") val fixedAt: Long?,
+)
+
 /** Location of the last movement of a serial unit. */
 data class ItemLastLocation(
     @ColumnInfo(name = "item_id") val itemId: String,
@@ -98,6 +113,41 @@ abstract class ArticleDetailDao {
         """,
     )
     abstract fun observeMovements(articleId: String): Flow<List<MovementWithLocation>>
+
+    /**
+     * Lines of the article flagged "info to fix" in a finished review, fixed ones included (for the history).
+     * Open and cancelled reviews, soft-deleted reviews and lines are left out. Newest review first.
+     */
+    @Query(
+        """
+        SELECT l.id AS line_id, l.note, l.location_id, location.name AS location_name, item.serial_number,
+            r.finished_at, l.info_fixed_at
+        FROM stock_review_line l
+        JOIN stock_review r ON r.id = l.review_id
+        JOIN location ON location.id = l.location_id
+        LEFT JOIN item ON item.id = l.item_id
+        WHERE l.article_id = :articleId AND l.info_flagged = 1 AND l.deleted_at IS NULL
+          AND r.status = 'finished' AND r.deleted_at IS NULL AND r.finished_at IS NOT NULL
+        ORDER BY r.finished_at DESC, l.created_at DESC, l.id DESC
+        """,
+    )
+    abstract fun observeInfoFlags(articleId: String): Flow<List<InfoFlag>>
+
+    /**
+     * Marks the flagged info of the line as fixed at [now] (also `updated_at`, so a backup merge keeps it).
+     * Only an open flag of a finished review: returns false and changes nothing otherwise.
+     */
+    @Query(
+        """
+        UPDATE stock_review_line SET info_fixed_at = :now, updated_at = :now
+        WHERE id = :lineId AND info_flagged = 1 AND info_fixed_at IS NULL AND deleted_at IS NULL
+          AND review_id IN (SELECT id FROM stock_review WHERE status = 'finished' AND deleted_at IS NULL)
+        """,
+    )
+    protected abstract suspend fun markInfoFixedRow(lineId: String, now: Long): Int
+
+    /** See [markInfoFixedRow]. */
+    open suspend fun markInfoFixed(lineId: String, now: Long): Boolean = markInfoFixedRow(lineId, now) > 0
 
     /** All locations, soft-deleted ones included, so old stock and movements keep their path. */
     @Query("SELECT * FROM location")

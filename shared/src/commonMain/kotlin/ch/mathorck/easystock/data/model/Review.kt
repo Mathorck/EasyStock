@@ -76,6 +76,11 @@ data class StockReviewLine(
     @SerialName("info_flagged") @ColumnInfo(name = "info_flagged", defaultValue = "0") val infoFlagged: Boolean = false,
     val note: String? = null,
     /**
+     * When the flagged info was fixed (from the article page, once the review is finished). Null while the flag is open.
+     * Setting it also sets [updatedAt], so a backup merge keeps the fix.
+     */
+    @SerialName("info_fixed_at") @ColumnInfo(name = "info_fixed_at") val infoFixedAt: Long? = null,
+    /**
      * A new unit found during the review, not created yet (see [PendingUnit]). The line has no [itemId] until the
      * review is finished: the unit and its movement are then created and this is cleared.
      */

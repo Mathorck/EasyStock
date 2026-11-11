@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -24,11 +25,15 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +62,8 @@ import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.ArticleDetailUiState
 import ch.mathorck.easystock.viewmodels.ArticleDetailViewModel
+import ch.mathorck.easystock.viewmodels.HistoryRow
+import ch.mathorck.easystock.viewmodels.InfoFlagRow
 import ch.mathorck.easystock.viewmodels.LocationStockRow
 import ch.mathorck.easystock.viewmodels.MovementRow
 import ch.mathorck.easystock.viewmodels.StockActionForm
@@ -70,6 +77,18 @@ import easystock.shared.generated.resources.article_category_label
 import easystock.shared.generated.resources.article_description_label
 import easystock.shared.generated.resources.article_edit
 import easystock.shared.generated.resources.article_history_empty
+import easystock.shared.generated.resources.article_history_info_fixed
+import easystock.shared.generated.resources.article_history_info_flagged
+import easystock.shared.generated.resources.article_history_info_flagged_note
+import easystock.shared.generated.resources.article_info_fixed_action
+import easystock.shared.generated.resources.article_info_fixed_cancel
+import easystock.shared.generated.resources.article_info_fixed_confirm
+import easystock.shared.generated.resources.article_info_fixed_confirm_text
+import easystock.shared.generated.resources.article_info_fixed_confirm_title
+import easystock.shared.generated.resources.article_info_flag_no_note
+import easystock.shared.generated.resources.article_info_flag_source
+import easystock.shared.generated.resources.article_info_flag_title
+import easystock.shared.generated.resources.article_info_flag_unit
 import easystock.shared.generated.resources.article_locations_empty
 import easystock.shared.generated.resources.article_reason_consumption
 import easystock.shared.generated.resources.article_reason_inventory
@@ -87,6 +106,7 @@ import easystock.shared.generated.resources.article_total_stock
 import easystock.shared.generated.resources.article_unit_label
 import easystock.shared.generated.resources.ic_arrow_back
 import easystock.shared.generated.resources.ic_edit
+import easystock.shared.generated.resources.ic_flag
 import easystock.shared.generated.resources.stock_action_add_to_location
 import easystock.shared.generated.resources.stock_action_add_unit
 import easystock.shared.generated.resources.stock_action_section_units
@@ -135,6 +155,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         tagRemoveFailed = tagState.removeFailed,
         onLinkTag = tagLink::start,
         onRemoveTag = tagLink::removeTag,
+        onMarkInfoFixed = viewModel::markInfoFixed,
         modifier = modifier,
     )
 
@@ -187,8 +208,11 @@ fun ArticleDetailContent(
     tagRemoveFailed: Boolean = false,
     onLinkTag: () -> Unit = {},
     onRemoveTag: () -> Unit = {},
+    onMarkInfoFixed: (lineId: String) -> Unit = {},
 ) {
     val article = state.article
+    // Line id of the flag waiting for the "mark as fixed" confirmation
+    var confirmFixed by remember { mutableStateOf<String?>(null) }
     Column(modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(article?.name.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -219,6 +243,9 @@ fun ArticleDetailContent(
                 )
             }
             item(key = "header") { Header(article, state.categoryName) }
+            items(state.infoFlags, key = { "info-flag-${it.lineId}" }) { flag ->
+                InfoFlagCard(flag, onFixed = { confirmFixed = flag.lineId })
+            }
             if (state.properties.isNotEmpty()) {
                 item(key = "properties") { PropertiesSection(state.properties) }
             }
@@ -274,16 +301,97 @@ fun ArticleDetailContent(
             }
 
             item(key = "history-title") { SectionTitle(stringResource(Res.string.article_section_history)) }
-            if (state.movements.isEmpty()) {
+            if (state.history.isEmpty()) {
                 item(key = "history-empty") { EmptyHint(stringResource(Res.string.article_history_empty)) }
             } else {
-                items(state.movements, key = { "movement-${it.id}" }) { movement ->
-                    MovementItem(movement, article.unit)
+                items(state.history, key = { it.key }) { row ->
+                    when (row) {
+                        is HistoryRow.Movement -> MovementItem(row.movement, article.unit)
+                        is HistoryRow.InfoFlagged -> InfoHistoryItem(row.at, row.flag, fixed = false)
+                        is HistoryRow.InfoFixed -> InfoHistoryItem(row.at, row.flag, fixed = true)
+                    }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
             }
         }
     }
+
+    confirmFixed?.let { lineId ->
+        AlertDialog(
+            onDismissRequest = { confirmFixed = null },
+            title = { Text(stringResource(Res.string.article_info_fixed_confirm_title)) },
+            text = { Text(stringResource(Res.string.article_info_fixed_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmFixed = null
+                    onMarkInfoFixed(lineId)
+                }) { Text(stringResource(Res.string.article_info_fixed_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmFixed = null }) { Text(stringResource(Res.string.article_info_fixed_cancel)) }
+            },
+        )
+    }
+}
+
+/** An open "info to fix" flag from a finished review: the note, where and when it was raised, and a "fixed" button. */
+@Composable
+private fun InfoFlagCard(flag: InfoFlagRow, onFixed: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp)) {
+            Icon(painterResource(Res.drawable.ic_flag), contentDescription = null)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.article_info_flag_title), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    flag.note ?: stringResource(Res.string.article_info_flag_no_note),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                flag.serialNumber?.let {
+                    Text(stringResource(Res.string.article_info_flag_unit, it), style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    stringResource(Res.string.article_info_flag_source, flag.flaggedAt, flag.location),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            TextButton(onClick = onFixed) { Text(stringResource(Res.string.article_info_fixed_action)) }
+        }
+    }
+}
+
+/** History entry of an "info to fix" flag: raised (with its note) or fixed. */
+@Composable
+private fun InfoHistoryItem(at: String, flag: InfoFlagRow, fixed: Boolean) {
+    val headline = when {
+        fixed -> stringResource(Res.string.article_history_info_fixed)
+        flag.note != null -> stringResource(Res.string.article_history_info_flagged_note, flag.note)
+        else -> stringResource(Res.string.article_history_info_flagged)
+    }
+    ListItem(
+        overlineContent = { Text(at) },
+        headlineContent = { Text(headline) },
+        supportingContent = {
+            Column {
+                Text(flag.location)
+                flag.serialNumber?.let { Text(stringResource(Res.string.article_info_flag_unit, it)) }
+                // The fixed entry recalls which note it closes
+                if (fixed && flag.note != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(flag.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        leadingContent = {
+            Icon(painterResource(Res.drawable.ic_flag), contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
 }
 
 @Composable
@@ -418,6 +526,8 @@ internal val MovementReason.historyLabel: StringResource
 
 // ---------- Previews ----------
 
+private val previewFlag = InfoFlagRow("f1", "The box must be changed", "Workshop › Shelf A", null, "2026-11-09 10:00")
+
 private val previewState = ArticleDetailUiState(
     loading = false,
     article = Article(
@@ -430,10 +540,12 @@ private val previewState = ArticleDetailUiState(
         LocationStockRow("l2", "Workshop › Shelf A", 40_000),
         LocationStockRow("l3", "Van", 2_500),
     ),
-    movements = listOf(
-        MovementRow("m3", "2026-11-10 14:57", MovementReason.CONSUMPTION, "Workshop › Shelf A", -10_000, "Job 12"),
-        MovementRow("m2", "2026-11-09 08:12", MovementReason.TRANSFER, "Van", 2_500, null),
-        MovementRow("m1", "2026-11-01 17:30", MovementReason.PURCHASE, "Workshop › Shelf A", 50_000, "Order #42"),
+    infoFlags = listOf(previewFlag),
+    history = listOf(
+        HistoryRow.Movement(MovementRow("m3", "2026-11-10 14:57", MovementReason.CONSUMPTION, "Workshop › Shelf A", -10_000, "Job 12")),
+        HistoryRow.InfoFlagged(previewFlag, previewFlag.flaggedAt),
+        HistoryRow.Movement(MovementRow("m2", "2026-11-09 08:12", MovementReason.TRANSFER, "Van", 2_500, null)),
+        HistoryRow.Movement(MovementRow("m1", "2026-11-01 17:30", MovementReason.PURCHASE, "Workshop › Shelf A", 50_000, "Order #42")),
     ),
 )
 

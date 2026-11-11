@@ -39,4 +39,16 @@
     <string name="article_error_category_deleted">Eine gelöschte Kategorie hat bereits diesen Namen</string>
     <string name="article_error_quantity">Geben Sie eine Zahl mit höchstens 3 Dezimalstellen ein</string>
     <string name="article_error_save">Der Artikel konnte nicht gespeichert werden. Versuchen Sie es erneut.</string>
+    <string name="article_info_flag_title">Angaben korrigieren</string>
+    <string name="article_info_flag_no_note">Ohne Notiz</string>
+    <string name="article_info_flag_source">Inventur abgeschlossen am %1$s · %2$s</string>
+    <string name="article_info_flag_unit">Einheit %1$s</string>
+    <string name="article_info_fixed_action">Korrigiert</string>
+    <string name="article_info_fixed_confirm_title">Als korrigiert markieren?</string>
+    <string name="article_info_fixed_confirm_text">Die Markierung verschwindet von dieser Seite. Sie bleibt im Verlauf.</string>
+    <string name="article_info_fixed_confirm">Als korrigiert markieren</string>
+    <string name="article_info_fixed_cancel">Abbrechen</string>
+    <string name="article_history_info_flagged">Angaben zu korrigieren gemeldet</string>
+    <string name="article_history_info_flagged_note">Angaben zu korrigieren gemeldet: %1$s</string>
+    <string name="article_history_info_fixed">Angaben korrigiert</string>
 </resources>

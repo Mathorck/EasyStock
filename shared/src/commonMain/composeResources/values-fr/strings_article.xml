@@ -39,4 +39,16 @@
     <string name="article_error_category_deleted">Une catégorie supprimée porte déjà ce nom</string>
     <string name="article_error_quantity">Entrez un nombre avec 3 décimales au plus</string>
     <string name="article_error_save">Impossible d’enregistrer l’article. Réessayez.</string>
+    <string name="article_info_flag_title">Info à corriger</string>
+    <string name="article_info_flag_no_note">Sans note</string>
+    <string name="article_info_flag_source">Révision terminée le %1$s · %2$s</string>
+    <string name="article_info_flag_unit">Unité %1$s</string>
+    <string name="article_info_fixed_action">Corrigé</string>
+    <string name="article_info_fixed_confirm_title">Marquer comme corrigé ?</string>
+    <string name="article_info_fixed_confirm_text">Le signalement disparaît de cette page. Il reste dans l’historique.</string>
+    <string name="article_info_fixed_confirm">Marquer corrigé</string>
+    <string name="article_info_fixed_cancel">Annuler</string>
+    <string name="article_history_info_flagged">Info à corriger signalée</string>
+    <string name="article_history_info_flagged_note">Info à corriger signalée : %1$s</string>
+    <string name="article_history_info_fixed">Info corrigée</string>
 </resources>
