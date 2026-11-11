@@ -88,11 +88,9 @@ import easystock.shared.generated.resources.ic_info
 import easystock.shared.generated.resources.ic_link
 import easystock.shared.generated.resources.ic_open_in_new
 import easystock.shared.generated.resources.ic_settings
-import easystock.shared.generated.resources.ic_share
 import easystock.shared.generated.resources.app_info_summary_app
 import easystock.shared.generated.resources.app_info_summary_data
 import easystock.shared.generated.resources.app_info_summary_device
-import easystock.shared.generated.resources.app_info_summary_support
 import easystock.shared.generated.resources.settings_app_info
 import easystock.shared.generated.resources.settings_language_english
 import easystock.shared.generated.resources.settings_language_french
@@ -185,10 +183,24 @@ fun AppInfoScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         AppInfoSection.Device,
                         stringResource(Res.string.app_info_summary_device, p.os, p.device),
                     ) { sectionName = AppInfoSection.Device.name }
-                    SectionItem(
-                        AppInfoSection.Support,
-                        stringResource(Res.string.app_info_summary_support),
-                    ) { sectionName = AppInfoSection.Support.name }
+                    Text(
+                        text = stringResource(Res.string.app_info_section_support),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+                    )
+                    ActionRow(
+                        title = stringResource(Res.string.app_info_copy),
+                        icon = Res.drawable.ic_content_copy,
+                        onClick = {
+                            platform.copy(loaded.toReportText())
+                            copied = true
+                        },
+                    )
+                    Note(if (copied) stringResource(Res.string.app_info_copied) else stringResource(Res.string.app_info_privacy))
+                    ActionRow(stringResource(Res.string.app_info_repository), Res.drawable.ic_link) { uriHandler.openUri(REPO_URL) }
+                    ActionRow(stringResource(Res.string.app_info_issues), Res.drawable.ic_open_in_new) { uriHandler.openUri(ISSUES_URL) }
+                    ActionRow(stringResource(Res.string.app_info_license), Res.drawable.ic_description) { uriHandler.openUri(LICENSE_URL) }
                 }
                 AppInfoSection.App -> {
                     InfoRow(stringResource(Res.string.app_info_version), versionValue)
@@ -230,20 +242,6 @@ fun AppInfoScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     )
                     p.freeBytes?.let { InfoRow(stringResource(Res.string.app_info_free_storage), formatBytes(it)) }
                 }
-                AppInfoSection.Support -> {
-                    ActionRow(
-                        title = stringResource(Res.string.app_info_copy),
-                        icon = Res.drawable.ic_content_copy,
-                        onClick = {
-                            platform.copy(loaded.toReportText())
-                            copied = true
-                        },
-                    )
-                    Note(if (copied) stringResource(Res.string.app_info_copied) else stringResource(Res.string.app_info_privacy))
-                    ActionRow(stringResource(Res.string.app_info_repository), Res.drawable.ic_link) { uriHandler.openUri(REPO_URL) }
-                    ActionRow(stringResource(Res.string.app_info_issues), Res.drawable.ic_open_in_new) { uriHandler.openUri(ISSUES_URL) }
-                    ActionRow(stringResource(Res.string.app_info_license), Res.drawable.ic_description) { uriHandler.openUri(LICENSE_URL) }
-                }
             }
         }
     }
@@ -253,7 +251,6 @@ private enum class AppInfoSection(val title: StringResource, val icon: DrawableR
     App(Res.string.app_info_section_app, Res.drawable.ic_info),
     Data(Res.string.app_info_section_data, Res.drawable.ic_folder_open),
     Device(Res.string.app_info_section_device, Res.drawable.ic_settings),
-    Support(Res.string.app_info_section_support, Res.drawable.ic_share),
 }
 
 @Composable
