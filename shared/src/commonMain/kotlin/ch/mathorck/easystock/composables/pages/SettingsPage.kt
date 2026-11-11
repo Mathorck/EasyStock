@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ch.mathorck.easystock.applyAppLanguage
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupService
+import ch.mathorck.easystock.composables.settings.AppInfoScreen
 import ch.mathorck.easystock.viewmodels.BackupStep
 import ch.mathorck.easystock.viewmodels.BackupViewModel
 import kotlinx.coroutines.delay
@@ -65,7 +66,10 @@ import easystock.shared.generated.resources.settings_tags
 import easystock.shared.generated.resources.settings_tags_summary
 import easystock.shared.generated.resources.settings_locations
 import easystock.shared.generated.resources.settings_locations_summary
+import easystock.shared.generated.resources.ic_info
 import easystock.shared.generated.resources.ic_language
+import easystock.shared.generated.resources.settings_app_info
+import easystock.shared.generated.resources.settings_app_info_summary
 import easystock.shared.generated.resources.settings_attributes
 import easystock.shared.generated.resources.settings_backup
 import easystock.shared.generated.resources.settings_backup_summary
@@ -87,7 +91,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Full-screen subpages opened from the settings list. */
-enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup }
+enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo }
 
 @Composable
 fun SettingsPage() {
@@ -106,6 +110,7 @@ fun SettingsPage() {
         SettingsSubpageId.Tags -> TagsScreen(onBack = { subpage = null })
         SettingsSubpageId.Reviews -> ReviewsScreen(onBack = { subpage = null })
         SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
+        SettingsSubpageId.AppInfo -> AppInfoScreen(onBack = { subpage = null })
         null -> SettingsContent(
             language = language,
             onLanguageSelected = {
@@ -187,6 +192,13 @@ fun SettingsContent(
             summary = stringResource(Res.string.settings_backup_summary),
             icon = Res.drawable.ic_backup,
             onClick = { onOpen(SettingsSubpageId.Backup) },
+        )
+
+        SubpageItem(
+            title = stringResource(Res.string.settings_app_info),
+            summary = stringResource(Res.string.settings_app_info_summary),
+            icon = Res.drawable.ic_info,
+            onClick = { onOpen(SettingsSubpageId.AppInfo) },
         )
     }
 

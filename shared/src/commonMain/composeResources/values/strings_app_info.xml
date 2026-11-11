@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_app_info">About and app info</string>
+    <string name="settings_app_info_summary">Version, data counts and device details for bug reports</string>
+    <string name="app_info_section_app">App</string>
+    <string name="app_info_section_data">Data</string>
+    <string name="app_info_section_device">Device</string>
+    <string name="app_info_section_support">Support</string>
+    <string name="app_info_version">Version</string>
+    <string name="app_info_version_value">%1$s (%2$s)</string>
+    <string name="app_info_build_type">Build type</string>
+    <string name="app_info_build_debug">Debug</string>
+    <string name="app_info_build_release">Release</string>
+    <string name="app_info_application_id">Application id</string>
+    <string name="app_info_installed">Installed</string>
+    <string name="app_info_updated">Last updated</string>
+    <string name="app_info_db_version">Database schema version</string>
+    <string name="app_info_backup_format">Backup format version</string>
+    <string name="app_info_counts_note">Counts cover active rows only: soft-deleted rows are not included.</string>
+    <string name="app_info_articles">Articles</string>
+    <string name="app_info_locations">Locations</string>
+    <string name="app_info_items">Items (serial units)</string>
+    <string name="app_info_movements">Stock movements</string>
+    <string name="app_info_tags">NFC tags linked</string>
+    <string name="app_info_open_reviews">Open reviews</string>
+    <string name="app_info_db_size">Database size</string>
+    <string name="app_info_photos">Photos</string>
+    <string name="app_info_photos_value">%1$s (%2$s)</string>
+    <string name="app_info_os">System</string>
+    <string name="app_info_device">Device</string>
+    <string name="app_info_app_language">App language</string>
+    <string name="app_info_system_locale">System locale</string>
+    <string name="app_info_nfc">NFC</string>
+    <string name="app_info_nfc_enabled">Enabled</string>
+    <string name="app_info_nfc_disabled">Disabled</string>
+    <string name="app_info_nfc_absent">Not present</string>
+    <string name="app_info_free_storage">Free storage</string>
+    <string name="app_info_loading">Loading…</string>
+    <string name="app_info_copy">Copy info</string>
+    <string name="app_info_copied">Copied to the clipboard</string>
+    <string name="app_info_privacy">The copied text holds counts and technical details only, no stock contents (no article names, serial numbers or tag IDs). Nothing is sent anywhere.</string>
+    <string name="app_info_repository">GitHub repository</string>
+    <string name="app_info_issues">Report an issue</string>
+    <string name="app_info_license">License (MIT)</string>
+</resources>
