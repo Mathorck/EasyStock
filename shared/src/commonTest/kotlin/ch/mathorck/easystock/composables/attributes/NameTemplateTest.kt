@@ -254,5 +254,51 @@ class NameTemplateTest {
         assertEquals("{k} ab" to 4, insertPlaceholder("ab", -3, -1, "k"))
     }
 
+    // ---------- {category} ----------
+
+    private fun categoryName(template: String, category: String? = "Cordes", definitions: List<AttributeDefinition> = all) =
+        articleNameFromTemplate(template, definitions, rope, MAX_NAME_TEMPLATE_LENGTH, category)
+
+    @Test
+    fun categoryKeyIsValidWithoutAttribute() {
+        assertNull(validateNameTemplate("{category} {diameter}", keys))
+        assertNull(validateNameTemplate("{ category | upper }", emptyList()))
+        // Case-sensitive like the attribute keys
+        assertEquals(NameTemplateError(NameTemplateError.Kind.UNKNOWN_KEY, "Category"), validateNameTemplate("{Category}", keys))
+        assertEquals(NameTemplateError.Kind.UNKNOWN_FILTER, validateNameTemplate("{category|bold}", keys)?.kind)
+    }
+
+    @Test
+    fun categoryKeyRendersTheCategoryName() {
+        assertEquals("Cordes 10.5 mm 50 m", categoryName("{category} {diameter} {length}"))
+        assertEquals("Static Cordes", categoryName("{rope_type} {category}"))
+    }
+
+    @Test
+    fun categoryKeyTakesFilters() {
+        assertEquals("CORDES", categoryName("{category|upper}"))
+        assertEquals("X cordes", categoryName("x {category|lower}"))
+        assertEquals("X Cordes", categoryName("x {category|capitalize}", "cordes"))
+        assertEquals("X cordes", categoryName("x {category|raw}", "cordes"))
+        // A unit filter is ignored
+        assertEquals("Cordes", categoryName("{category|mm}"))
+        assertEquals("CORDES", categoryName("{category|cm|raw|upper}"))
+    }
+
+    @Test
+    fun categoryKeyWithoutCategoryNameIsEmpty() {
+        assertEquals("Static rope", categoryName("{category} - {rope_type} rope", category = null))
+        assertEquals("Static", categoryName("{rope_type} ({category})", category = " "))
+    }
+
+    @Test
+    fun categoryAttributeWinsOverTheCategoryName() {
+        val legacy = def("category", AttributeDataType.TEXT, "Category")
+        val values = rope + ("category" to JsonPrimitive("climbing"))
+        assertEquals("Climbing 10.5 mm", articleNameFromTemplate("{category} {diameter}", all + legacy, values, categoryName = "Cordes"))
+        // The attribute without value is empty, not the category name
+        assertEquals("10.5 mm", articleNameFromTemplate("{category} {diameter}", all + legacy, rope, categoryName = "Cordes"))
+    }
+
     private operator fun JsonObject.plus(pair: Pair<String, JsonElement>) = JsonObject(this.toMap() + pair)
 }

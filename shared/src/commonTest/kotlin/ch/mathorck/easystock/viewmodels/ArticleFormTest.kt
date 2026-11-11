@@ -306,6 +306,13 @@ class ArticleFormTest {
     }
 
     @Test
+    fun templateNameUsesTheCategoryName() {
+        val named = categories + ropes.copy(nameTemplate = "{category} {length}")
+        assertEquals("Ropes 50 m", ropeForm.templateName(named, ropeAttributes))
+        assertEquals("Cordes 50 m", ropeForm.templateName(categories + ropes.copy(name = "Cordes", nameTemplate = "{category} {length}"), ropeAttributes))
+    }
+
+    @Test
     fun templateNameIsEmptyWithoutValues() {
         assertEquals("Rope", ropeForm.copy(attributes = null).templateName(withTemplate, ropeAttributes))
         assertEquals("", ropeForm.copy(attributes = null).templateName(categories + ropes.copy(nameTemplate = "{type}"), ropeAttributes))

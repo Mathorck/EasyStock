@@ -82,7 +82,7 @@
     <string name="category_template_title">Article name template</string>
     <string name="category_template_advanced">Advanced</string>
     <string name="category_template_summary">Article name template: %1$s</string>
-    <string name="category_template_hint">Builds the article names from the attributes: {key} is replaced by the value. Filters: {key|raw} (number without unit), |upper, |lower, |capitalize, a unit to convert a measurement ({key|mm}). Empty values are left out.</string>
+    <string name="category_template_hint">Builds the article names from the attributes: {key} is replaced by the value, {category} by the category name. Filters: {key|raw} (number without unit), |upper, |lower, |capitalize, a unit to convert a measurement ({key|mm}). Empty values are left out.</string>
     <string name="category_template_label">Template</string>
     <string name="category_template_keys">Attributes (tap to insert)</string>
     <string name="category_template_no_keys">Add attributes to the category to use them in the name.</string>

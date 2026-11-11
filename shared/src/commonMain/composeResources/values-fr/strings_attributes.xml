@@ -82,7 +82,7 @@
     <string name="category_template_title">Modèle de nom d’article</string>
     <string name="category_template_advanced">Avancé</string>
     <string name="category_template_summary">Modèle de nom d’article : %1$s</string>
-    <string name="category_template_hint">Construit le nom des articles à partir des attributs : {clé} est remplacé par la valeur. Filtres : {clé|raw} (nombre sans unité), |upper, |lower, |capitalize, une unité pour convertir une mesure ({clé|mm}). Les valeurs vides sont omises.</string>
+    <string name="category_template_hint">Construit le nom des articles à partir des attributs : {clé} est remplacé par la valeur, {category} par le nom de la catégorie. Filtres : {clé|raw} (nombre sans unité), |upper, |lower, |capitalize, une unité pour convertir une mesure ({clé|mm}). Les valeurs vides sont omises.</string>
     <string name="category_template_label">Modèle</string>
     <string name="category_template_keys">Attributs (toucher pour insérer)</string>
     <string name="category_template_no_keys">Ajoutez des attributs à la catégorie pour les utiliser dans le nom.</string>

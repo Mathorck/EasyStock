@@ -112,8 +112,9 @@ fun ArticleForm.withTypedName(name: String): ArticleForm = copy(name = name, nam
 /** Name of the article from the template of its category, null when the chosen category has no valid template. */
 fun ArticleForm.templateName(categories: List<Category>, attributes: List<CategoryAttributeWithDefinition>): String? {
     if (categoryMode != CategoryMode.EXISTING) return null
-    val template = categories.firstOrNull { it.id == categoryId }?.nameTemplate ?: return null
-    return articleNameFromTemplate(template, attributes.map { it.definition }, this.attributes, MAX_NAME_LENGTH)
+    val category = categories.firstOrNull { it.id == categoryId } ?: return null
+    val template = category.nameTemplate ?: return null
+    return articleNameFromTemplate(template, attributes.map { it.definition }, this.attributes, MAX_NAME_LENGTH, category.name)
 }
 
 /** One error per field, null when the field is valid. */

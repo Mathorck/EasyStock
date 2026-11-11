@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
+import ch.mathorck.easystock.composables.attributes.CATEGORY_TEMPLATE_KEY
 import ch.mathorck.easystock.composables.attributes.MeasureUnits
 import ch.mathorck.easystock.composables.attributes.NameTemplateError
 import ch.mathorck.easystock.composables.attributes.articleNameFromTemplate
@@ -56,10 +57,11 @@ fun attributeKeySlug(label: String): String {
 /**
  * Unique key for a new attribute: the slug of [label], suffixed "_2", "_3"... when it is taken.
  * [existingKeys] must include soft-deleted definitions: a reused key would revive their old values.
+ * The built-in template key [CATEGORY_TEMPLATE_KEY] is never given ("Category" -> "category_2").
  * The result never exceeds [MAX_ATTRIBUTE_KEY_LENGTH] chars.
  */
 fun newAttributeKey(label: String, existingKeys: Collection<String>): String {
-    val taken = existingKeys.toHashSet()
+    val taken = existingKeys.toHashSet() + CATEGORY_TEMPLATE_KEY
     val base = attributeKeySlug(label)
     if (base !in taken) return base
     var n = 2
@@ -80,6 +82,23 @@ data class CategoryAttributeWithDefinition(
 
 /** One wanted link of a category, see [AttributeDao.setCategoryAttributes]. */
 data class CategoryAttributeInput(val attributeId: String, val required: Boolean)
+
+/**
+ * New names of the [articles] that follow the template of [category] (`name_auto`), rendered with its active
+ * attribute [definitions] and its current name. Only changed, non-empty names are returned (an empty result
+ * keeps the old name). Empty without template.
+ */
+fun autoNameChanges(category: Category, definitions: Collection<AttributeDefinition>, articles: List<Article>): Map<String, String> {
+    val template = category.nameTemplate ?: return emptyMap()
+    return articles
+        .filter { it.nameAuto && it.deletedAt == null }
+        .mapNotNull { article ->
+            articleNameFromTemplate(template, definitions, article.attributes, MAX_NAME_LENGTH, category.name)
+                ?.takeIf { it.isNotEmpty() && it != article.name }
+                ?.let { article.id to it }
+        }
+        .toMap()
+}
 
 /** The name template does not match the attributes of the category. Nothing is saved. */
 class InvalidNameTemplateException(val error: NameTemplateError) : IllegalArgumentException("Invalid name template: $error")
@@ -329,17 +348,11 @@ abstract class AttributeDao {
     @Transaction
     open suspend fun renameAutoNamedArticles(categoryId: String, now: Long): Int {
         val category = getActiveCategory(categoryId) ?: return 0
-        val template = category.nameTemplate ?: return 0
+        if (category.nameTemplate == null) return 0
         val definitions = getCategoryAttributes(categoryId).map { it.definition }
-        var renamed = 0
-        autoNamedArticles(categoryId).forEach { article ->
-            val name = articleNameFromTemplate(template, definitions, article.attributes, MAX_NAME_LENGTH)
-            if (!name.isNullOrEmpty() && name != article.name) {
-                renameArticleRow(article.id, name, now)
-                renamed++
-            }
-        }
-        return renamed
+        val changes = autoNameChanges(category, definitions, autoNamedArticles(categoryId))
+        changes.forEach { (id, name) -> renameArticleRow(id, name, now) }
+        return changes.size
     }
 
     /**

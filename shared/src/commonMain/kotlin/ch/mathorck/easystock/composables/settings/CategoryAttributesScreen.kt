@@ -52,6 +52,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import ch.mathorck.easystock.composables.attributes.CATEGORY_TEMPLATE_KEY
 import ch.mathorck.easystock.composables.attributes.MAX_NAME_TEMPLATE_LENGTH
 import ch.mathorck.easystock.composables.attributes.NameTemplateError
 import ch.mathorck.easystock.composables.attributes.insertPlaceholder
@@ -209,7 +210,7 @@ fun CategoryAttributesContent(
                 HorizontalDivider()
                 NameTemplateSection(
                     template = state.template,
-                    keys = state.rows.map { it.definition.key },
+                    keys = templateKeys(state.rows.map { it.definition.key }),
                     enabled = !state.saving,
                     onTemplateChange = onTemplateChange,
                     onApplyToAllChange = onApplyToAllChange,
@@ -385,26 +386,24 @@ private fun NameTemplateSection(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (keys.isEmpty()) {
-            EmptyHintText(stringResource(Res.string.category_template_no_keys))
-        } else {
-            Text(stringResource(Res.string.category_template_keys), style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                keys.forEach { key ->
-                    AssistChip(
-                        onClick = {
-                            val (text, cursor) = insertPlaceholder(field.text, field.selection.min, field.selection.max, key)
-                            if (text.length <= MAX_NAME_TEMPLATE_LENGTH) {
-                                field = TextFieldValue(text, TextRange(cursor))
-                                send(text)
-                            }
-                        },
-                        label = { Text("{$key}") },
-                        enabled = enabled,
-                    )
-                }
+        Text(stringResource(Res.string.category_template_keys), style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            keys.forEach { key ->
+                AssistChip(
+                    onClick = {
+                        val (text, cursor) = insertPlaceholder(field.text, field.selection.min, field.selection.max, key)
+                        if (text.length <= MAX_NAME_TEMPLATE_LENGTH) {
+                            field = TextFieldValue(text, TextRange(cursor))
+                            send(text)
+                        }
+                    },
+                    label = { Text("{$key}") },
+                    enabled = enabled,
+                )
             }
         }
+        // Only {category}: no attribute yet
+        if (keys.all { it == CATEGORY_TEMPLATE_KEY }) EmptyHintText(stringResource(Res.string.category_template_no_keys))
         if (template.text.isNotBlank() && template.manualNameCount > 0) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -419,6 +418,9 @@ private fun NameTemplateSection(
         }
     }
 }
+
+/** Keys offered as chips: the built-in {category} first, then the attributes (an attribute "category" is listed once). */
+private fun templateKeys(attributeKeys: List<String>): List<String> = (listOf(CATEGORY_TEMPLATE_KEY) + attributeKeys).distinct()
 
 @Composable
 private fun NameTemplateError.message(): String = when (kind) {

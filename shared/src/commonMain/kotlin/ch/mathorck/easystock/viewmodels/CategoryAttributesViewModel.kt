@@ -68,7 +68,7 @@ data class NameTemplateState(
 
 /**
  * The template part of the screen. [sampleArticle]: last edited article of the category with values; without it,
- * example values ([sampleAttributeValues]) are used.
+ * example values ([sampleAttributeValues]) are used. [categoryName] fills {category}.
  */
 fun nameTemplateState(
     text: String,
@@ -76,6 +76,7 @@ fun nameTemplateState(
     sampleArticle: Article?,
     manualNameCount: Int,
     applyToAll: Boolean,
+    categoryName: String? = null,
 ): NameTemplateState {
     val error = validateNameTemplate(text, definitions.map { it.key })
     val source = if (sampleArticle?.attributes != null) NameTemplateState.PreviewSource.ARTICLE else NameTemplateState.PreviewSource.SAMPLE
@@ -83,7 +84,7 @@ fun nameTemplateState(
     return NameTemplateState(
         text = text,
         error = error,
-        preview = if (error == null) articleNameFromTemplate(text, definitions, values, MAX_NAME_LENGTH) else null,
+        preview = if (error == null) articleNameFromTemplate(text, definitions, values, MAX_NAME_LENGTH, categoryName) else null,
         previewSource = source,
         manualNameCount = manualNameCount,
         applyToAll = applyToAll && text.isNotBlank(),
@@ -168,6 +169,7 @@ class CategoryAttributesViewModel(
         val templateText = templateDraft.text ?: storedTemplate
         val template = nameTemplateState(
             templateText, rows.map { it.definition }, stored.sampleArticle, stored.manualNameCount, templateDraft.applyToAll,
+            stored.category?.name,
         )
         CategoryAttributesUiState(
             loading = false,

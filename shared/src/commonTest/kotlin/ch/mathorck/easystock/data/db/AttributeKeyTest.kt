@@ -53,4 +53,11 @@ class AttributeKeyTest {
         assertEquals(MAX_ATTRIBUTE_KEY_LENGTH, next.length)
         assertTrue(next.endsWith("_13"))
     }
+
+    @Test
+    fun categoryKeyIsReservedForTemplates() {
+        assertEquals("category_2", newAttributeKey("Category", emptyList()))
+        assertEquals("category_3", newAttributeKey("category", listOf("category_2")))
+        assertEquals("kategorie", newAttributeKey("Kategorie", emptyList()))
+    }
 }

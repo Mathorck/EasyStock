@@ -111,6 +111,33 @@ class NameTemplateDaoTest {
     }
 
     @Test
+    fun renamingTheCategoryRenamesItsTemplateNames() = runBlocking<Unit> {
+        save("{category} {diameter} {length}")
+        article("auto", name = "Ropes 10.5 mm 50 m")
+        article("typed", name = "My rope", nameAuto = false)
+        article("deleted", name = "Ropes 10.5 mm 50 m", deletedAt = 5)
+
+        assertEquals(1, db.categoryDao().rename("ropes", "Cordes", 60))
+
+        assertEquals("Cordes", ropes().name)
+        with(stored("auto")) {
+            assertEquals("Cordes 10.5 mm 50 m", name)
+            assertEquals(60, updatedAt)
+        }
+        with(stored("typed")) {
+            assertEquals("My rope", name)
+            assertEquals(1, updatedAt)
+        }
+        // Without {category} in the template nothing changes
+        save("{diameter} {length}", now = 70)
+        assertEquals(0, db.categoryDao().rename("ropes", "Seile", 80))
+        assertEquals("10.5 mm 50 m", stored("auto").name)
+        // A failed rename renames nothing
+        assertFailsWith<DuplicateCategoryNameException> { db.categoryDao().rename("ropes", "Other", 90) }
+        assertEquals(70, stored("auto").updatedAt)
+    }
+
+    @Test
     fun unchangedNamesAreNotWritten() = runBlocking<Unit> {
         article("auto", name = "Static rope 10.5 mm 50 m")
 

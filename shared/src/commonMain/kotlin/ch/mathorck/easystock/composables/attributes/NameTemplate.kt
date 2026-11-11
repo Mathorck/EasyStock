@@ -15,6 +15,9 @@ import kotlinx.serialization.json.JsonPrimitive
 //   {key|filter}   filters, applied left to right: raw (number without unit), upper, lower, capitalize
 //   {key|mm}       a unit: a measure (or a number with a known unit) converted to it ("50 m" -> "50000 mm").
 //                  Ignored for other values and other families. Combines with raw: {key|cm|raw} -> "5000"
+//   {category}     current name of the article's category. Built in: valid without attribute. An attribute
+//                  whose key is "category" (created before this key existed) wins over it; new attributes
+//                  never get this key (see newAttributeKey). Filters apply, a unit filter is ignored.
 //   {{ and }}      literal braces
 // Spaces inside the braces are ignored ("{ diameter | raw }").
 //
@@ -22,6 +25,9 @@ import kotlinx.serialization.json.JsonPrimitive
 //   - An empty value (unset, blank, false bool) drops its placeholder, with the separator it leaves
 //     behind ("{a} - {b} - {c}" without b -> "A - C"), and an empty bracket pair ("{a} ({b})" -> "A").
 //   - Runs of spaces collapse to one, the result is trimmed, its first letter is upper-cased.
+
+/** Built-in placeholder key: the name of the category. See [articleNameFromTemplate]. */
+const val CATEGORY_TEMPLATE_KEY = "category"
 
 /** Max length of a template (same as the article name, see docs/schema.dbml). */
 const val MAX_NAME_TEMPLATE_LENGTH = 255
@@ -62,7 +68,7 @@ data class NameTemplateError(val kind: Kind, val detail: String? = null) {
     enum class Kind {
         /** Unclosed "{", single "}", or a placeholder without key ("{}", "{|upper}"). */
         SYNTAX,
-        /** No attribute of the category has this key. */
+        /** No attribute of the category has this key (and it is not [CATEGORY_TEMPLATE_KEY]). */
         UNKNOWN_KEY,
         UNKNOWN_FILTER,
         TOO_LONG,
@@ -119,14 +125,15 @@ private fun invalid(kind: NameTemplateError.Kind, detail: String? = null) =
     NameTemplateParseResult.Invalid(NameTemplateError(kind, detail))
 
 /**
- * Checks [text] against the keys of the category's attributes. A blank text means "no template" and is valid.
+ * Checks [text] against the keys of the category's attributes, plus the built-in [CATEGORY_TEMPLATE_KEY].
+ * A blank text means "no template" and is valid.
  * Returns the first error, null when valid.
  */
 fun validateNameTemplate(text: String, keys: Collection<String>): NameTemplateError? {
     if (text.isBlank()) return null
     return when (val result = parseNameTemplate(text.trim())) {
         is NameTemplateParseResult.Invalid -> result.error
-        is NameTemplateParseResult.Valid -> result.template.keys.firstOrNull { it !in keys }
+        is NameTemplateParseResult.Valid -> result.template.keys.firstOrNull { it !in keys && it != CATEGORY_TEMPLATE_KEY }
             ?.let { NameTemplateError(NameTemplateError.Kind.UNKNOWN_KEY, it) }
     }
 }
@@ -169,7 +176,8 @@ fun NameTemplate.render(value: (NameTemplatePart.Placeholder) -> String?): Strin
 
 /**
  * Name of an article from [template] and its attribute [values]. [definitions]: active attributes of its category;
- * a key without definition renders as empty. Returns null without valid template, the name otherwise
+ * a key without definition renders as empty, except [CATEGORY_TEMPLATE_KEY] which renders [categoryName]
+ * (an attribute with that key wins). Returns null without valid template, the name otherwise
  * (possibly empty), cut to [maxLength].
  */
 fun articleNameFromTemplate(
@@ -177,11 +185,13 @@ fun articleNameFromTemplate(
     definitions: Collection<AttributeDefinition>,
     values: JsonObject?,
     maxLength: Int = MAX_NAME_TEMPLATE_LENGTH,
+    categoryName: String? = null,
 ): String? {
     val parsed = nameTemplateOrNull(template) ?: return null
     val byKey = definitions.associateBy { it.key }
     return parsed.render { placeholder ->
-        val definition = byKey[placeholder.key] ?: return@render null
+        val definition = byKey[placeholder.key]
+            ?: return@render categoryName.takeIf { placeholder.key == CATEGORY_TEMPLATE_KEY }
         val value = values.attributeValue(placeholder.key)
         val text = placeholder.unit?.let { convertedAttributeText(definition, value, it) }
             ?: formatAttributeValue(definition, value)

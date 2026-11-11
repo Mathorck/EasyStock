@@ -82,7 +82,7 @@
     <string name="category_template_title">Vorlage für Artikelnamen</string>
     <string name="category_template_advanced">Erweitert</string>
     <string name="category_template_summary">Vorlage für Artikelnamen: %1$s</string>
-    <string name="category_template_hint">Bildet die Artikelnamen aus den Attributen: {Schlüssel} wird durch den Wert ersetzt. Filter: {Schlüssel|raw} (Zahl ohne Einheit), |upper, |lower, |capitalize, eine Einheit zum Umrechnen eines Messwerts ({Schlüssel|mm}). Leere Werte werden weggelassen.</string>
+    <string name="category_template_hint">Bildet die Artikelnamen aus den Attributen: {Schlüssel} wird durch den Wert ersetzt, {category} durch den Kategorienamen. Filter: {Schlüssel|raw} (Zahl ohne Einheit), |upper, |lower, |capitalize, eine Einheit zum Umrechnen eines Messwerts ({Schlüssel|mm}). Leere Werte werden weggelassen.</string>
     <string name="category_template_label">Vorlage</string>
     <string name="category_template_keys">Attribute (antippen zum Einfügen)</string>
     <string name="category_template_no_keys">Fügen Sie der Kategorie Attribute hinzu, um sie im Namen zu verwenden.</string>

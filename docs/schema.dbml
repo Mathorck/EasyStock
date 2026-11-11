@@ -21,7 +21,7 @@ Table category [headercolor: #175e7a] {
   id uuid [pk]
   name varchar(100) [not null, unique]
   description text
-  name_template text [note: 'Article name built from attribute values, e.g. "{rope_type} rope {diameter} {length}". Placeholders are attribute_definition.key']
+  name_template text [note: 'Article name built from attribute values, e.g. "{rope_type} rope {diameter} {length}". Placeholders are attribute_definition.key, plus the built-in {category} (the category name)']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp

@@ -15,6 +15,14 @@ class CatalogueFormsTest {
     )
 
     @Test
+    fun templatePreviewShowsTheCategoryName() {
+        val state = nameTemplateState("{category} {length}", listOf(length), null, 0, false, "Cordes")
+        assertNull(state.error)
+        assertEquals("Cordes 10 m", state.preview)
+        assertNull(nameTemplateState("{category}", emptyList(), null, 0, false, "Cordes").error)
+    }
+
+    @Test
     fun attributeFormRules() {
         assertEquals(CatalogueError.REQUIRED, AttributeForm(label = " ").validate(emptyList(), null).label)
         assertEquals(CatalogueError.DUPLICATE, AttributeForm(label = "length ").validate(listOf(length), null).label)
