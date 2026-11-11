@@ -148,6 +148,12 @@ Roles in the app
 * Guests do not see the movement history section on the article screen, nor the Reviews screen.
 * Viewers see the history with the author's display name taken from `server_user`.
 * If a role changes while offline, the app updates the buttons at the next `GET /me`.
+* The roles and their rights below are an assumption, to confirm with the server spec (`auth/Permissions.kt`):
+  * Admin: everything, the admin screens included.
+  * Editor: stock actions, edit, delete, tag linking, reviews, settings screens, history, alerts. No admin screens.
+  * Viewer: reads the stock, the history and the reviews, can turn alerts on. Changes nothing, pushes nothing.
+  * Guest: reads the stock only. No history, no reviews, no alerts.
+  * A role unknown to the app version (newer server) gets the Guest rights.
 
 Rejected changes screen
 
