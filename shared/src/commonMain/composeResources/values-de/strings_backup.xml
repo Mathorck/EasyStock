@@ -121,5 +121,4 @@
     <string name="backup_error_unreachable">Das andere Telefon ist nicht erreichbar. Prüfen Sie, ob beide Telefone im selben WLAN sind und der Code noch angezeigt wird.</string>
     <string name="backup_error_timeout">Das andere Telefon antwortet nicht mehr. Versuchen Sie es erneut.</string>
     <string name="backup_error_failed">Die Datei konnte nicht gelesen oder geschrieben werden. Prüfen Sie den freien Speicher und versuchen Sie es erneut.</string>
-    <string name="backup_error_server_mode_unavailable">Dies ist ein EasyStock-Servercode. Der Servermodus ist in dieser App-Version noch nicht verfügbar.</string>
 </resources>

@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +68,7 @@ import ch.mathorck.easystock.backup.rememberBackupFiles
 import ch.mathorck.easystock.backup.rememberIsChangingConfigurations
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.backup.rowCount
+import ch.mathorck.easystock.server.JoinCode
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.BackupStep
 import ch.mathorck.easystock.viewmodels.BackupUiState
@@ -95,7 +97,6 @@ import easystock.shared.generated.resources.backup_done_updated
 import easystock.shared.generated.resources.backup_downloading
 import easystock.shared.generated.resources.backup_error_damaged
 import easystock.shared.generated.resources.backup_error_failed
-import easystock.shared.generated.resources.backup_error_server_mode_unavailable
 import easystock.shared.generated.resources.backup_error_newer_version
 import easystock.shared.generated.resources.backup_error_not_a_backup
 import easystock.shared.generated.resources.backup_error_not_on_wifi
@@ -198,10 +199,16 @@ import org.jetbrains.compose.resources.stringResource
  * [onBack] runs on the arrow and the system back, once the screen is back at its start.
  */
 @Composable
-fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier, onJoinCode: (JoinCode) -> Unit = {}) {
     val service = rememberBackupService()
     val viewModel = viewModel(key = "settings-backup") { BackupViewModel(service) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // A server code scanned here: Settings › Server takes it
+    LaunchedEffect(state.joinCode) {
+        val code = state.joinCode ?: return@LaunchedEffect
+        viewModel.joinCodeHandled()
+        onJoinCode(code)
+    }
     var saved by remember { mutableStateOf(false) }
     val files = rememberBackupFiles(
         onOpened = viewModel::fileOpened,
@@ -642,7 +649,6 @@ internal fun BackupError.message(): StringResource = when (this) {
     BackupError.UNREACHABLE -> Res.string.backup_error_unreachable
     BackupError.TIMEOUT -> Res.string.backup_error_timeout
     BackupError.FAILED -> Res.string.backup_error_failed
-    BackupError.SERVER_MODE_UNAVAILABLE -> Res.string.backup_error_server_mode_unavailable
 }
 
 @Composable

@@ -246,4 +246,19 @@ class BackupViewModelTest {
 
         assertIs<BackupStep.Done>(viewModel.state.value.step)
     }
+
+    /** A server code scanned in the backup screen goes to the connect screen, nothing is reported. */
+    @Test
+    fun aServerCodeIsHandedOver() {
+        viewModel.scan()
+        viewModel.scanned("easystock://invite?server=https://nas.example&token=abc")
+
+        val state = viewModel.state.value
+        assertEquals(ch.mathorck.easystock.server.JoinCode("https://nas.example", ch.mathorck.easystock.server.JoinKind.INVITE, "abc"), state.joinCode)
+        assertNull(state.error)
+        assertEquals(BackupStep.Home, state.step)
+
+        viewModel.joinCodeHandled()
+        assertNull(viewModel.state.value.joinCode)
+    }
 }

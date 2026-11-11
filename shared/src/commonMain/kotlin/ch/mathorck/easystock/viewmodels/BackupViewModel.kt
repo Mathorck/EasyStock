@@ -16,6 +16,7 @@ import ch.mathorck.easystock.backup.ScannedQr
 import ch.mathorck.easystock.backup.WifiSender
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.WifiTicket
+import ch.mathorck.easystock.server.JoinCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,8 @@ data class BackupUiState(
     val step: BackupStep = BackupStep.Home,
     /** Shown in a dialog, the step stays. */
     val error: BackupError? = null,
+    /** A server join code was scanned: the screen hands it to Settings › Server, then [BackupViewModel.joinCodeHandled]. */
+    val joinCode: JoinCode? = null,
 )
 
 /**
@@ -96,6 +99,8 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
         _state.update { BackupUiState(step = step, error = error) }
 
     fun dismissError() = _state.update { it.copy(error = null) }
+
+    fun joinCodeHandled() = _state.update { it.copy(joinCode = null) }
 
     /** A failure outside the view model (file picker, share sheet): shown, the step stays. */
     fun reportError(error: BackupError) = _state.update { it.copy(error = error) }
@@ -197,8 +202,8 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
         when (scanned) {
             is ScannedQr.Data -> received(ImportInput.Qr(scanned.payload))
             is ScannedQr.Wifi -> download(scanned.ticket)
-            // Server mode is not available yet: the code is read, then reported
-            is ScannedQr.Join -> fail(BackupError.SERVER_MODE_UNAVAILABLE, BackupStep.Home)
+            // Not a backup: the connect screen takes it
+            is ScannedQr.Join -> _state.value = BackupUiState(step = BackupStep.Home, joinCode = scanned.code)
         }
     }
 
