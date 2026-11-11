@@ -82,6 +82,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reviewDao(): ReviewDao
     abstract fun tagDao(): TagDao
     abstract fun appInfoDao(): AppInfoDao
+    abstract fun sessionDao(): SessionDao
 }
 
 // Implemented by the Room compiler on each platform

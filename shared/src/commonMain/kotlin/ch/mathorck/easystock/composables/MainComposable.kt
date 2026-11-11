@@ -16,6 +16,12 @@ import easystock.shared.generated.resources.app_info_reset_done
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ch.mathorck.easystock.auth.AppPermissions
+import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.data.db.rememberAppDatabase
+import kotlinx.coroutines.flow.map
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,6 +36,17 @@ import ch.mathorck.easystock.nfc.NfcReaderHost
 
 @Composable
 fun MainComposable() {
+    val db = rememberAppDatabase()
+    // Standalone (no sync_state row) until the database answers, and for good on a standalone phone
+    val permissionsFlow = remember(db) { db.sessionDao().observeRole().map(AppPermissions::fromStoredRole) }
+    val permissions by permissionsFlow.collectAsStateWithLifecycle(AppPermissions.Standalone)
+    CompositionLocalProvider(LocalPermissions provides permissions) {
+        MainContent()
+    }
+}
+
+@Composable
+private fun MainContent() {
     var page by rememberSaveable { mutableStateOf(Page.Scan) }
     // Runs the NFC reader while a screen waits for a tag
     NfcReaderHost()

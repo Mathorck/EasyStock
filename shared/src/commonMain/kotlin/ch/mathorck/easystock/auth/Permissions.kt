@@ -2,7 +2,7 @@ package ch.mathorck.easystock.auth
 
 /**
  * Role of the user on a server (server mode only). Stored lowercase in `sync_state.role`.
- * The names are an assumption until the server spec is written (docs/server-mode/02-app.md, "Roles").
+ * Confirmed roles, see docs/server-mode/02-app.md, "Roles in the app".
  */
 enum class Role(val dbValue: String) {
     /** Everything, including the administration screens. */
@@ -64,9 +64,9 @@ enum class Action {
 }
 
 /**
- * What each role can do, matching the server rules (to confirm with the server spec).
+ * What each role can do, matching the server rules (docs/server-mode/02-app.md, "Roles in the app").
  * Standalone mode: everything is allowed, nothing changes for standalone users.
- * Not wired into the UI yet.
+ * The UI reads it through [AppPermissions] and [LocalPermissions].
  */
 object Permissions {
     private val READ = setOf(Action.VIEW_STOCK, Action.VIEW_HISTORY, Action.VIEW_REVIEWS, Action.RECEIVE_ALERTS)
