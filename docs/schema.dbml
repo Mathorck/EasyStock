@@ -135,6 +135,8 @@ Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or
   comment text
   occurred_at timestamp [not null, note: 'When it happened (may be offline)']
   created_at timestamp [not null, note: 'When it was recorded']
+  created_by uuid [note: 'Set by the server in server mode: the user who recorded it. Null in standalone mode and on Guest phones']
+  device_id uuid [note: 'Set by the server in server mode: the device that recorded it. Null in standalone mode and on Guest phones']
 
   indexes {
     (article_id, location_id)
@@ -188,4 +190,57 @@ Table stock_review_line [headercolor: #6a1b9a, note: 'One position to check: an 
     found_location_id
     updated_at
   }
+}
+
+// ---------- Server mode (app only) ----------
+// These tables live only on the phone: never synced, never in a backup, empty in standalone mode.
+// SQLite only (the server has its own tables, see docs/server-mode).
+
+Table sync_state [headercolor: #455a64, note: 'App only. One row (id = 1) while this phone is connected to a server, no row in standalone mode. Its presence turns the outbox triggers on'] {
+  id integer [pk, note: 'Always 1']
+  server_url text [not null]
+  cert_fingerprint varchar(64) [note: 'SHA-256 of the self-signed server certificate (lowercase hex). Null for HTTP or a normally trusted certificate']
+  user_id uuid [not null]
+  role varchar(20) [not null, note: 'admin | editor | viewer | guest']
+  since bigint [not null, default: 0, note: 'Pull cursor given by the server. 0 = pull everything']
+  last_sync_at timestamp
+  applying boolean [not null, default: false, note: 'Set while the sync engine writes pulled rows: the outbox triggers do nothing']
+}
+
+Table outbox [headercolor: #455a64, note: 'App only. One row per local change waiting to be pushed, filled by AFTER INSERT / AFTER UPDATE triggers on the 9 synced tables (only when sync_state exists and applying is false). A row already waiting is not added again'] {
+  table_name varchar(40) [not null]
+  row_id uuid [not null]
+  changed_at timestamp [not null, note: 'First change since the last push']
+
+  indexes {
+    (table_name, row_id) [pk]
+    changed_at
+  }
+}
+
+Table server_user [headercolor: #455a64, note: 'App only. Users of the server, to show who made each movement'] {
+  user_id uuid [pk]
+  display_name text [not null]
+}
+
+Table low_stock_alert [headercolor: #455a64, note: 'App only. Received from the server, never created on the phone'] {
+  id uuid [pk, note: 'Alert id given by the server']
+  article_id uuid [not null, note: 'No foreign key: an alert may arrive before its article']
+  crossed_at timestamp [not null, note: 'When the stock went below the threshold']
+  stock decimal(12,3) [not null, note: 'Stock at that time']
+  notified boolean [not null, default: false]
+
+  indexes {
+    article_id
+    notified
+  }
+}
+
+Table rejected_change [headercolor: #455a64, note: 'App only. A local change the server did not accept, for the "Changes not accepted" list'] {
+  id uuid [pk]
+  table_name varchar(40) [not null]
+  row_id uuid [not null]
+  reason varchar(30) [not null, note: 'Reason code given by the server (forbidden | conflict | invalid ...)']
+  rejected_at timestamp [not null]
+  seen_at timestamp [note: 'When the user saw it in the list. Null = counted in the Settings badge']
 }
