@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.viewmodels
 
+import ch.mathorck.easystock.data.db.TagOwner
+import ch.mathorck.easystock.data.db.TagTarget
 import ch.mathorck.easystock.nfc.TagEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +19,7 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TagLinkViewModelTest {
-    private val tags = FakeArticleTags(
+    private val tags = FakeTagStore(
         tagged("drill", "Drill", barcode = "AA01"),
         tagged("bolt", "Bolt"),
     )
@@ -26,7 +28,7 @@ class TagLinkViewModelTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        vm = TagLinkViewModel("bolt", tags, fixedClock)
+        vm = TagLinkViewModel(TagTarget.OfArticle("bolt"), tags, fixedClock)
     }
 
     @AfterTest
@@ -74,7 +76,7 @@ class TagLinkViewModelTest {
         vm.onTag(TagEvent.Read("AA01"))
 
         val request = assertNotNull(state.moveRequest)
-        assertEquals("drill", request.owner.id)
+        assertEquals(TagTarget.OfArticle("drill"), request.owner.target)
         assertFalse(state.acceptsTags)
         assertEquals("AA01", tags.get("drill").barcode)
 
@@ -108,7 +110,7 @@ class TagLinkViewModelTest {
 
     @Test
     fun removeClearsTheTag() {
-        val drill = TagLinkViewModel("drill", tags, fixedClock)
+        val drill = TagLinkViewModel(TagTarget.OfArticle("drill"), tags, fixedClock)
         drill.removeTag()
 
         assertNull(tags.get("drill").barcode)
@@ -121,5 +123,50 @@ class TagLinkViewModelTest {
         vm.removeTag()
 
         assertTrue(state.removeFailed)
+    }
+
+    @Test
+    fun locationTagIsLinkedToALocation() {
+        tags.locations.value = listOf(place("crate", "Crate"))
+        val crate = TagLinkViewModel(TagTarget.OfLocation("crate"), tags, fixedClock)
+        crate.start()
+        crate.onTag(TagEvent.Read("FF00"))
+
+        assertEquals("FF00", tags.location("crate").barcode)
+        assertFalse(crate.state.value.waiting)
+
+        crate.removeTag()
+        assertNull(tags.location("crate").barcode)
+    }
+
+    @Test
+    fun articleTagMovesToALocationAfterConfirmation() {
+        tags.locations.value = listOf(place("crate", "Crate"))
+        val crate = TagLinkViewModel(TagTarget.OfLocation("crate"), tags, fixedClock)
+        crate.start()
+        crate.onTag(TagEvent.Read("AA01"))
+
+        val request = assertNotNull(crate.state.value.moveRequest)
+        assertTrue(request.owner is TagOwner.OfArticle)
+        assertEquals("AA01", tags.get("drill").barcode)
+        assertNull(tags.location("crate").barcode)
+
+        crate.confirmMove()
+        assertEquals("AA01", tags.location("crate").barcode)
+        assertNull(tags.get("drill").barcode)
+    }
+
+    @Test
+    fun locationTagMovesToAnArticleAfterConfirmation() {
+        tags.locations.value = listOf(place("crate", "Crate", barcode = "CC01"))
+        vm.start()
+        vm.onTag(TagEvent.Read("CC01"))
+
+        val request = assertNotNull(state.moveRequest)
+        assertEquals(TagTarget.OfLocation("crate"), request.owner.target)
+
+        vm.confirmMove()
+        assertEquals("CC01", tags.get("bolt").barcode)
+        assertNull(tags.location("crate").barcode)
     }
 }

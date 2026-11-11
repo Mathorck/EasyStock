@@ -239,6 +239,56 @@ class BackupMergeTest {
     }
 
     @Test
+    fun locationTagHeldByAnArticleIsClearedOnTheImportedLocation() {
+        val local = BackupData(articles = listOf(article("a1", barcode = "TAG")))
+        val incoming = BackupData(locations = listOf(location("crate").copy(barcode = "TAG")))
+
+        val plan = planMerge(local, incoming)
+
+        assertNull(plan.inserts.locations.single().barcode)
+        assertEquals("TAG", plan.result.articles.single().barcode)
+        assertEquals(MergeConflict(ConflictType.BARCODE_CLEARED, BackupTable.LOCATION, "crate", "TAG", "crate"), plan.conflicts.single())
+    }
+
+    @Test
+    fun articleTagHeldByALocationIsClearedOnTheImportedArticle() {
+        val local = BackupData(locations = listOf(location("crate").copy(barcode = "TAG")))
+        val incoming = BackupData(articles = listOf(article("a2", name = "Imported", barcode = "TAG")))
+
+        val plan = planMerge(local, incoming)
+
+        assertNull(plan.inserts.articles.single().barcode)
+        assertEquals("TAG", plan.result.locations.single().barcode)
+        assertEquals(listOf(ConflictType.BARCODE_CLEARED), conflictTypes(plan))
+    }
+
+    @Test
+    fun tagMovedFromAnArticleToALocationOnTheOtherPhoneFollowsIt() {
+        val local = BackupData(locations = listOf(location("crate")), articles = listOf(article("a1", barcode = "TAG")))
+        val incoming = BackupData(
+            locations = listOf(location("crate", at = 20).copy(barcode = "TAG")),
+            articles = listOf(article("a1", at = 20)),
+        )
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertEquals("TAG", plan.result.locations.single().barcode)
+        assertNull(plan.result.articles.single().barcode)
+    }
+
+    @Test
+    fun locationTagTakenByAnotherLocationIsCleared() {
+        val local = BackupData(locations = listOf(location("box").copy(barcode = "TAG")))
+        val incoming = BackupData(locations = listOf(location("crate").copy(barcode = "TAG")))
+
+        val plan = planMerge(local, incoming)
+
+        assertNull(plan.inserts.locations.single().barcode)
+        assertEquals(listOf(ConflictType.BARCODE_CLEARED), conflictTypes(plan))
+    }
+
+    @Test
     fun skuTakenGetsASuffix() {
         val local = BackupData(articles = listOf(article("a1", sku = "S-1")))
         val incoming = BackupData(articles = listOf(article("a2", sku = "s-1")))
