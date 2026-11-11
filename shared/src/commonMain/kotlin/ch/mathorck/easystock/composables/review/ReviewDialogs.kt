@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -27,9 +28,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import ch.mathorck.easystock.composables.rememberAutoFocusRequester
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.util.parseQuantity
 import ch.mathorck.easystock.viewmodels.LocationOption
@@ -52,21 +58,25 @@ import org.jetbrains.compose.resources.stringResource
 /** Count of a quantity line, typed or with the stepper. Starts from the last count, or the expected quantity. */
 @Composable
 internal fun CountDialog(line: ReviewLineUi, onSave: (Long) -> Unit, onDismiss: () -> Unit) {
-    var text by rememberSaveable(line.line.id) {
-        mutableStateOf(formatQuantity(line.line.countedMilli ?: line.line.expectedMilli))
+    var field by rememberSaveable(line.line.id, stateSaver = TextFieldValue.Saver) {
+        val initial = formatQuantity(line.line.countedMilli ?: line.line.expectedMilli)
+        mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length)))
     }
+    val text = field.text
+    val setText = { value: String -> field = TextFieldValue(value, TextRange(value.length)) }
     val parsed = parseQuantity(text)?.takeIf { it >= 0 }
+    val focusRequester = rememberAutoFocusRequester()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(line.articleName, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         text = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { text = formatQuantity(((parsed ?: 0) - 1000).coerceAtLeast(0)) }) {
+                IconButton(onClick = { setText(formatQuantity(((parsed ?: 0) - 1000).coerceAtLeast(0))) }) {
                     Icon(painterResource(Res.drawable.ic_remove), contentDescription = stringResource(Res.string.review_decrease))
                 }
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
+                    value = field,
+                    onValueChange = { field = it },
                     label = { Text(stringResource(Res.string.review_count_label)) },
                     suffix = { Text(line.unit) },
                     singleLine = true,
@@ -76,10 +86,11 @@ internal fun CountDialog(line: ReviewLineUi, onSave: (Long) -> Unit, onDismiss: 
                     } else {
                         null
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { parsed?.let(onSave) }),
+                    modifier = Modifier.weight(1f).focusRequester(focusRequester),
                 )
-                IconButton(onClick = { text = formatQuantity((parsed ?: 0) + 1000) }) {
+                IconButton(onClick = { setText(formatQuantity((parsed ?: 0) + 1000)) }) {
                     Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.review_increase))
                 }
             }
