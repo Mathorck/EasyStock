@@ -41,7 +41,8 @@ import androidx.navigationevent.NavigationEventInfo
 import ch.mathorck.easystock.composables.attributes.AttributeRow
 import ch.mathorck.easystock.composables.nfc.ArticleTagSection
 import ch.mathorck.easystock.composables.nfc.TagLinkSheet
-import ch.mathorck.easystock.data.db.asArticleTags
+import ch.mathorck.easystock.data.db.TagTarget
+import ch.mathorck.easystock.data.db.asTagStore
 import ch.mathorck.easystock.viewmodels.TagLinkViewModel
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -114,7 +115,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     }
     val units by actions.units.collectAsStateWithLifecycle()
     val actionState by actions.sheet.collectAsStateWithLifecycle()
-    val tagLink = viewModel(key = "tag-link-$articleId") { TagLinkViewModel(articleId, db.articleDao().asArticleTags()) }
+    val tagLink = viewModel(key = "tag-link-$articleId") { TagLinkViewModel(TagTarget.OfArticle(articleId), db.tagDao().asTagStore()) }
     val tagState by tagLink.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.isDeleted) {
@@ -141,6 +142,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         TagLinkSheet(
             state = tagState,
             currentTagId = state.article?.barcode,
+            targetName = state.article?.name.orEmpty(),
             onTag = tagLink::onTag,
             onConfirmMove = tagLink::confirmMove,
             onCancelMove = tagLink::cancelMove,

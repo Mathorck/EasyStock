@@ -88,7 +88,7 @@ data class TagPickerUiState(
 }
 
 /** Linking asks first: [owner] already holds [tagId], linking moves it to [target]. */
-data class TagMoveRequest(val tagId: String, val target: TagTarget, val owner: TagOwner)
+data class TagMoveRequest(val tagId: String, val target: TagTarget, val owner: TagOwner, val targetName: String = "")
 
 data class ScanUiState(
     val phase: ScanPhase = ScanPhase.Ready,
@@ -252,25 +252,26 @@ class ScanViewModel(
     fun linkTo(id: String) {
         val tagId = state.value.unknownTagId ?: return
         if (pickerStatus.value.saving || pickerQuery.value == null) return
-        val target = when (pickerType.value) {
-            TagPickerType.ARTICLE -> TagTarget.OfArticle(id)
-            TagPickerType.LOCATION -> TagTarget.OfLocation(id)
+        val picker = state.value.picker
+        val (target, name) = when (pickerType.value) {
+            TagPickerType.ARTICLE -> TagTarget.OfArticle(id) to picker?.articles?.firstOrNull { it.id == id }?.name
+            TagPickerType.LOCATION -> TagTarget.OfLocation(id) to picker?.locations?.firstOrNull { it.id == id }?.name
         }
-        link(tagId, target, confirmedOwner = null)
+        link(tagId, target, confirmedOwner = null, targetName = name.orEmpty())
     }
 
     /** The user agreed to move the tag from its owner. */
     fun confirmMove() {
         val request = moveRequest.value ?: return
         moveRequest.value = null
-        link(request.tagId, request.target, confirmedOwner = request.owner.target)
+        link(request.tagId, request.target, confirmedOwner = request.owner.target, targetName = request.targetName)
     }
 
     fun cancelMove() {
         moveRequest.value = null
     }
 
-    private fun link(tagId: String, target: TagTarget, confirmedOwner: TagTarget?) {
+    private fun link(tagId: String, target: TagTarget, confirmedOwner: TagTarget?, targetName: String) {
         pickerStatus.update { it.copy(saving = true, failed = false) }
         viewModelScope.launch {
             try {
@@ -281,7 +282,7 @@ class ScanViewModel(
                     }
                     is TagLinkResult.LinkedElsewhere -> {
                         pickerStatus.update { it.copy(saving = false) }
-                        moveRequest.value = TagMoveRequest(tagId, target, result.owner)
+                        moveRequest.value = TagMoveRequest(tagId, target, result.owner, targetName)
                     }
                     // Deleted meanwhile: it leaves the list, pick another one
                     TagLinkResult.TargetGone -> pickerStatus.update { it.copy(saving = false) }

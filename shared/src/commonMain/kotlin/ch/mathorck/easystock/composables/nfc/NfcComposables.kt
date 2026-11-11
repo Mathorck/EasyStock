@@ -53,7 +53,18 @@ import easystock.shared.generated.resources.nfc_cancel
 import easystock.shared.generated.resources.nfc_error_save
 import easystock.shared.generated.resources.nfc_link_tag
 import easystock.shared.generated.resources.nfc_move_confirm
-import easystock.shared.generated.resources.nfc_move_message
+import easystock.shared.generated.resources.nfc_move_article_to_article
+import easystock.shared.generated.resources.nfc_move_article_to_location
+import easystock.shared.generated.resources.nfc_move_location_to_article
+import easystock.shared.generated.resources.nfc_move_location_to_location
+import easystock.shared.generated.resources.nfc_location_tag_hint
+import easystock.shared.generated.resources.nfc_picker_location_empty
+import easystock.shared.generated.resources.nfc_picker_location_hint
+import easystock.shared.generated.resources.nfc_picker_location_no_results
+import easystock.shared.generated.resources.nfc_picker_location_search
+import easystock.shared.generated.resources.nfc_picker_location_title
+import easystock.shared.generated.resources.nfc_remove_location_message
+import easystock.shared.generated.resources.nfc_sheet_replace_location_hint
 import easystock.shared.generated.resources.nfc_move_title
 import easystock.shared.generated.resources.nfc_open_settings
 import easystock.shared.generated.resources.nfc_picker_empty
@@ -76,23 +87,31 @@ import easystock.shared.generated.resources.nfc_sheet_replace_title
 import easystock.shared.generated.resources.nfc_sheet_unavailable
 import easystock.shared.generated.resources.nfc_tag_label
 import easystock.shared.generated.resources.nfc_tag_none
-import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.db.TagOwner
+import ch.mathorck.easystock.data.db.TagTarget
+import ch.mathorck.easystock.viewmodels.TagMoveRequest
+import ch.mathorck.easystock.viewmodels.TagPickerType
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** Asks before moving a tag from [ownerName] to another article. */
+/** Asks before moving a tag from its owner (article or location) to [TagMoveRequest.target], named [targetName]. */
 @Composable
-fun TagMoveDialog(ownerName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+fun TagMoveDialog(request: TagMoveRequest, targetName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val toLocation = request.target is TagTarget.OfLocation
+    val message = when (request.owner) {
+        is TagOwner.OfArticle -> if (toLocation) Res.string.nfc_move_article_to_location else Res.string.nfc_move_article_to_article
+        is TagOwner.OfLocation -> if (toLocation) Res.string.nfc_move_location_to_location else Res.string.nfc_move_location_to_article
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.nfc_move_title)) },
-        text = { Text(stringResource(Res.string.nfc_move_message, ownerName)) },
+        text = { Text(stringResource(message, request.owner.name, targetName)) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(Res.string.nfc_move_confirm)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.nfc_cancel)) } },
     )
 }
 
-/** Searchable list of the articles without a tag, to link an unknown tag to one of them. */
+/** Searchable list of the articles (or locations) without a tag, to link an unknown tag to one of them. */
 @Composable
 fun TagPickerSheet(
     state: TagPickerUiState,
@@ -106,9 +125,13 @@ fun TagPickerSheet(
     )
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(Res.string.nfc_picker_title), style = MaterialTheme.typography.titleMedium)
+            val forLocation = state.type == TagPickerType.LOCATION
             Text(
-                stringResource(Res.string.nfc_picker_hint),
+                stringResource(if (forLocation) Res.string.nfc_picker_location_title else Res.string.nfc_picker_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                stringResource(if (forLocation) Res.string.nfc_picker_location_hint else Res.string.nfc_picker_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -116,24 +139,38 @@ fun TagPickerSheet(
                 OutlinedTextField(
                     value = state.query,
                     onValueChange = onQueryChange,
-                    label = { Text(stringResource(Res.string.nfc_picker_search)) },
+                    label = { Text(stringResource(if (forLocation) Res.string.nfc_picker_location_search else Res.string.nfc_picker_search)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
             if (state.saveFailed) ErrorText(stringResource(Res.string.nfc_error_save))
         }
-        val articles = state.articles
+        val forLocation = state.type == TagPickerType.LOCATION
+        val count = if (forLocation) state.locations?.size else state.articles?.size
         when {
-            articles == null || state.saving -> Row(
+            state.loading || state.saving -> Row(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
             ) { CircularProgressIndicator() }
-            state.noneUntagged -> SheetHint(stringResource(Res.string.nfc_picker_empty))
-            articles.isEmpty() -> SheetHint(stringResource(Res.string.nfc_picker_no_results, state.query.trim()))
+            state.noneUntagged -> SheetHint(
+                stringResource(if (forLocation) Res.string.nfc_picker_location_empty else Res.string.nfc_picker_empty),
+            )
+            count == 0 -> SheetHint(
+                stringResource(
+                    if (forLocation) Res.string.nfc_picker_location_no_results else Res.string.nfc_picker_no_results,
+                    state.query.trim(),
+                ),
+            )
             else -> LazyColumn(contentPadding = PaddingValues(vertical = 8.dp), modifier = Modifier.heightIn(max = 480.dp)) {
-                items(articles, key = { it.id }) { article ->
-                    PickerRow(article, onClick = { onPick(article.id) })
+                if (forLocation) {
+                    items(state.locations.orEmpty(), key = { it.id }) { location ->
+                        PickerRow(location.name, location.path.takeIf { it != location.name }, onClick = { onPick(location.id) })
+                    }
+                } else {
+                    items(state.articles.orEmpty(), key = { it.id }) { article ->
+                        PickerRow(article.name, article.sku?.takeIf { it.isNotBlank() }, onClick = { onPick(article.id) })
+                    }
                 }
             }
         }
@@ -141,10 +178,10 @@ fun TagPickerSheet(
 }
 
 @Composable
-private fun PickerRow(article: Article, onClick: () -> Unit) {
+private fun PickerRow(title: String, subtitle: String?, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(article.name) },
-        supportingContent = article.sku?.takeIf { it.isNotBlank() }?.let { sku -> { Text(sku) } },
+        headlineContent = { Text(title) },
+        supportingContent = subtitle?.let { text -> { Text(text) } },
         leadingContent = { Icon(painterResource(Res.drawable.ic_link), contentDescription = null) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier.clickable(onClick = onClick),
@@ -167,8 +204,8 @@ private fun ErrorText(text: String) {
 }
 
 /**
- * The NFC tag of an article on its detail screen: the tag ID or "no tag", and the link, replace and remove actions.
- * Removing asks first.
+ * The NFC tag of an article (or a location, [forLocation]): the tag ID or "no tag", and the link, replace
+ * and remove actions. Removing asks first.
  */
 @Composable
 fun ArticleTagSection(
@@ -177,6 +214,7 @@ fun ArticleTagSection(
     onLink: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
+    forLocation: Boolean = false,
 ) {
     var confirmRemove by rememberSaveable { mutableStateOf(false) }
     Surface(
@@ -219,7 +257,7 @@ fun ArticleTagSection(
         AlertDialog(
             onDismissRequest = { confirmRemove = false },
             title = { Text(stringResource(Res.string.nfc_remove_title)) },
-            text = { Text(stringResource(Res.string.nfc_remove_message)) },
+            text = { Text(stringResource(if (forLocation) Res.string.nfc_remove_location_message else Res.string.nfc_remove_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmRemove = false
@@ -232,17 +270,19 @@ fun ArticleTagSection(
 }
 
 /**
- * Waits for a tag to link to the article. While shown, the tags read go here, not to the Scan lookup.
- * [currentTagId] is the tag being replaced, if any.
+ * Waits for a tag to link to the article or location named [targetName]. While shown, the tags read go
+ * here, not to the Scan lookup. [currentTagId] is the tag being replaced, if any.
  */
 @Composable
 fun TagLinkSheet(
     state: TagLinkUiState,
     currentTagId: String?,
+    targetName: String,
     onTag: (TagEvent) -> Unit,
     onConfirmMove: () -> Unit,
     onCancelMove: () -> Unit,
     onDismiss: () -> Unit,
+    forLocation: Boolean = false,
 ) {
     NfcTagListener(TagPriority.Link, enabled = state.acceptsTags, onEvent = onTag)
     val availability by appNfcTags.availability.collectAsStateWithLifecycle()
@@ -272,7 +312,10 @@ fun TagLinkSheet(
                 )
             }
             CenteredText(stringResource(Res.string.nfc_sheet_hint))
-            currentTagId?.let { CenteredText(stringResource(Res.string.nfc_sheet_replace_hint, it)) }
+            if (forLocation) CenteredText(stringResource(Res.string.nfc_location_tag_hint))
+            currentTagId?.let {
+                CenteredText(stringResource(if (forLocation) Res.string.nfc_sheet_replace_location_hint else Res.string.nfc_sheet_replace_hint, it))
+            }
             when (availability) {
                 NfcAvailability.Disabled -> {
                     CenteredText(stringResource(Res.string.nfc_sheet_disabled), error = true)
@@ -286,7 +329,7 @@ fun TagLinkSheet(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.nfc_cancel)) }
         }
     }
-    state.moveRequest?.let { TagMoveDialog(it.owner.name, onConfirm = onConfirmMove, onDismiss = onCancelMove) }
+    state.moveRequest?.let { TagMoveDialog(it, targetName, onConfirm = onConfirmMove, onDismiss = onCancelMove) }
 }
 
 @Composable

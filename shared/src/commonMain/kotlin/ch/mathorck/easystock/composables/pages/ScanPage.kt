@@ -49,7 +49,13 @@ import ch.mathorck.easystock.composables.article.ArticleDetailScreen
 import ch.mathorck.easystock.composables.article.ArticleFormDialog
 import ch.mathorck.easystock.composables.nfc.TagMoveDialog
 import ch.mathorck.easystock.composables.nfc.TagPickerSheet
-import ch.mathorck.easystock.data.db.asArticleTags
+import ch.mathorck.easystock.data.db.asTagStore
+import ch.mathorck.easystock.composables.location.LocationContentsScreen
+import ch.mathorck.easystock.composables.settings.LocationDialog
+import ch.mathorck.easystock.viewmodels.LocationListViewModel
+import ch.mathorck.easystock.viewmodels.TagPickerType
+import easystock.shared.generated.resources.nfc_create_location_with_tag
+import easystock.shared.generated.resources.nfc_link_existing_location
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.images.rememberArticleImageStore
 import ch.mathorck.easystock.nfc.NfcTagListener
@@ -87,13 +93,13 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Waits for an NFC tag. A known tag opens its article; an unknown one can be linked to an article
- * without tag, or used for a new article.
+ * Waits for an NFC tag. A known tag opens its article or shows what its location holds; an unknown one
+ * can be linked to an article or location without tag, or used for a new article or location.
  */
 @Composable
 fun ScanPage() {
     val db = rememberAppDatabase()
-    val viewModel = viewModel { ScanViewModel(db.articleDao().asArticleTags(), appNfcTags.availability) }
+    val viewModel = viewModel { ScanViewModel(db.tagDao().asTagStore(), appNfcTags.availability) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
     // Keyed: not the instance of the Stock page
@@ -109,20 +115,47 @@ fun ScanPage() {
             newArticleViewModel.consumeCreated()
         }
     }
-    NfcTagListener(TagPriority.Lookup, enabled = state.acceptsTags && newArticleState == null, onEvent = viewModel::onTag)
+    // Keyed: not the instance of Settings > Locations
+    val newLocationViewModel = viewModel(key = "scan-new-location") { LocationListViewModel(db.locationDao()) }
+    val newLocationState by newLocationViewModel.state.collectAsStateWithLifecycle()
+    val createdLocationId by newLocationViewModel.created.collectAsStateWithLifecycle()
+    // The location created with the tag shows its contents
+    LaunchedEffect(createdLocationId) {
+        createdLocationId?.let {
+            viewModel.openLocation(it)
+            newLocationViewModel.consumeCreated()
+        }
+    }
+    val locationDialog = newLocationState.dialog
+    NfcTagListener(
+        TagPriority.Lookup,
+        enabled = state.acceptsTags && newArticleState == null && locationDialog == null,
+        onEvent = viewModel::onTag,
+    )
 
     val openArticleId = state.openArticleId
-    if (openArticleId != null) {
-        ArticleDetailScreen(articleId = openArticleId, onBack = viewModel::reset)
-    } else {
-        ScanContent(
+    val openLocationId = state.openLocationId
+    when {
+        openArticleId != null -> ArticleDetailScreen(articleId = openArticleId, onBack = viewModel::reset)
+        openLocationId != null -> LocationContentsScreen(locationId = openLocationId, onBack = viewModel::reset)
+        else -> ScanContent(
             state = state.scanState,
             tagId = state.unknownTagId,
             onOpenSettings = rememberOpenNfcSettings(),
             onTryAgain = viewModel::reset,
-            onLinkExisting = viewModel::openPicker,
+            onLinkExisting = { viewModel.openPicker(TagPickerType.ARTICLE) },
             onCreateWithTag = { state.unknownTagId?.let(newArticleViewModel::start) },
+            onLinkExistingLocation = { viewModel.openPicker(TagPickerType.LOCATION) },
+            onCreateLocationWithTag = { state.unknownTagId?.let { newLocationViewModel.startCreate(tagId = it) } },
             onCancel = viewModel::reset,
+        )
+    }
+    locationDialog?.let { dialog ->
+        LocationDialog(
+            state = dialog,
+            onFormChange = newLocationViewModel::updateForm,
+            onDismiss = newLocationViewModel::cancel,
+            onSave = newLocationViewModel::save,
         )
     }
     state.picker?.let { picker ->
@@ -134,7 +167,7 @@ fun ScanPage() {
         )
     }
     state.moveRequest?.let { request ->
-        TagMoveDialog(request.owner.name, onConfirm = viewModel::confirmMove, onDismiss = viewModel::cancelMove)
+        TagMoveDialog(request, request.targetName, onConfirm = viewModel::confirmMove, onDismiss = viewModel::cancelMove)
     }
     newArticleState?.let { form ->
         ArticleFormDialog(
@@ -158,6 +191,8 @@ fun ScanContent(
     onTryAgain: () -> Unit = {},
     onLinkExisting: () -> Unit = {},
     onCreateWithTag: () -> Unit = {},
+    onLinkExistingLocation: () -> Unit = {},
+    onCreateLocationWithTag: () -> Unit = {},
     onCancel: () -> Unit = {},
 ) {
     BoxWithConstraints(
@@ -202,6 +237,12 @@ fun ScanContent(
                     }
                     OutlinedButton(onClick = onCreateWithTag, modifier = Modifier.widthIn(min = 280.dp)) {
                         Text(stringResource(Res.string.nfc_create_with_tag))
+                    }
+                    Button(onClick = onLinkExistingLocation, modifier = Modifier.widthIn(min = 280.dp)) {
+                        Text(stringResource(Res.string.nfc_link_existing_location))
+                    }
+                    OutlinedButton(onClick = onCreateLocationWithTag, modifier = Modifier.widthIn(min = 280.dp)) {
+                        Text(stringResource(Res.string.nfc_create_location_with_tag))
                     }
                     TextButton(onClick = onCancel) { Text(stringResource(Res.string.nfc_cancel)) }
                 }

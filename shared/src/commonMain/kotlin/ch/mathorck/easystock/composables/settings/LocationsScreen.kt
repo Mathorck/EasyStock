@@ -70,6 +70,17 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.data.db.rememberAppDatabase
+import ch.mathorck.easystock.data.db.TagTarget
+import ch.mathorck.easystock.data.db.asTagStore
+import ch.mathorck.easystock.composables.location.LocationContentsScreen
+import ch.mathorck.easystock.composables.nfc.ArticleTagSection
+import ch.mathorck.easystock.composables.nfc.TagLinkSheet
+import ch.mathorck.easystock.viewmodels.TagLinkViewModel
+import androidx.compose.runtime.saveable.rememberSaveable
+import easystock.shared.generated.resources.ic_nfc
+import easystock.shared.generated.resources.locations_has_tag
+import easystock.shared.generated.resources.location_contents_open
+import easystock.shared.generated.resources.nfc_new_location_tag
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.viewmodels.LocationDialogState
 import ch.mathorck.easystock.viewmodels.LocationError
@@ -133,6 +144,11 @@ fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         ReviewScreen(reviewId = openReview, onBack = review.close, modifier = modifier)
         return
     }
+    var contentsOf by rememberSaveable { mutableStateOf<String?>(null) }
+    contentsOf?.let { id ->
+        LocationContentsScreen(locationId = id, onBack = { contentsOf = null }, modifier = modifier)
+        return
+    }
     val back = {
         viewModel.cancel()
         onBack()
@@ -154,11 +170,48 @@ fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         onReview = { review.start(it.id) },
     )
     state.dialog?.let { dialog ->
+        val editing = dialog.editing
         LocationDialog(
             state = dialog,
             onFormChange = viewModel::updateForm,
             onDismiss = viewModel::cancel,
             onSave = viewModel::save,
+            tagSection = editing?.let { location -> { LocationTagSection(location) } },
+            onOpenContents = editing?.let { location ->
+                {
+                    viewModel.cancel()
+                    contentsOf = location.id
+                }
+            },
+        )
+    }
+}
+
+/** The NFC tag of [location] in its edit dialog: link, replace or remove, with the link sheet. */
+@Composable
+private fun LocationTagSection(location: Location) {
+    val db = rememberAppDatabase()
+    val tagLink = viewModel(key = "tag-link-location-${location.id}") {
+        TagLinkViewModel(TagTarget.OfLocation(location.id), db.tagDao().asTagStore())
+    }
+    val tagState by tagLink.state.collectAsStateWithLifecycle()
+    ArticleTagSection(
+        tagId = location.barcode,
+        removeFailed = tagState.removeFailed,
+        onLink = tagLink::start,
+        onRemove = tagLink::removeTag,
+        forLocation = true,
+    )
+    if (tagState.waiting) {
+        TagLinkSheet(
+            state = tagState,
+            currentTagId = location.barcode,
+            targetName = location.name,
+            onTag = tagLink::onTag,
+            onConfirmMove = tagLink::confirmMove,
+            onCancelMove = tagLink::cancelMove,
+            onDismiss = tagLink::cancel,
+            forLocation = true,
         )
     }
 }
@@ -253,7 +306,19 @@ private fun LocationRowItem(
     val location = row.location
     val timeZone = remember { TimeZone.currentSystemDefault() }
     ListItem(
-        headlineContent = { Text(location.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(location.name, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (location.barcode != null) {
+                    Icon(
+                        painterResource(Res.drawable.ic_nfc),
+                        contentDescription = stringResource(Res.string.locations_has_tag),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        },
         supportingContent = {
             val stock = if (row.articleCount == 0) {
                 stringResource(Res.string.locations_stock_none)
@@ -286,13 +351,19 @@ private fun LocationRowItem(
     )
 }
 
+/**
+ * Create or edit a location. [tagSection]: the NFC tag of the location edited. [onOpenContents]: shows
+ * what the location edited holds. A new location with [LocationDialogState.tagId] says it gets that tag.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LocationDialog(
+fun LocationDialog(
     state: LocationDialogState,
     onFormChange: ((LocationForm) -> LocationForm) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
+    tagSection: (@Composable () -> Unit)? = null,
+    onOpenContents: (() -> Unit)? = null,
 ) {
     val form = state.form
     val isNew = state.editing == null
@@ -324,6 +395,16 @@ private fun LocationDialog(
                     onIcon = { key -> onFormChange { it.copy(icon = key) } },
                     onColor = { key -> onFormChange { it.copy(color = key) } },
                 )
+                state.tagId?.let { tagId ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(painterResource(Res.drawable.ic_nfc), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(stringResource(Res.string.nfc_new_location_tag, tagId), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                tagSection?.invoke()
+                onOpenContents?.let { open ->
+                    TextButton(onClick = open) { Text(stringResource(Res.string.location_contents_open)) }
+                }
                 if (state.saveFailed) {
                     Text(
                         stringResource(Res.string.locations_error_save),
