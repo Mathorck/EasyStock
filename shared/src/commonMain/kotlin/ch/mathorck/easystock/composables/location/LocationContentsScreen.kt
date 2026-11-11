@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -42,8 +41,6 @@ import ch.mathorck.easystock.composables.LocationIcon
 import ch.mathorck.easystock.composables.article.ArticleDetailScreen
 import ch.mathorck.easystock.composables.article.StockActionSheet
 import ch.mathorck.easystock.composables.attributes.summaryLine
-import ch.mathorck.easystock.composables.review.ReviewScreen
-import ch.mathorck.easystock.composables.review.rememberReviewLauncher
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.data.db.rememberAppDatabase
@@ -60,7 +57,6 @@ import ch.mathorck.easystock.viewmodels.StockActionViewModel
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.ic_chevron_right
-import easystock.shared.generated.resources.ic_fact_check
 import easystock.shared.generated.resources.ic_nfc
 import easystock.shared.generated.resources.ic_remove
 import easystock.shared.generated.resources.ic_swap_horiz
@@ -70,7 +66,6 @@ import easystock.shared.generated.resources.location_contents_empty_here
 import easystock.shared.generated.resources.location_contents_gone
 import easystock.shared.generated.resources.location_contents_here
 import easystock.shared.generated.resources.location_contents_include_sub
-import easystock.shared.generated.resources.location_contents_review
 import easystock.shared.generated.resources.location_contents_sub_locations
 import easystock.shared.generated.resources.location_contents_units
 import easystock.shared.generated.resources.locations_has_tag
@@ -99,14 +94,9 @@ fun LocationContentsScreen(locationId: String, onBack: () -> Unit, modifier: Mod
         LocationContentsViewModel(locationId, db.locationDao(), db.attributeDao())
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val review = rememberReviewLauncher(db.reviewDao())
     var openArticleId by rememberSaveable { mutableStateOf<String?>(null) }
     var action by remember { mutableStateOf<ContentsAction?>(null) }
 
-    review.open?.let {
-        ReviewScreen(reviewId = it, onBack = review.close, modifier = modifier)
-        return
-    }
     openArticleId?.let {
         ArticleDetailScreen(articleId = it, onBack = { openArticleId = null }, modifier = modifier)
         return
@@ -121,7 +111,6 @@ fun LocationContentsScreen(locationId: String, onBack: () -> Unit, modifier: Mod
         onOpenLocation = viewModel::open,
         onOpenArticle = { openArticleId = it.id },
         onAction = { article, form -> action = ContentsAction(article, form) },
-        onReview = { state.location?.let { review.start(it.id) } },
         modifier = modifier,
     )
     action?.let { StockActionHost(it, onClose = { action = null }) }
@@ -161,7 +150,6 @@ fun LocationContentsContent(
     onOpenLocation: (String) -> Unit,
     onOpenArticle: (Article) -> Unit,
     onAction: (Article, StockActionForm) -> Unit,
-    onReview: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val location = state.location
@@ -169,13 +157,6 @@ fun LocationContentsContent(
         title = location?.name.orEmpty(),
         onBack = onBack,
         modifier = modifier,
-        actions = {
-            if (location != null) {
-                IconButton(onClick = onReview) {
-                    Icon(painterResource(Res.drawable.ic_fact_check), contentDescription = stringResource(Res.string.location_contents_review))
-                }
-            }
-        },
     ) {
         when {
             state.loading -> Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(24.dp)) {
@@ -213,12 +194,6 @@ fun LocationContentsContent(
                             onOpen = { onOpenArticle(row.article) },
                             onAction = { form -> onAction(row.article, form) },
                         )
-                    }
-                }
-                item(key = "review") {
-                    Button(onClick = onReview, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                        Icon(painterResource(Res.drawable.ic_fact_check), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                        Text(stringResource(Res.string.location_contents_review))
                     }
                 }
             }

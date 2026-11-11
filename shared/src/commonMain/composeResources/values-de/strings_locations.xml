@@ -69,7 +69,6 @@
     <string name="location_contents_here">Direkt hier</string>
     <string name="location_contents_empty">Hier ist nichts gelagert.</string>
     <string name="location_contents_empty_here">Direkt hier ist nichts. Beziehe die Unterstandorte ein, um ihren Inhalt zu sehen.</string>
-    <string name="location_contents_review">Diesen Standort prüfen</string>
     <string name="location_contents_gone">Dieser Standort existiert nicht mehr.</string>
     <string name="location_contents_open">Inhalt anzeigen</string>
     <string name="location_contents_units">Einheiten hier</string>
