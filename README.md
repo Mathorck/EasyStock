@@ -16,7 +16,6 @@
   <img alt="Min API 26" src="https://img.shields.io/badge/min%20API-26-brightgreen">
   <img alt="Kotlin 2.4.21" src="https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Compose Multiplatform 1.12.2" src="https://img.shields.io/badge/Compose%20Multiplatform-1.12.2-4285F4?logo=jetpackcompose&logoColor=white">
-  <img alt="Offline first, no account" src="https://img.shields.io/badge/offline%20first-no%20account-485C43">
 </p>
 
 ---
