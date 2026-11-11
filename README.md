@@ -32,7 +32,17 @@ EasyStock is a free, open-source Android app to manage a physical stock with NFC
 
 It is built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Everything works offline on the phone: no server, no account, no tracking. Data stays on the device, which keeps personal data minimal and local, in line with the Swiss nFADP and the GDPR.
 
-School project (TIP, CPNE-TI, 2026-2027). Target hardware budget: 100 CHF. 3D-printable NFC tag holders will be published separately.
+Target hardware budget: 100 CHF. 3D-printable NFC tag holders will be published separately.
+
+---
+
+## 🎓 School project
+
+<p align="center">
+  <a href="https://www.cpne.ch"><img src="docs/images/cpne-logo.png" alt="CPNE logo" height="80"></a>
+</p>
+
+EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de formation professionnelle neuchâtelois, Technologies et Industrie pole (CPNE-TI).
 
 ---
 
