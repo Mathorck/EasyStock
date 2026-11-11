@@ -44,6 +44,7 @@ import ch.mathorck.easystock.nfc.TagPriority
 import ch.mathorck.easystock.nfc.appNfcTags
 import ch.mathorck.easystock.nfc.rememberOpenNfcSettings
 import ch.mathorck.easystock.viewmodels.TagLinkUiState
+import ch.mathorck.easystock.composables.attributes.ATTRIBUTE_SUMMARY_SEPARATOR
 import ch.mathorck.easystock.viewmodels.TagPickerUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import easystock.shared.generated.resources.Res
@@ -169,13 +170,17 @@ fun TagPickerSheet(
                     }
                 } else {
                     items(state.articles.orEmpty(), key = { it.id }) { article ->
-                        PickerRow(article.name, article.sku?.takeIf { it.isNotBlank() }, onClick = { onPick(article.id) })
+                        PickerRow(article.name, articleSubtitle(article.sku, state.attributeLines[article.id]), onClick = { onPick(article.id) })
                     }
                 }
             }
         }
     }
 }
+
+/** The SKU and the properties of an article, joined, to tell same-name articles apart. Null when it has neither. */
+internal fun articleSubtitle(sku: String?, attributes: String?): String? =
+    listOfNotNull(sku?.takeIf { it.isNotBlank() }, attributes?.takeIf { it.isNotBlank() }).joinToString(ATTRIBUTE_SUMMARY_SEPARATOR).ifEmpty { null }
 
 @Composable
 private fun PickerRow(title: String, subtitle: String?, onClick: () -> Unit) {

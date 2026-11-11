@@ -9,7 +9,14 @@ import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.enums.ScanState
 import ch.mathorck.easystock.nfc.NfcAvailability
 import ch.mathorck.easystock.nfc.TagEvent
+import ch.mathorck.easystock.composables.attributes.AttributeCatalog
+import ch.mathorck.easystock.data.model.AttributeDataType
+import ch.mathorck.easystock.data.model.AttributeDefinition
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonUnquotedLiteral
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -110,7 +117,7 @@ val fixedClock = object : Clock {
     override fun now(): Instant = Instant.fromEpochMilliseconds(9_000)
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
 class ScanViewModelTest {
     private val availability = MutableStateFlow(NfcAvailability.Enabled)
     private val tags = FakeTagStore(
@@ -125,6 +132,24 @@ class ScanViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         vm = ScanViewModel(tags, availability, fixedClock)
+    }
+
+    @Test
+    fun pickerShowsAndSearchesThePropertiesOfSameNameArticles() {
+        val length = AttributeDefinition(id = "len", key = "length", label = "Length", dataType = AttributeDataType.NUMBER, unit = "m", createdAt = 0, updatedAt = 0)
+        fun rope(id: String, metres: String?) = tagged(id, "Rope").copy(
+            attributes = metres?.let { JsonObject(mapOf("length" to JsonUnquotedLiteral(it))) },
+        )
+        val store = FakeTagStore(rope("r50", "50"), rope("r30", "30"), rope("plain", null))
+        val withProps = ScanViewModel(store, availability, fixedClock, flowOf(AttributeCatalog(listOf(length), emptyList())))
+        withProps.onTag(TagEvent.Read("ZZ99"))
+        withProps.openPicker()
+        val picker = assertNotNull(withProps.state.value.picker)
+        assertEquals(mapOf("r50" to "50 m", "r30" to "30 m"), picker.attributeLines, "no line for an article without properties")
+        withProps.onPickerQuery("50")
+        assertEquals(listOf("r50"), withProps.state.value.picker?.articles?.map { it.id })
+        withProps.onPickerQuery("3000 cm")
+        assertEquals(listOf("r30"), withProps.state.value.picker?.articles?.map { it.id })
     }
 
     @AfterTest
