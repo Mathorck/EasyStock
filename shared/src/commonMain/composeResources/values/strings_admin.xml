@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings entry, only for a connected Admin -->
+    <string name="settings_section_server">Server</string>
+    <string name="settings_administration_summary">Users, invites, printed QR code, server backup</string>
+
+    <string name="admin_title">Administration</string>
+    <string name="admin_not_connected">This phone is not connected to a server.</string>
+    <string name="admin_users">Users</string>
+    <string name="admin_users_summary">Roles, passwords, devices, Guest promotions</string>
+    <string name="admin_invites">Invites</string>
+    <string name="admin_invites_summary">Single-use QR codes for new accounts</string>
+    <string name="admin_public_invite">Printed QR code</string>
+    <string name="admin_public_invite_summary">Guest access to view the stock, PDF to print</string>
+    <string name="admin_backup">Server backup</string>
+    <string name="admin_backup_summary">Download or import the server data</string>
+    <string name="admin_settings">Server settings</string>
+    <string name="admin_settings_summary">Movement authors, alerts</string>
+
+    <string name="admin_role_admin">Admin</string>
+    <string name="admin_role_editor">Editor</string>
+    <string name="admin_role_viewer">Viewer</string>
+    <string name="admin_role_guest">Guest</string>
+    <string name="admin_kind_full">Full account</string>
+    <string name="admin_kind_guest">Guest</string>
+
+    <string name="admin_error_network">The server can’t be reached. Check the network.</string>
+    <string name="admin_error_session_revoked">This session was closed. Connect again.</string>
+    <string name="admin_error_too_old">The server needs a newer version of the app.</string>
+    <string name="admin_error_forbidden">Your role doesn’t allow this.</string>
+    <string name="admin_error_not_found">Not found: it may have been deleted.</string>
+    <string name="admin_error_conflict">This was changed in the meantime. Refresh and try again.</string>
+    <string name="admin_error_invalid">The server refused this value.</string>
+    <string name="admin_error_rate_limited">Too many attempts. Wait a moment.</string>
+    <string name="admin_error_server">The server had an error. Try again later.</string>
+    <string name="admin_error_last_admin">The last Admin can’t be changed, disabled or deleted.</string>
+    <string name="admin_error_short_code">The code doesn’t match the one on the Guest’s phone.</string>
+    <string name="admin_error_guest_limit">The Guest limit is reached.</string>
+    <string name="admin_error_backup_too_large">The backup is too large for the server.</string>
+    <string name="admin_error_file">The file could not be read or written.</string>
+
+    <string name="admin_never">never</string>
+    <string name="admin_retry">Retry</string>
+    <string name="admin_cancel">Cancel</string>
+    <string name="admin_qr_close">Close</string>
+
+    <!-- Users -->
+    <string name="admin_users_empty">No users.</string>
+    <string name="admin_user_unnamed">No name</string>
+    <string name="admin_user_unknown_role">Role: %1$s</string>
+    <string name="admin_user_last_sync">Last sync: %1$s</string>
+    <string name="admin_user_pending">Pending promotion</string>
+    <string name="admin_user_pending_detail">Pending promotion to %1$s: the Guest must choose a username and password.</string>
+    <string name="admin_user_disabled">Disabled</string>
+    <string name="admin_user_short_code">Code: %1$s</string>
+    <string name="admin_user_change_role">Change role</string>
+    <string name="admin_user_reset_password">Reset password</string>
+    <string name="admin_user_disable">Disable</string>
+    <string name="admin_user_enable">Enable</string>
+    <string name="admin_user_delete">Delete</string>
+    <string name="admin_user_delete_title">Delete this account?</string>
+    <string name="admin_user_delete_message">The account and its devices are removed. Its movements stay in the history. This can’t be undone.</string>
+    <string name="admin_user_delete_prompt">Type “%1$s” to confirm</string>
+    <string name="admin_user_cancel_promotion">Cancel promotion</string>
+    <string name="admin_user_devices">Devices</string>
+    <string name="admin_user_no_devices">No devices.</string>
+    <string name="admin_device_unnamed">Unnamed device</string>
+    <string name="admin_device_used">Last used: %1$s</string>
+    <string name="admin_device_revoked">Revoked</string>
+    <string name="admin_device_revoke">Revoke</string>
+    <string name="admin_device_revoke_title">Revoke this device?</string>
+    <string name="admin_device_revoke_message">The device is disconnected at its next sync.</string>
+    <string name="admin_reset_qr_title">New password for %1$s</string>
+    <string name="admin_reset_qr_subtitle">Scan with this person’s phone. The code works once.</string>
+    <string name="admin_msg_role_changed">Role changed</string>
+    <string name="admin_msg_disabled">Account disabled</string>
+    <string name="admin_msg_enabled">Account enabled</string>
+    <string name="admin_msg_deleted">Account deleted</string>
+    <string name="admin_msg_promotion_pending">Promotion sent: the Guest now chooses a username and password</string>
+    <string name="admin_msg_promotion_cancelled">Promotion cancelled</string>
+    <string name="admin_msg_device_revoked">Device revoked</string>
+
+    <!-- Promotion of a Guest -->
+    <string name="admin_promote">Promote</string>
+    <string name="admin_promote_title">Promote this Guest</string>
+    <string name="admin_promote_message">Ask the person for the code shown on their phone and type it below.</string>
+    <string name="admin_promote_expected">Code of this account</string>
+    <string name="admin_promote_code_label">Code shown by the person</string>
+    <string name="admin_promote_code_ok">The codes match</string>
+    <string name="admin_promote_code_mismatch">The codes don’t match</string>
+    <string name="admin_promote_role">New role</string>
+
+    <!-- Invites -->
+    <string name="admin_invites_empty">No open invites.</string>
+    <string name="admin_invite_create">New invite</string>
+    <string name="admin_invite_role">Role of the new account</string>
+    <string name="admin_invite_expires">Valid until %1$s</string>
+    <string name="admin_invite_cancel">Cancel invite</string>
+    <string name="admin_invite_cancel_title">Cancel this invite?</string>
+    <string name="admin_invite_cancel_message">Its QR code stops working.</string>
+    <string name="admin_invite_qr_title">Invite: %1$s</string>
+    <string name="admin_invite_qr_subtitle">Scan with EasyStock on the new phone. Works once, until %1$s.</string>
+    <string name="admin_invite_no_qr">The invite was created, but the server sent no code to show.</string>
+
+    <!-- Printed QR code -->
+    <string name="admin_public_enabled">Printed QR code on</string>
+    <string name="admin_public_enabled_summary">Anyone who scans it can view the stock as a Guest.</string>
+    <string name="admin_public_guests">Guest accounts: %1$d</string>
+    <string name="admin_public_limit">Guest limit</string>
+    <string name="admin_public_limit_none">No limit</string>
+    <string name="admin_public_limit_hint">Empty = no limit</string>
+    <string name="admin_public_limit_save">Save the limit</string>
+    <string name="admin_public_qr_title">Printed QR code</string>
+    <string name="admin_public_no_qr">The server keeps only a fingerprint of this code. Regenerate it to show or print it.</string>
+    <string name="admin_public_show">Show full screen</string>
+    <string name="admin_public_pdf">Export PDF</string>
+    <string name="admin_public_pdf_line">Scan with EasyStock to view the stock</string>
+    <string name="admin_public_regenerate">Regenerate</string>
+    <string name="admin_public_regenerate_title">Regenerate the code?</string>
+    <string name="admin_public_regenerate_message">The printed sheets stop working. Print the new code afterwards.</string>
+    <string name="admin_public_regenerated">New code made: print it again</string>
+
+    <!-- Server backup -->
+    <string name="admin_backup_download">Download</string>
+    <string name="admin_backup_download_summary">A backup of all the server data, with the photos.</string>
+    <string name="admin_backup_downloaded">Backup downloaded</string>
+    <string name="admin_backup_save">Save</string>
+    <string name="admin_backup_share">Share</string>
+    <string name="admin_backup_saved">Backup saved</string>
+    <string name="admin_backup_import">Import a file</string>
+    <string name="admin_backup_import_summary">Loads an EasyStock backup into the server.</string>
+    <string name="admin_backup_import_title">Import into the server</string>
+    <string name="admin_backup_import_send">Import</string>
+    <string name="admin_backup_merge">Merge</string>
+    <string name="admin_backup_merge_summary">Adds the backup to the server data.</string>
+    <string name="admin_backup_replace">Replace</string>
+    <string name="admin_backup_replace_summary">Erases all the server data, then loads the backup. Every phone gets the new data.</string>
+    <string name="admin_backup_replace_prompt">Type %1$s to confirm</string>
+    <string name="admin_backup_replace_word">REPLACE</string>
+    <string name="admin_backup_imported">Backup imported</string>
+
+    <!-- Server settings -->
+    <string name="admin_settings_retention">Movement authors</string>
+    <string name="admin_settings_retention_summary">After this time, the name of who made a movement is removed. The movement stays.</string>
+    <string name="admin_settings_retention_forever">Keep</string>
+    <plurals name="admin_settings_retention_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <string name="admin_settings_alert_roles">Low-stock alerts</string>
+    <string name="admin_settings_alert_roles_summary">Roles that get the alerts by default.</string>
+    <string name="admin_settings_saved">Saved</string>
+</resources>

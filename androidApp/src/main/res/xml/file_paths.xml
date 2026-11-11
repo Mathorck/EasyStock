@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only temp folders are shared: the camera capture and the backup being shared by the user.
+<!-- Only temp folders are shared: the camera capture and the backups being shared by the user.
      The stored photos (files/images) and the database are never exposed. -->
 <paths>
     <cache-path name="camera" path="camera/" />
     <cache-path name="backup" path="backup/share/" />
+    <!-- Server mode: a server backup or the printed QR code PDF being saved or shared by an Admin -->
+    <cache-path name="server" path="server/share/" />
 </paths>

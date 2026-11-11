@@ -73,6 +73,19 @@ data class QrGrant(
     val expiresAt: String? = null,
 ) {
     override fun toString(): String = "QrGrant(expiresAt=$expiresAt)"
+
+    /**
+     * The QR code text for [kind] on [connection]: built by the app from [token], else the server's [qr]
+     * if it is a valid code of that kind. Null when there is neither.
+     */
+    fun qrText(connection: ServerConnection, kind: JoinKind): String? {
+        token?.takeIf { it.isNotBlank() }?.let { token ->
+            runCatching { JoinCode.build(connection.serverUrl, kind, token, connection.fingerprint) }
+                .getOrNull()?.let { return it.toQrText() }
+        }
+        val fromServer = qr?.takeIf { it.isNotBlank() } ?: return null
+        return runCatching { JoinCode.parse(fromServer) }.getOrNull()?.takeIf { it.kind == kind }?.toQrText()
+    }
 }
 
 /** `POST /admin/invites`. */

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_administration_summary">Benutzer, Einladungen, gedruckter QR-Code, Server-Backup</string>
+
+    <string name="admin_title">Verwaltung</string>
+    <string name="admin_not_connected">Dieses Telefon ist mit keinem Server verbunden.</string>
+    <string name="admin_users">Benutzer</string>
+    <string name="admin_users_summary">Rollen, Passwörter, Geräte, Gast-Beförderungen</string>
+    <string name="admin_invites">Einladungen</string>
+    <string name="admin_invites_summary">Einmalige QR-Codes für neue Konten</string>
+    <string name="admin_public_invite">Gedruckter QR-Code</string>
+    <string name="admin_public_invite_summary">Gastzugang zum Ansehen des Bestands, PDF zum Drucken</string>
+    <string name="admin_backup">Server-Backup</string>
+    <string name="admin_backup_summary">Serverdaten herunterladen oder importieren</string>
+    <string name="admin_settings">Server-Einstellungen</string>
+    <string name="admin_settings_summary">Autoren der Bewegungen, Warnungen</string>
+
+    <string name="admin_role_admin">Admin</string>
+    <string name="admin_role_editor">Bearbeiter</string>
+    <string name="admin_role_viewer">Betrachter</string>
+    <string name="admin_role_guest">Gast</string>
+    <string name="admin_kind_full">Vollkonto</string>
+    <string name="admin_kind_guest">Gast</string>
+
+    <string name="admin_error_network">Der Server ist nicht erreichbar. Netzwerk prüfen.</string>
+    <string name="admin_error_session_revoked">Diese Sitzung wurde beendet. Bitte neu verbinden.</string>
+    <string name="admin_error_too_old">Der Server braucht eine neuere Version der App.</string>
+    <string name="admin_error_forbidden">Ihre Rolle erlaubt das nicht.</string>
+    <string name="admin_error_not_found">Nicht gefunden: vielleicht wurde es gelöscht.</string>
+    <string name="admin_error_conflict">Das wurde inzwischen geändert. Aktualisieren und erneut versuchen.</string>
+    <string name="admin_error_invalid">Der Server hat diesen Wert abgelehnt.</string>
+    <string name="admin_error_rate_limited">Zu viele Versuche. Bitte kurz warten.</string>
+    <string name="admin_error_server">Serverfehler. Später erneut versuchen.</string>
+    <string name="admin_error_last_admin">Der letzte Admin kann nicht geändert, deaktiviert oder gelöscht werden.</string>
+    <string name="admin_error_short_code">Der Code stimmt nicht mit dem auf dem Telefon des Gasts überein.</string>
+    <string name="admin_error_guest_limit">Das Gastlimit ist erreicht.</string>
+    <string name="admin_error_backup_too_large">Das Backup ist zu gross für den Server.</string>
+    <string name="admin_error_file">Die Datei konnte nicht gelesen oder geschrieben werden.</string>
+
+    <string name="admin_never">nie</string>
+    <string name="admin_retry">Erneut versuchen</string>
+    <string name="admin_cancel">Abbrechen</string>
+    <string name="admin_qr_close">Schliessen</string>
+
+    <string name="admin_users_empty">Keine Benutzer.</string>
+    <string name="admin_user_unnamed">Ohne Namen</string>
+    <string name="admin_user_unknown_role">Rolle: %1$s</string>
+    <string name="admin_user_last_sync">Letzte Synchronisierung: %1$s</string>
+    <string name="admin_user_pending">Beförderung ausstehend</string>
+    <string name="admin_user_pending_detail">Beförderung zu %1$s ausstehend: Der Gast muss einen Benutzernamen und ein Passwort wählen.</string>
+    <string name="admin_user_disabled">Deaktiviert</string>
+    <string name="admin_user_short_code">Code: %1$s</string>
+    <string name="admin_user_change_role">Rolle ändern</string>
+    <string name="admin_user_reset_password">Passwort zurücksetzen</string>
+    <string name="admin_user_disable">Deaktivieren</string>
+    <string name="admin_user_enable">Aktivieren</string>
+    <string name="admin_user_delete">Löschen</string>
+    <string name="admin_user_delete_title">Dieses Konto löschen?</string>
+    <string name="admin_user_delete_message">Das Konto und seine Geräte werden entfernt. Seine Bewegungen bleiben im Verlauf. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="admin_user_delete_prompt">„%1$s“ eingeben zum Bestätigen</string>
+    <string name="admin_user_cancel_promotion">Beförderung abbrechen</string>
+    <string name="admin_user_devices">Geräte</string>
+    <string name="admin_user_no_devices">Keine Geräte.</string>
+    <string name="admin_device_unnamed">Unbenanntes Gerät</string>
+    <string name="admin_device_used">Zuletzt verwendet: %1$s</string>
+    <string name="admin_device_revoked">Widerrufen</string>
+    <string name="admin_device_revoke">Widerrufen</string>
+    <string name="admin_device_revoke_title">Dieses Gerät widerrufen?</string>
+    <string name="admin_device_revoke_message">Das Gerät wird bei seiner nächsten Synchronisierung getrennt.</string>
+    <string name="admin_reset_qr_title">Neues Passwort für %1$s</string>
+    <string name="admin_reset_qr_subtitle">Mit dem Telefon dieser Person scannen. Der Code funktioniert einmal.</string>
+    <string name="admin_msg_role_changed">Rolle geändert</string>
+    <string name="admin_msg_disabled">Konto deaktiviert</string>
+    <string name="admin_msg_enabled">Konto aktiviert</string>
+    <string name="admin_msg_deleted">Konto gelöscht</string>
+    <string name="admin_msg_promotion_pending">Beförderung gesendet: Der Gast wählt jetzt einen Benutzernamen und ein Passwort</string>
+    <string name="admin_msg_promotion_cancelled">Beförderung abgebrochen</string>
+    <string name="admin_msg_device_revoked">Gerät widerrufen</string>
+
+    <string name="admin_promote">Befördern</string>
+    <string name="admin_promote_title">Diesen Gast befördern</string>
+    <string name="admin_promote_message">Fragen Sie die Person nach dem Code auf ihrem Telefon und geben Sie ihn unten ein.</string>
+    <string name="admin_promote_expected">Code dieses Kontos</string>
+    <string name="admin_promote_code_label">Von der Person gezeigter Code</string>
+    <string name="admin_promote_code_ok">Die Codes stimmen überein</string>
+    <string name="admin_promote_code_mismatch">Die Codes stimmen nicht überein</string>
+    <string name="admin_promote_role">Neue Rolle</string>
+
+    <string name="admin_invites_empty">Keine offenen Einladungen.</string>
+    <string name="admin_invite_create">Neue Einladung</string>
+    <string name="admin_invite_role">Rolle des neuen Kontos</string>
+    <string name="admin_invite_expires">Gültig bis %1$s</string>
+    <string name="admin_invite_cancel">Einladung zurückziehen</string>
+    <string name="admin_invite_cancel_title">Diese Einladung zurückziehen?</string>
+    <string name="admin_invite_cancel_message">Ihr QR-Code funktioniert dann nicht mehr.</string>
+    <string name="admin_invite_qr_title">Einladung: %1$s</string>
+    <string name="admin_invite_qr_subtitle">Mit EasyStock auf dem neuen Telefon scannen. Einmalig, bis %1$s.</string>
+    <string name="admin_invite_no_qr">Die Einladung wurde erstellt, aber der Server hat keinen Code zum Anzeigen gesendet.</string>
+
+    <string name="admin_public_enabled">Gedruckter QR-Code aktiv</string>
+    <string name="admin_public_enabled_summary">Wer ihn scannt, kann den Bestand als Gast ansehen.</string>
+    <string name="admin_public_guests">Gastkonten: %1$d</string>
+    <string name="admin_public_limit">Gastlimit</string>
+    <string name="admin_public_limit_none">Kein Limit</string>
+    <string name="admin_public_limit_hint">Leer = kein Limit</string>
+    <string name="admin_public_limit_save">Limit speichern</string>
+    <string name="admin_public_qr_title">Gedruckter QR-Code</string>
+    <string name="admin_public_no_qr">Der Server speichert nur einen Fingerabdruck dieses Codes. Neu erstellen, um ihn anzuzeigen oder zu drucken.</string>
+    <string name="admin_public_show">Vollbild anzeigen</string>
+    <string name="admin_public_pdf">Als PDF exportieren</string>
+    <string name="admin_public_pdf_line">Mit EasyStock scannen, um den Bestand anzusehen</string>
+    <string name="admin_public_regenerate">Neu erstellen</string>
+    <string name="admin_public_regenerate_title">Code neu erstellen?</string>
+    <string name="admin_public_regenerate_message">Die gedruckten Blätter funktionieren dann nicht mehr. Drucken Sie danach den neuen Code.</string>
+    <string name="admin_public_regenerated">Neuer Code erstellt: bitte neu drucken</string>
+
+    <string name="admin_backup_download">Herunterladen</string>
+    <string name="admin_backup_download_summary">Ein Backup aller Serverdaten, mit den Fotos.</string>
+    <string name="admin_backup_downloaded">Backup heruntergeladen</string>
+    <string name="admin_backup_save">Speichern</string>
+    <string name="admin_backup_share">Teilen</string>
+    <string name="admin_backup_saved">Backup gespeichert</string>
+    <string name="admin_backup_import">Datei importieren</string>
+    <string name="admin_backup_import_summary">Lädt ein EasyStock-Backup in den Server.</string>
+    <string name="admin_backup_import_title">In den Server importieren</string>
+    <string name="admin_backup_import_send">Importieren</string>
+    <string name="admin_backup_merge">Zusammenführen</string>
+    <string name="admin_backup_merge_summary">Fügt das Backup zu den Serverdaten hinzu.</string>
+    <string name="admin_backup_replace">Ersetzen</string>
+    <string name="admin_backup_replace_summary">Löscht alle Serverdaten und lädt dann das Backup. Alle Telefone erhalten die neuen Daten.</string>
+    <string name="admin_backup_replace_prompt">%1$s eingeben zum Bestätigen</string>
+    <string name="admin_backup_replace_word">ERSETZEN</string>
+    <string name="admin_backup_imported">Backup importiert</string>
+
+    <string name="admin_settings_retention">Autoren der Bewegungen</string>
+    <string name="admin_settings_retention_summary">Nach dieser Zeit wird der Name der Person entfernt, die eine Bewegung gemacht hat. Die Bewegung bleibt.</string>
+    <string name="admin_settings_retention_forever">Behalten</string>
+    <plurals name="admin_settings_retention_days">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <string name="admin_settings_alert_roles">Warnungen bei niedrigem Bestand</string>
+    <string name="admin_settings_alert_roles_summary">Rollen, die die Warnungen standardmässig erhalten.</string>
+    <string name="admin_settings_saved">Gespeichert</string>
+</resources>
