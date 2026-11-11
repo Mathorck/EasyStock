@@ -10,3 +10,5 @@ actual fun serverHttpEngine(fingerprint: String?): HttpClientEngine =
 
 @Composable
 actual fun rememberServerClient(state: SyncState?): ServerClient? = null
+
+actual fun releaseServerClient() = Unit

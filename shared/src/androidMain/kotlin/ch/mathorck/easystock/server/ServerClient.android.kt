@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import ch.mathorck.easystock.auth.ServerSessionEvents
 import ch.mathorck.easystock.auth.sessionStore
 import ch.mathorck.easystock.data.model.SyncState
 import io.ktor.client.engine.HttpClientEngine
@@ -48,11 +49,17 @@ private fun holder(context: Context): ServerClientHolder = holder ?: run {
             engine = serverHttpEngine(connection.fingerprint),
             session = sessionStore(app),
             versions = versions,
+            // The wipe runs outside this client (MainComposable): it closes the client
+            onSessionRevoked = { ServerSessionEvents.sessionRevoked() },
         )
     }.also { holder = it }
 }
 
-private fun appVersionName(context: Context): String =
+actual fun releaseServerClient() {
+    holder?.release()
+}
+
+internal fun appVersionName(context: Context): String =
     runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "0.0.0"
 
 @Composable

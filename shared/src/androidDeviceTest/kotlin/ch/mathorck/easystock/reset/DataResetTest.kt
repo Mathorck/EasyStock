@@ -3,6 +3,9 @@ package ch.mathorck.easystock.reset
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.platform.app.InstrumentationRegistry
+import ch.mathorck.easystock.auth.EmptyPhoneCheck
+import ch.mathorck.easystock.auth.InMemorySessionStore
+import ch.mathorck.easystock.auth.hasPhotoFiles
 import ch.mathorck.easystock.backup.BackupData
 import ch.mathorck.easystock.backup.DeviceFixtures.PHOTO
 import ch.mathorck.easystock.backup.DeviceFixtures.article
@@ -19,6 +22,7 @@ import org.junit.Test
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** The reset of all data, on an in-memory database and a temporary file folder, never the app ones. */
@@ -29,6 +33,7 @@ class DataResetTest {
     private val cacheDir = File(root, "cache")
     private lateinit var db: AppDatabase
     private lateinit var reset: DataReset
+    private val session = InMemorySessionStore()
 
     @Before
     fun setUp() = runBlocking {
@@ -36,7 +41,7 @@ class DataResetTest {
         root.mkdirs()
         db = Room.databaseBuilder<AppDatabase>(context, File(root, "reset.db").path)
             .withAppSchema().setDriver(BundledSQLiteDriver()).build()
-        reset = DataReset(db) { wipeAppFiles(filesDir, cacheDir) }
+        reset = DataReset(db, clearSession = { session.clear() }) { wipeAppFiles(filesDir, cacheDir) }
         // Every table, soft-deleted rows included
         db.backupDao().replaceAll(sample())
     }
@@ -132,6 +137,26 @@ class DataResetTest {
 
         SERVER_TABLES.forEach { assertEquals(0, count(it), it) }
         assertEquals(BackupData(), db.backupDao().snapshot())
+    }
+
+    /** The logout wipe: no row, no photo, no token and no sync_state left, the phone is standalone and empty. */
+    @Test
+    fun theLogoutWipeLeavesAnEmptyStandalonePhone() = runBlocking {
+        db.useWriterConnection {
+            it.execSQL("INSERT INTO sync_state (id, server_url, user_id, role) VALUES (1, 'https://example.test', 'u1', 'guest')")
+        }
+        session.saveRefreshToken("refresh")
+        session.accessToken = "access"
+        write(File(filesDir, PHOTO))
+        val check = EmptyPhoneCheck(db.sessionDao()) { hasPhotoFiles(filesDir) }
+        assertFalse(check.isEmpty())
+
+        reset.run()
+
+        assertNull(db.sessionDao().syncState())
+        assertNull(session.refreshToken())
+        assertNull(session.accessToken)
+        assertTrue(check.isEmpty())
     }
 
     private suspend fun count(table: String): Int = db.useReaderConnection { connection ->

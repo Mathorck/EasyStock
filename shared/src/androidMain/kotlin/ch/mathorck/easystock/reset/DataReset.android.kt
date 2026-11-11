@@ -3,8 +3,10 @@ package ch.mathorck.easystock.reset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import ch.mathorck.easystock.auth.sessionStore
 import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.images.IMAGE_DIR
+import ch.mathorck.easystock.server.releaseServerClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -31,6 +33,13 @@ suspend fun wipeAppFiles(filesDir: File, cacheDir: File) = withContext(Dispatche
 actual fun rememberDataReset(): DataReset {
     val context = LocalContext.current.applicationContext
     return remember(context) {
-        DataReset(appDatabase(context)) { wipeAppFiles(context.filesDir, context.cacheDir) }
+        DataReset(
+            db = appDatabase(context),
+            wipeFiles = { wipeAppFiles(context.filesDir, context.cacheDir) },
+            clearSession = {
+                withContext(Dispatchers.Main) { releaseServerClient() }
+                sessionStore(context).clear()
+            },
+        )
     }
 }

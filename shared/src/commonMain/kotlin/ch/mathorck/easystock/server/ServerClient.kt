@@ -222,3 +222,6 @@ expect fun serverHttpEngine(fingerprint: String?): HttpClientEngine
  */
 @Composable
 expect fun rememberServerClient(state: SyncState?): ServerClient?
+
+/** Leaving the server: closes the shared client of the connection. Main thread. */
+expect fun releaseServerClient()
