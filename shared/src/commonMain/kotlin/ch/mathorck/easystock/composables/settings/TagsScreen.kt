@@ -414,7 +414,7 @@ private fun TagListRow(
     onReassign: (TagPickerType) -> Unit,
 ) {
     val container by animateColorAsState(
-        if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
+        if (highlighted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.background,
     )
     val archived = stringResource(Res.string.nfc_tags_archived)
     val supporting = listOfNotNull(row.subtitle, archived.takeIf { row.archived }).joinToString(ATTRIBUTE_SUMMARY_SEPARATOR)
