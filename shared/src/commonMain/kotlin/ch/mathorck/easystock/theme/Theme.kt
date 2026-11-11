@@ -92,7 +92,8 @@ private val DarkColors = darkColorScheme(
 @Composable
 fun EasyStockTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        // Dynamic colors (Material You, Android 12+) when the platform has them, else the brand schemes.
+        colorScheme = platformColorScheme(darkTheme) ?: if (darkTheme) DarkColors else LightColors,
         content = content,
     )
 }

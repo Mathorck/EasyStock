@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DayNight: window background and splash follow the system dark mode (no white flash). -->
+    <style name="Theme.EasyStock" parent="Theme.AppCompat.DayNight.NoActionBar" />
+</resources>
