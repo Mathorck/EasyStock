@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
+import ch.mathorck.easystock.composables.attributes.AttributeRow
 import ch.mathorck.easystock.composables.nfc.ArticleTagSection
 import ch.mathorck.easystock.composables.nfc.TagLinkSheet
 import ch.mathorck.easystock.data.db.asArticleTags
@@ -78,6 +79,7 @@ import easystock.shared.generated.resources.article_reason_return
 import easystock.shared.generated.resources.article_reason_transfer
 import easystock.shared.generated.resources.article_section_history
 import easystock.shared.generated.resources.article_section_locations
+import easystock.shared.generated.resources.article_section_properties
 import easystock.shared.generated.resources.article_sku_label
 import easystock.shared.generated.resources.article_threshold_value
 import easystock.shared.generated.resources.article_total_stock
@@ -215,6 +217,9 @@ fun ArticleDetailContent(
                 )
             }
             item(key = "header") { Header(article, state.categoryName) }
+            if (state.properties.isNotEmpty()) {
+                item(key = "properties") { PropertiesSection(state.properties) }
+            }
             item(key = "total") { TotalStock(state, article.unit) }
             item(key = "tag") {
                 ArticleTagSection(
@@ -290,6 +295,20 @@ private fun Header(article: Article, categoryName: String?) {
         InfoRow(stringResource(Res.string.article_unit_label), article.unit)
         article.description?.takeIf { it.isNotBlank() }?.let {
             InfoRow(stringResource(Res.string.article_description_label), it)
+        }
+    }
+}
+
+/** The attribute values of the article, read-only, one row per value. */
+@Composable
+private fun PropertiesSection(properties: List<AttributeRow>) {
+    Column(Modifier.fillMaxWidth()) {
+        SectionTitle(stringResource(Res.string.article_section_properties))
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            properties.forEach { InfoRow(it.label, it.value) }
         }
     }
 }
