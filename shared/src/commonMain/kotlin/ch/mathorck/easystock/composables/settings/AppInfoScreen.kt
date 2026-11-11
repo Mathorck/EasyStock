@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -79,10 +80,19 @@ import easystock.shared.generated.resources.app_info_tags
 import easystock.shared.generated.resources.app_info_updated
 import easystock.shared.generated.resources.app_info_version
 import easystock.shared.generated.resources.app_info_version_value
+import easystock.shared.generated.resources.ic_chevron_right
 import easystock.shared.generated.resources.ic_content_copy
 import easystock.shared.generated.resources.ic_description
+import easystock.shared.generated.resources.ic_folder_open
+import easystock.shared.generated.resources.ic_info
 import easystock.shared.generated.resources.ic_link
 import easystock.shared.generated.resources.ic_open_in_new
+import easystock.shared.generated.resources.ic_settings
+import easystock.shared.generated.resources.ic_share
+import easystock.shared.generated.resources.app_info_summary_app
+import easystock.shared.generated.resources.app_info_summary_data
+import easystock.shared.generated.resources.app_info_summary_device
+import easystock.shared.generated.resources.app_info_summary_support
 import easystock.shared.generated.resources.settings_app_info
 import easystock.shared.generated.resources.settings_language_english
 import easystock.shared.generated.resources.settings_language_french
@@ -90,6 +100,7 @@ import easystock.shared.generated.resources.settings_language_german
 import easystock.shared.generated.resources.settings_language_system
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -138,86 +149,122 @@ fun AppInfoScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             updatedAt = platformInfo.updatedAt?.let { formatDateTime(it, zone) },
         )
     }
-    NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = onBack)
+    var sectionName by rememberSaveable { mutableStateOf<String?>(null) }
+    val section = sectionName?.let { name -> AppInfoSection.entries.firstOrNull { it.name == name } }
+    if (section == null) {
+        NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = onBack)
+    } else {
+        NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = { sectionName = null })
+    }
 
-    SettingsSubpage(title = stringResource(Res.string.settings_app_info), onBack = onBack, modifier = modifier) {
+    SettingsSubpage(
+        title = stringResource(section?.title ?: Res.string.settings_app_info),
+        onBack = { if (section == null) onBack() else sectionName = null },
+        modifier = modifier,
+    ) {
         val loaded = info
         if (loaded == null) {
             EmptyListHint(stringResource(Res.string.app_info_loading))
             return@SettingsSubpage
         }
         val p = loaded.platform
+        val versionValue = stringResource(Res.string.app_info_version_value, p.versionName, p.versionCode.toString())
+        val buildType = stringResource(if (p.debugBuild) Res.string.app_info_build_debug else Res.string.app_info_build_release)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            InfoHeader(stringResource(Res.string.app_info_section_app))
-            InfoRow(
-                stringResource(Res.string.app_info_version),
-                stringResource(Res.string.app_info_version_value, p.versionName, p.versionCode.toString()),
-            )
-            InfoRow(
-                stringResource(Res.string.app_info_build_type),
-                stringResource(if (p.debugBuild) Res.string.app_info_build_debug else Res.string.app_info_build_release),
-            )
-            InfoRow(stringResource(Res.string.app_info_application_id), p.applicationId)
-            loaded.installedAt?.let { InfoRow(stringResource(Res.string.app_info_installed), it) }
-            loaded.updatedAt?.let { InfoRow(stringResource(Res.string.app_info_updated), it) }
-
-            InfoHeader(stringResource(Res.string.app_info_section_data))
-            InfoRow(stringResource(Res.string.app_info_db_version), loaded.dbVersion.toString())
-            InfoRow(stringResource(Res.string.app_info_backup_format), loaded.backupFormatVersion.toString())
-            InfoRow(stringResource(Res.string.app_info_articles), loaded.counts.articles.toString())
-            InfoRow(stringResource(Res.string.app_info_locations), loaded.counts.locations.toString())
-            InfoRow(stringResource(Res.string.app_info_items), loaded.counts.items.toString())
-            InfoRow(stringResource(Res.string.app_info_movements), loaded.counts.stockMovements.toString())
-            InfoRow(stringResource(Res.string.app_info_tags), loaded.counts.nfcTags.toString())
-            InfoRow(stringResource(Res.string.app_info_open_reviews), loaded.counts.openReviews.toString())
-            Note(stringResource(Res.string.app_info_counts_note))
-            InfoRow(stringResource(Res.string.app_info_db_size), formatBytes(p.databaseBytes))
-            InfoRow(
-                stringResource(Res.string.app_info_photos),
-                stringResource(Res.string.app_info_photos_value, p.photoCount.toString(), formatBytes(p.photoBytes)),
-            )
-
-            InfoHeader(stringResource(Res.string.app_info_section_device))
-            InfoRow(stringResource(Res.string.app_info_os), p.os)
-            InfoRow(stringResource(Res.string.app_info_device), p.device)
-            InfoRow(stringResource(Res.string.app_info_app_language), languageName)
-            InfoRow(stringResource(Res.string.app_info_system_locale), p.locale)
-            InfoRow(
-                stringResource(Res.string.app_info_nfc),
-                stringResource(
-                    when (p.nfc) {
-                        NfcAvailability.Enabled -> Res.string.app_info_nfc_enabled
-                        NfcAvailability.Disabled -> Res.string.app_info_nfc_disabled
-                        NfcAvailability.Unavailable, NfcAvailability.Unknown -> Res.string.app_info_nfc_absent
-                    },
-                ),
-            )
-            p.freeBytes?.let { InfoRow(stringResource(Res.string.app_info_free_storage), formatBytes(it)) }
-
-            InfoHeader(stringResource(Res.string.app_info_section_support))
-            ActionRow(
-                title = stringResource(Res.string.app_info_copy),
-                icon = Res.drawable.ic_content_copy,
-                onClick = {
-                    platform.copy(loaded.toReportText())
-                    copied = true
-                },
-            )
-            Note(if (copied) stringResource(Res.string.app_info_copied) else stringResource(Res.string.app_info_privacy))
-            ActionRow(stringResource(Res.string.app_info_repository), Res.drawable.ic_link) { uriHandler.openUri(REPO_URL) }
-            ActionRow(stringResource(Res.string.app_info_issues), Res.drawable.ic_open_in_new) { uriHandler.openUri(ISSUES_URL) }
-            ActionRow(stringResource(Res.string.app_info_license), Res.drawable.ic_description) { uriHandler.openUri(LICENSE_URL) }
+            when (section) {
+                null -> {
+                    SectionItem(
+                        AppInfoSection.App,
+                        stringResource(Res.string.app_info_summary_app, versionValue, buildType),
+                    ) { sectionName = AppInfoSection.App.name }
+                    SectionItem(
+                        AppInfoSection.Data,
+                        stringResource(Res.string.app_info_summary_data, loaded.dbVersion.toString(), loaded.counts.articles.toString()),
+                    ) { sectionName = AppInfoSection.Data.name }
+                    SectionItem(
+                        AppInfoSection.Device,
+                        stringResource(Res.string.app_info_summary_device, p.os, p.device),
+                    ) { sectionName = AppInfoSection.Device.name }
+                    SectionItem(
+                        AppInfoSection.Support,
+                        stringResource(Res.string.app_info_summary_support),
+                    ) { sectionName = AppInfoSection.Support.name }
+                }
+                AppInfoSection.App -> {
+                    InfoRow(stringResource(Res.string.app_info_version), versionValue)
+                    InfoRow(stringResource(Res.string.app_info_build_type), buildType)
+                    InfoRow(stringResource(Res.string.app_info_application_id), p.applicationId)
+                    loaded.installedAt?.let { InfoRow(stringResource(Res.string.app_info_installed), it) }
+                    loaded.updatedAt?.let { InfoRow(stringResource(Res.string.app_info_updated), it) }
+                }
+                AppInfoSection.Data -> {
+                    InfoRow(stringResource(Res.string.app_info_db_version), loaded.dbVersion.toString())
+                    InfoRow(stringResource(Res.string.app_info_backup_format), loaded.backupFormatVersion.toString())
+                    InfoRow(stringResource(Res.string.app_info_articles), loaded.counts.articles.toString())
+                    InfoRow(stringResource(Res.string.app_info_locations), loaded.counts.locations.toString())
+                    InfoRow(stringResource(Res.string.app_info_items), loaded.counts.items.toString())
+                    InfoRow(stringResource(Res.string.app_info_movements), loaded.counts.stockMovements.toString())
+                    InfoRow(stringResource(Res.string.app_info_tags), loaded.counts.nfcTags.toString())
+                    InfoRow(stringResource(Res.string.app_info_open_reviews), loaded.counts.openReviews.toString())
+                    Note(stringResource(Res.string.app_info_counts_note))
+                    InfoRow(stringResource(Res.string.app_info_db_size), formatBytes(p.databaseBytes))
+                    InfoRow(
+                        stringResource(Res.string.app_info_photos),
+                        stringResource(Res.string.app_info_photos_value, p.photoCount.toString(), formatBytes(p.photoBytes)),
+                    )
+                }
+                AppInfoSection.Device -> {
+                    InfoRow(stringResource(Res.string.app_info_os), p.os)
+                    InfoRow(stringResource(Res.string.app_info_device), p.device)
+                    InfoRow(stringResource(Res.string.app_info_app_language), languageName)
+                    InfoRow(stringResource(Res.string.app_info_system_locale), p.locale)
+                    InfoRow(
+                        stringResource(Res.string.app_info_nfc),
+                        stringResource(
+                            when (p.nfc) {
+                                NfcAvailability.Enabled -> Res.string.app_info_nfc_enabled
+                                NfcAvailability.Disabled -> Res.string.app_info_nfc_disabled
+                                NfcAvailability.Unavailable, NfcAvailability.Unknown -> Res.string.app_info_nfc_absent
+                            },
+                        ),
+                    )
+                    p.freeBytes?.let { InfoRow(stringResource(Res.string.app_info_free_storage), formatBytes(it)) }
+                }
+                AppInfoSection.Support -> {
+                    ActionRow(
+                        title = stringResource(Res.string.app_info_copy),
+                        icon = Res.drawable.ic_content_copy,
+                        onClick = {
+                            platform.copy(loaded.toReportText())
+                            copied = true
+                        },
+                    )
+                    Note(if (copied) stringResource(Res.string.app_info_copied) else stringResource(Res.string.app_info_privacy))
+                    ActionRow(stringResource(Res.string.app_info_repository), Res.drawable.ic_link) { uriHandler.openUri(REPO_URL) }
+                    ActionRow(stringResource(Res.string.app_info_issues), Res.drawable.ic_open_in_new) { uriHandler.openUri(ISSUES_URL) }
+                    ActionRow(stringResource(Res.string.app_info_license), Res.drawable.ic_description) { uriHandler.openUri(LICENSE_URL) }
+                }
+            }
         }
     }
 }
 
+private enum class AppInfoSection(val title: StringResource, val icon: DrawableResource) {
+    App(Res.string.app_info_section_app, Res.drawable.ic_info),
+    Data(Res.string.app_info_section_data, Res.drawable.ic_folder_open),
+    Device(Res.string.app_info_section_device, Res.drawable.ic_settings),
+    Support(Res.string.app_info_section_support, Res.drawable.ic_share),
+}
+
 @Composable
-private fun InfoHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+private fun SectionItem(section: AppInfoSection, summary: String, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(section.title)) },
+        supportingContent = { Text(summary) },
+        leadingContent = { Icon(painterResource(section.icon), contentDescription = null) },
+        trailingContent = { Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = Modifier.clickable(onClick = onClick),
     )
 }
 

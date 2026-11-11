@@ -42,4 +42,8 @@
     <string name="app_info_repository">GitHub-Repository</string>
     <string name="app_info_issues">Problem melden</string>
     <string name="app_info_license">Lizenz (MIT)</string>
+    <string name="app_info_summary_app">%1$s · %2$s</string>
+    <string name="app_info_summary_data">DB v%1$s · %2$s Artikel</string>
+    <string name="app_info_summary_device">%1$s · %2$s</string>
+    <string name="app_info_summary_support">Debug-Infos kopieren, Repository, Probleme, Lizenz</string>
 </resources>

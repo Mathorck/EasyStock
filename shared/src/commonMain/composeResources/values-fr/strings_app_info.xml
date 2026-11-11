@@ -42,4 +42,8 @@
     <string name="app_info_repository">Dépôt GitHub</string>
     <string name="app_info_issues">Signaler un problème</string>
     <string name="app_info_license">Licence (MIT)</string>
+    <string name="app_info_summary_app">%1$s · %2$s</string>
+    <string name="app_info_summary_data">BD v%1$s · %2$s articles</string>
+    <string name="app_info_summary_device">%1$s · %2$s</string>
+    <string name="app_info_summary_support">Copier les infos de débogage, dépôt, tickets, licence</string>
 </resources>
