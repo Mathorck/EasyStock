@@ -83,7 +83,6 @@
     <string name="review_msg_finished">Inventur abgeschlossen, Bestand aktualisiert.</string>
     <string name="review_read_only">Abgeschlossen am %1$s. Nur lesen.</string>
     <string name="review_last_reviewed">Zuletzt geprüft am %1$s</string>
-    <string name="review_location_action">Diesen Lagerort prüfen</string>
     <string name="review_chip">Prüfen</string>
     <string name="review_tag_failed">Tag konnte nicht gelesen werden. Ruhig halten und erneut versuchen.</string>
     <string name="review_tag_unknown">Dieser Tag ist mit keinem Artikel und keinem Lagerort verknüpft.</string>

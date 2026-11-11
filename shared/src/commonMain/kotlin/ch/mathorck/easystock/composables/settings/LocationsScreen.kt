@@ -116,11 +116,7 @@ import easystock.shared.generated.resources.locations_parent_none
 import easystock.shared.generated.resources.locations_stock_articles
 import easystock.shared.generated.resources.locations_stock_none
 import easystock.shared.generated.resources.locations_title
-import easystock.shared.generated.resources.ic_fact_check
 import easystock.shared.generated.resources.review_last_reviewed
-import easystock.shared.generated.resources.review_location_action
-import ch.mathorck.easystock.composables.review.ReviewScreen
-import ch.mathorck.easystock.composables.review.rememberReviewLauncher
 import ch.mathorck.easystock.viewmodels.formatDateTime
 import ch.mathorck.easystock.viewmodels.lastReviewedByLocation
 import kotlinx.datetime.TimeZone
@@ -138,12 +134,6 @@ fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val reviewed by remember(reviewDao) { reviewDao.observeLastReviewed() }.collectAsStateWithLifecycle(emptyList())
     val lastReviewed = remember(reviewed, state.rows) {
         lastReviewedByLocation(state.rows.map { it.location }, reviewed.associate { it.locationId to it.finishedAt })
-    }
-    val review = rememberReviewLauncher(reviewDao)
-    val openReview = review.open
-    if (openReview != null) {
-        ReviewScreen(reviewId = openReview, onBack = review.close, modifier = modifier)
-        return
     }
     var contentsOf by rememberSaveable { mutableStateOf<String?>(null) }
     contentsOf?.let { id ->
@@ -168,7 +158,6 @@ fun LocationsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         onMessageShown = viewModel::consumeMessage,
         modifier = modifier,
         lastReviewed = lastReviewed,
-        onReview = { review.start(it.id) },
     )
     state.dialog?.let { dialog ->
         val editing = dialog.editing
@@ -231,7 +220,6 @@ fun LocationsContent(
     modifier: Modifier = Modifier,
     /** Last finished review covering each location (its own or an ancestor's), epoch millis UTC. */
     lastReviewed: Map<String, Long> = emptyMap(),
-    onReview: ((Location) -> Unit)? = null,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val messageText = state.message?.let { it.text() }
@@ -262,7 +250,6 @@ fun LocationsContent(
                         onEdit = onEdit,
                         onAddSub = onAddSub,
                         onDelete = onDelete,
-                        onReview = onReview,
                     )
                 }
             }
@@ -302,7 +289,6 @@ private fun LocationRowItem(
     onEdit: (Location) -> Unit,
     onAddSub: (Location) -> Unit,
     onDelete: (Location) -> Unit,
-    onReview: ((Location) -> Unit)?,
 ) {
     val location = row.location
     val timeZone = remember { TimeZone.currentSystemDefault() }
@@ -332,11 +318,6 @@ private fun LocationRowItem(
         leadingContent = { LocationIcon(location.icon, location.color) },
         trailingContent = {
             Row {
-                if (onReview != null) {
-                    IconButton(onClick = { onReview(location) }) {
-                        Icon(painterResource(Res.drawable.ic_fact_check), contentDescription = stringResource(Res.string.review_location_action))
-                    }
-                }
                 IconButton(onClick = { onAddSub(location) }) {
                     Icon(painterResource(Res.drawable.ic_add), contentDescription = stringResource(Res.string.locations_add_sub))
                 }
