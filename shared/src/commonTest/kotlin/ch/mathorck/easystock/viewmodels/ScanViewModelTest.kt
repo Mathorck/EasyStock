@@ -142,6 +142,7 @@ class ScanViewModelTest {
         )
         val store = FakeTagStore(rope("r50", "50"), rope("r30", "30"), rope("plain", null))
         val withProps = ScanViewModel(store, availability, fixedClock, flowOf(AttributeCatalog(listOf(length), emptyList())))
+        withProps.onTag(TagEvent.Read("ZZ99"))
         withProps.openPicker()
         val picker = assertNotNull(withProps.state.value.picker)
         assertEquals(mapOf("r50" to "50 m", "r30" to "30 m"), picker.attributeLines, "no line for an article without properties")
