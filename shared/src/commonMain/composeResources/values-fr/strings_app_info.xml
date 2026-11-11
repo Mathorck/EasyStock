@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_app_info">À propos et infos de l\'app</string>
+    <string name="settings_app_info_summary">Version, nombre de données et détails de l\'appareil pour les rapports de bug</string>
+    <string name="app_info_section_app">Application</string>
+    <string name="app_info_section_data">Données</string>
+    <string name="app_info_section_device">Appareil</string>
+    <string name="app_info_section_support">Assistance</string>
+    <string name="app_info_version">Version</string>
+    <string name="app_info_version_value">%1$s (%2$s)</string>
+    <string name="app_info_build_type">Type de build</string>
+    <string name="app_info_build_debug">Debug</string>
+    <string name="app_info_build_release">Release</string>
+    <string name="app_info_application_id">Identifiant de l\'application</string>
+    <string name="app_info_installed">Installée le</string>
+    <string name="app_info_updated">Dernière mise à jour</string>
+    <string name="app_info_db_version">Version du schéma de la base</string>
+    <string name="app_info_backup_format">Version du format de sauvegarde</string>
+    <string name="app_info_counts_note">Les nombres ne comptent que les lignes actives : les lignes supprimées (suppression logique) sont exclues.</string>
+    <string name="app_info_articles">Articles</string>
+    <string name="app_info_locations">Emplacements</string>
+    <string name="app_info_items">Exemplaires (numéros de série)</string>
+    <string name="app_info_movements">Mouvements de stock</string>
+    <string name="app_info_tags">Tags NFC liés</string>
+    <string name="app_info_open_reviews">Inventaires ouverts</string>
+    <string name="app_info_db_size">Taille de la base</string>
+    <string name="app_info_photos">Photos</string>
+    <string name="app_info_photos_value">%1$s (%2$s)</string>
+    <string name="app_info_os">Système</string>
+    <string name="app_info_device">Appareil</string>
+    <string name="app_info_app_language">Langue de l\'app</string>
+    <string name="app_info_system_locale">Langue du système</string>
+    <string name="app_info_nfc">NFC</string>
+    <string name="app_info_nfc_enabled">Activé</string>
+    <string name="app_info_nfc_disabled">Désactivé</string>
+    <string name="app_info_nfc_absent">Absent</string>
+    <string name="app_info_free_storage">Espace libre</string>
+    <string name="app_info_loading">Chargement…</string>
+    <string name="app_info_copy">Copier les infos</string>
+    <string name="app_info_copied">Copié dans le presse-papiers</string>
+    <string name="app_info_privacy">Le texte copié ne contient que des nombres et des détails techniques, aucun contenu du stock (ni noms d\'articles, ni numéros de série, ni identifiants de tags). Rien n\'est envoyé.</string>
+    <string name="app_info_repository">Dépôt GitHub</string>
+    <string name="app_info_issues">Signaler un problème</string>
+    <string name="app_info_license">Licence (MIT)</string>
+</resources>
