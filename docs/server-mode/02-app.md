@@ -70,6 +70,8 @@ The QR code format
 * `kind` is `setup`, `invite`, `guest` or `reset`.
 * `fp` is present only for HTTPS with a self-signed certificate.
 * Extend `QrTransfer.parse` with a new `ScannedQr` case for join codes, and reuse the existing camera scanner screen.
+* Mismatch (open): the server plan (`04-server-implementation-plan.md`) builds `easystock://<kind>?server=<URL>&token=<token>&fp=<hex>`
+  instead. The app reads both formats (`JoinCode.parse`) and still builds `join`. One of the two documents must change.
 
 HTTP and HTTPS
 
@@ -249,3 +251,24 @@ Tests
 * A fake server in tests (Ktor `MockEngine`) for the sync engine, the refresh flow and the 401/426 handling.
 
 Do this in a specific branch
+
+Open points (connect and account screens)
+
+* Request and answer field names of the auth calls (`AuthDtos.kt`, `ServerDtos.kt`) are provisional: the server only
+  implements `/server-info` yet. They are the camelCase forms of the spec's names and must be checked once the
+  endpoints exist.
+* The role name: the server spec says `member` for the app's Editor. The app maps it both ways (`WireRole`).
+* The server placeholder answers `supportedSchemaVersions: [1]`, the app sends schema 9 in
+  `X-EasyStock-Schema-Version`. `/server-info` is not refused (the app checks only `apiVersion` and `minAppVersion`
+  there), but every later call would get a 426 until the server lists 9.
+* Not done yet: the setup exception (upload the phone's data as the first content of an empty server). The app
+  always asks for an empty phone, a `setup` code included.
+* Not done yet: the Android 13+ notification permission after joining. It comes with the alerts, which need the sync
+  engine.
+* Logout without network: the app offers "Log out on this phone". The phone is wiped, but the session stays valid on
+  the server until an Admin revokes the device or the refresh token expires.
+* Logout with changes not sent: "Sync, then log out" is shown disabled until the sync engine exists; "Log out and lose
+  them" wipes the phone.
+* "Export a backup, then erase" opens the typed erase confirmation, which links to the Backup screen. The export and
+  the erase are two separate steps: the erase also deletes the temporary backup files, so it never runs right after
+  an export without the user confirming it.
