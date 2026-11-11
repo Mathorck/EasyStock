@@ -9,4 +9,21 @@
     <string name="stock_filter_clear_category">Kategoriefilter entfernen</string>
     <string name="stock_filter_clear_all">Filter zurücksetzen</string>
     <string name="stock_filter_no_results">Kein Artikel passt zu den Filtern</string>
+    <string name="stock_filter_type">Typ</string>
+    <string name="stock_filter_all_types">Verbrauchsmaterial und Werkzeuge</string>
+    <string name="stock_filter_consumables">Verbrauchsmaterial</string>
+    <string name="stock_filter_tools">Werkzeuge</string>
+    <string name="stock_filter_clear_type">Typfilter entfernen</string>
+    <string name="stock_filter_out_of_stock">Nicht vorrätig</string>
+    <string name="stock_filter_tag">NFC-Tag</string>
+    <string name="stock_filter_tag_any">Mit oder ohne NFC-Tag</string>
+    <string name="stock_filter_tag_with">Mit NFC-Tag</string>
+    <string name="stock_filter_tag_without">Ohne NFC-Tag</string>
+    <string name="stock_filter_clear_tag">NFC-Tag-Filter entfernen</string>
+    <string name="stock_filter_attribute">Attribut</string>
+    <string name="stock_filter_any_attribute">Alle Attribute</string>
+    <string name="stock_filter_has_attribute">Mit „%1$s“</string>
+    <string name="stock_filter_clear_attribute">Attributfilter entfernen</string>
+    <string name="stock_filter_active">Aktive Filter: %1$s</string>
+    <string name="stock_no_results_filtered">Kein Artikel passt zu „%1$s“ mit diesen Filtern</string>
 </resources>

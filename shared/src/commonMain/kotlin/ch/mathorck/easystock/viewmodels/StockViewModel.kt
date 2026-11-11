@@ -4,15 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.mathorck.easystock.composables.attributes.AttributeCatalog
 import ch.mathorck.easystock.composables.attributes.AttributeText
+import ch.mathorck.easystock.composables.attributes.formatAttributeValue
 import ch.mathorck.easystock.composables.attributes.matches
 import ch.mathorck.easystock.composables.attributes.summaryLine
 import ch.mathorck.easystock.data.db.ArticleDao
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
 import ch.mathorck.easystock.data.db.StockDao
+import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.ArticleStock
+import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.data.model.Tracking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,16 +28,70 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 
-/** Filters of the Stock page, combined with the search query (AND). */
+/** NFC tag filter of the Stock page. */
+enum class TagFilter { TAGGED, UNTAGGED }
+
+/** Stock level filter of the Stock page. One at a time: an article out of stock with a threshold is also low. */
+enum class StockLevelFilter {
+    /** At or below its threshold, see [ArticleStock.isLowStock]. Never a serial article. */
+    LOW,
+
+    /** Stock (at the filtered location, or in total) at or below 0. */
+    OUT,
+}
+
+/** Filters of the Stock page, combined with each other and with the search query (AND). */
 data class StockFilters(
     /** Stock at this location and its descendants. Null = all locations. */
     val locationId: String? = null,
     val categoryId: String? = null,
-    val lowStockOnly: Boolean = false,
+    /** Consumables ([Tracking.QUANTITY]) or tools ([Tracking.SERIAL]). Null = both. */
+    val tracking: Tracking? = null,
+    val stockLevel: StockLevelFilter? = null,
+    val tag: TagFilter? = null,
+    /** Articles with a value for this attribute definition (article values only, not serial unit ones). */
+    val attributeId: String? = null,
 ) {
-    val isActive: Boolean get() = locationId != null || categoryId != null || lowStockOnly
+    val isActive: Boolean get() = this != StockFilters()
+
+    /** Low stock is never true for tools: choosing tools drops it. */
+    fun withTracking(tracking: Tracking?): StockFilters = copy(
+        tracking = tracking,
+        stockLevel = stockLevel.takeUnless { tracking == Tracking.SERIAL && it == StockLevelFilter.LOW },
+    )
+
+    /** A level filter that is already set is cleared (toggle). */
+    fun toggleStockLevel(level: StockLevelFilter): StockFilters =
+        copy(stockLevel = level.takeUnless { it == stockLevel })
+}
+
+/**
+ * True when [article] has a value for [definition], as shown on the article: blank text and false booleans
+ * count as no value.
+ */
+fun Article.hasAttribute(definition: AttributeDefinition): Boolean =
+    formatAttributeValue(definition, attributes?.get(definition.key)) != null
+
+/**
+ * True when [item] passes the filters other than the location (applied by the SQL query).
+ * [attribute] is the definition of [StockFilters.attributeId], null for no attribute filter.
+ */
+fun StockFilters.matches(item: ArticleStock, attribute: AttributeDefinition? = null): Boolean {
+    val article = item.article
+    return (categoryId == null || article.categoryId == categoryId) &&
+        (tracking == null || article.tracking == tracking) &&
+        when (stockLevel) {
+            null -> true
+            StockLevelFilter.LOW -> item.isLowStock
+            StockLevelFilter.OUT -> item.stockMilli <= 0
+        } &&
+        when (tag) {
+            null -> true
+            TagFilter.TAGGED -> article.barcode != null
+            TagFilter.UNTAGGED -> article.barcode == null
+        } &&
+        (attribute == null || article.hasAttribute(attribute))
 }
 
 /** A location with its depth in the hierarchy (0 = root), for an indented picker. */
@@ -48,6 +106,8 @@ data class StockUiState(
     /** Locations in hierarchy order (depth-first, siblings by name). */
     val locations: List<StockLocationNode> = emptyList(),
     val categories: List<Category> = emptyList(),
+    /** Active attribute definitions, by label: the choices of the attribute filter. */
+    val attributeDefinitions: List<AttributeDefinition> = emptyList(),
     /** Active filters. Ids that no longer exist are already dropped. */
     val filters: StockFilters = StockFilters(),
     /** Attribute summary line per article id ("static · 10.5 mm"). Articles without values are absent. */
@@ -55,6 +115,7 @@ data class StockUiState(
 ) {
     val selectedLocation: Location? get() = locations.firstOrNull { it.location.id == filters.locationId }?.location
     val selectedCategory: Category? get() = categories.firstOrNull { it.id == filters.categoryId }
+    val selectedAttribute: AttributeDefinition? get() = attributeDefinitions.firstOrNull { it.id == filters.attributeId }
 }
 
 /**
@@ -76,23 +137,26 @@ fun List<ArticleStock>.filterByQuery(
 }
 
 /**
- * Applies the search [query], the category and the low-stock filter (AND).
- * The location filter is applied by the SQL query, not here.
+ * Applies the search [query] and the [filters] (AND). The location filter is applied by the SQL query, not here.
+ * [attribute] is the definition of [StockFilters.attributeId] (see [matches]).
  */
 fun List<ArticleStock>.filterStock(
     query: String,
-    categoryId: String?,
-    lowStockOnly: Boolean,
+    filters: StockFilters,
+    attribute: AttributeDefinition? = null,
     attributes: (ArticleStock) -> List<AttributeText> = { emptyList() },
 ): List<ArticleStock> =
-    filterByQuery(query, attributes).filter { item ->
-        (categoryId == null || item.article.categoryId == categoryId) && (!lowStockOnly || item.isLowStock)
-    }
+    filterByQuery(query, attributes).filter { filters.matches(it, attribute) }
 
-/** Drops a location or category id that is not in the known ids (e.g. soft-deleted meanwhile). */
-fun StockFilters.withoutStale(locationIds: Set<String>, categoryIds: Set<String>): StockFilters = copy(
+/** Drops a location, category or attribute id that is not in the known ids (e.g. soft-deleted meanwhile). */
+fun StockFilters.withoutStale(
+    locationIds: Set<String>,
+    categoryIds: Set<String>,
+    attributeIds: Set<String> = emptySet(),
+): StockFilters = copy(
     locationId = locationId?.takeIf { it in locationIds },
     categoryId = categoryId?.takeIf { it in categoryIds },
+    attributeId = attributeId?.takeIf { it in attributeIds },
 )
 
 /**
@@ -117,6 +181,13 @@ fun List<Location>.toLocationTree(): List<StockLocationNode> {
     return result
 }
 
+private data class StockLookups(
+    val locations: List<StockLocationNode>,
+    val categories: List<Category>,
+    val definitions: List<AttributeDefinition>,
+    val catalog: AttributeCatalog,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class StockViewModel(
     articleDao: ArticleDao,
@@ -131,10 +202,15 @@ class StockViewModel(
 
     private val locations = stockDao.observeLocations().map { it.toLocationTree() }
     private val categories = categoryDao.observeAll()
-    private val attributeCatalog = combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog)
+    private val definitions = attributeDao.observeDefinitions()
+    private val attributeCatalog = combine(definitions, attributeDao.observeActiveLinks(), ::AttributeCatalog)
 
-    private val effectiveFilters: Flow<StockFilters> = combine(_filters, locations, categories) { filters, locs, cats ->
-        filters.withoutStale(locs.mapTo(HashSet()) { it.location.id }, cats.mapTo(HashSet()) { it.id })
+    private val effectiveFilters: Flow<StockFilters> = combine(_filters, locations, categories, definitions) { filters, locs, cats, defs ->
+        filters.withoutStale(
+            locs.mapTo(HashSet()) { it.location.id },
+            cats.mapTo(HashSet()) { it.id },
+            defs.mapTo(HashSet()) { it.id },
+        )
     }.distinctUntilChanged()
 
     /**
@@ -153,8 +229,8 @@ class StockViewModel(
         source,
         _query,
         effectiveFilters,
-        combine(locations, categories, attributeCatalog, ::Triple),
-    ) { all, (sourceLocationId, items), q, filters, (locs, cats, catalog) ->
+        combine(locations, categories, definitions, attributeCatalog, ::StockLookups),
+    ) { all, (sourceLocationId, items), q, filters, (locs, cats, defs, catalog) ->
         // Right after a location change, the list can still be the previous location's: never show it.
         val upToDate = sourceLocationId == filters.locationId
         // Formatted once per emission, used by the search and by the rows.
@@ -162,10 +238,15 @@ class StockViewModel(
         val attributes = { item: ArticleStock -> formatted[item.article.id].orEmpty() }
         StockUiState(
             loading = !upToDate,
-            items = if (upToDate) items.filterStock(q, filters.categoryId, filters.lowStockOnly, attributes) else emptyList(),
+            items = if (upToDate) {
+                items.filterStock(q, filters, defs.firstOrNull { it.id == filters.attributeId }, attributes)
+            } else {
+                emptyList()
+            },
             totalCount = all.size,
             locations = locs,
             categories = cats,
+            attributeDefinitions = defs,
             filters = filters,
             attributeLines = if (upToDate) formatted.mapNotNull { (id, texts) -> texts.takeIf { it.isNotEmpty() }?.let { id to it.summaryLine() } }.toMap() else emptyMap(),
         )
@@ -175,11 +256,10 @@ class StockViewModel(
         _query.value = query
     }
 
-    fun onLocationSelect(locationId: String?) = _filters.update { it.copy(locationId = locationId) }
-
-    fun onCategorySelect(categoryId: String?) = _filters.update { it.copy(categoryId = categoryId) }
-
-    fun onLowStockChange(enabled: Boolean) = _filters.update { it.copy(lowStockOnly = enabled) }
+    /** Replaces the filters. They live in this ViewModel, so they survive switching pages. */
+    fun onFiltersChange(filters: StockFilters) {
+        _filters.value = filters
+    }
 
     fun onClearFilters() {
         _filters.value = StockFilters()

@@ -78,6 +78,29 @@ import easystock.shared.generated.resources.ic_fact_check
 import easystock.shared.generated.resources.review_chip
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.StockFilters
+import ch.mathorck.easystock.viewmodels.StockLevelFilter
+import ch.mathorck.easystock.viewmodels.TagFilter
+import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.data.model.AttributeDefinition
+import easystock.shared.generated.resources.ic_close
+import easystock.shared.generated.resources.ic_nfc
+import easystock.shared.generated.resources.stock_filter_active
+import easystock.shared.generated.resources.stock_filter_all_types
+import easystock.shared.generated.resources.stock_filter_any_attribute
+import easystock.shared.generated.resources.stock_filter_attribute
+import easystock.shared.generated.resources.stock_filter_clear_attribute
+import easystock.shared.generated.resources.stock_filter_clear_tag
+import easystock.shared.generated.resources.stock_filter_clear_type
+import easystock.shared.generated.resources.stock_filter_consumables
+import easystock.shared.generated.resources.stock_filter_has_attribute
+import easystock.shared.generated.resources.stock_filter_out_of_stock
+import easystock.shared.generated.resources.stock_filter_tag
+import easystock.shared.generated.resources.stock_filter_tag_any
+import easystock.shared.generated.resources.stock_filter_tag_with
+import easystock.shared.generated.resources.stock_filter_tag_without
+import easystock.shared.generated.resources.stock_filter_tools
+import easystock.shared.generated.resources.stock_filter_type
+import easystock.shared.generated.resources.stock_no_results_filtered
 import ch.mathorck.easystock.viewmodels.StockUiState
 import ch.mathorck.easystock.viewmodels.StockViewModel
 import ch.mathorck.easystock.viewmodels.toLocationTree
@@ -140,9 +163,7 @@ fun StockPage() {
                 state = state,
                 query = query,
                 onQueryChange = viewModel::onQueryChange,
-                onLocationSelect = viewModel::onLocationSelect,
-                onCategorySelect = viewModel::onCategorySelect,
-                onLowStockChange = viewModel::onLowStockChange,
+                onFiltersChange = viewModel::onFiltersChange,
                 onClearFilters = viewModel::onClearFilters,
                 onArticleClick = { selectedArticleId = it },
                 onReviewLocation = review.start,
@@ -169,7 +190,7 @@ fun StockPage() {
     }
 }
 
-private enum class StockPicker { Location, Category }
+private enum class StockPicker { Location, Category, Type, Tag, Attribute }
 
 /** One entry of a picker sheet. A null [id] is the "All" entry. */
 private data class PickerOption(
@@ -191,9 +212,7 @@ fun StockContent(
     state: StockUiState,
     query: String,
     onQueryChange: (String) -> Unit,
-    onLocationSelect: (String?) -> Unit,
-    onCategorySelect: (String?) -> Unit,
-    onLowStockChange: (Boolean) -> Unit,
+    onFiltersChange: (StockFilters) -> Unit,
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier,
     onArticleClick: (String) -> Unit = {},
@@ -203,6 +222,7 @@ fun StockContent(
     onReviewLocation: ((String) -> Unit)? = null,
 ) {
     var picker by remember { mutableStateOf<StockPicker?>(null) }
+    val filters = state.filters
     Column(modifier.fillMaxSize()) {
         OutlinedTextField(
             value = query,
@@ -218,9 +238,8 @@ fun StockContent(
             FilterRow(
                 state = state,
                 onOpenPicker = { picker = it },
-                onLocationSelect = onLocationSelect,
-                onCategorySelect = onCategorySelect,
-                onLowStockChange = onLowStockChange,
+                onFiltersChange = onFiltersChange,
+                onClearFilters = onClearFilters,
                 onReviewLocation = onReviewLocation,
             )
         }
@@ -230,19 +249,23 @@ fun StockContent(
                 title = stringResource(Res.string.stock_empty_title),
                 hint = stringResource(Res.string.stock_empty_hint),
             )
-            state.items.isEmpty() -> EmptyMessage(
-                title = if (query.isBlank()) {
-                    stringResource(Res.string.stock_filter_no_results)
-                } else {
-                    stringResource(Res.string.stock_no_results, query.trim())
-                },
-                hint = null,
-                action = if (state.filters.isActive) {
-                    { TextButton(onClick = onClearFilters) { Text(stringResource(Res.string.stock_filter_clear_all)) } }
-                } else {
-                    null
-                },
-            )
+            state.items.isEmpty() -> {
+                val labels = activeFilterLabels(state)
+                EmptyMessage(
+                    title = when {
+                        query.isBlank() -> stringResource(Res.string.stock_filter_no_results)
+                        labels.isEmpty() -> stringResource(Res.string.stock_no_results, query.trim())
+                        else -> stringResource(Res.string.stock_no_results_filtered, query.trim())
+                    },
+                    hint = labels.takeIf { it.isNotEmpty() }
+                        ?.let { stringResource(Res.string.stock_filter_active, it.joinToString(" · ")) },
+                    action = if (filters.isActive) {
+                        { TextButton(onClick = onClearFilters) { Text(stringResource(Res.string.stock_filter_clear_all)) } }
+                    } else {
+                        null
+                    },
+                )
+            }
             else -> LazyColumn(state = listState, contentPadding = contentPadding) {
                 items(state.items, key = { it.article.id }) { item ->
                     Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item, state.attributeLines[item.article.id]) }
@@ -252,6 +275,7 @@ fun StockContent(
         }
     }
 
+    val dismiss = { picker = null }
     when (picker) {
         StockPicker.Location -> PickerSheet(
             title = stringResource(Res.string.stock_filter_location),
@@ -259,31 +283,97 @@ fun StockContent(
                 state.locations.map {
                     PickerOption(it.location.id, it.location.name, it.depth, it.location.icon, it.location.color, showIcon = true)
                 },
-            selectedId = state.filters.locationId,
-            onSelect = onLocationSelect,
-            onDismiss = { picker = null },
+            selectedId = filters.locationId,
+            onSelect = { onFiltersChange(filters.copy(locationId = it)) },
+            onDismiss = dismiss,
         )
         StockPicker.Category -> PickerSheet(
             title = stringResource(Res.string.stock_filter_category),
             options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_all_categories))) +
                 state.categories.map { PickerOption(it.id, it.name) },
-            selectedId = state.filters.categoryId,
-            onSelect = onCategorySelect,
-            onDismiss = { picker = null },
+            selectedId = filters.categoryId,
+            onSelect = { onFiltersChange(filters.copy(categoryId = it)) },
+            onDismiss = dismiss,
+        )
+        StockPicker.Type -> PickerSheet(
+            title = stringResource(Res.string.stock_filter_type),
+            options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_all_types))) +
+                Tracking.entries.map { PickerOption(it.name, trackingLabel(it)) },
+            selectedId = filters.tracking?.name,
+            onSelect = { id -> onFiltersChange(filters.withTracking(Tracking.entries.firstOrNull { it.name == id })) },
+            onDismiss = dismiss,
+        )
+        StockPicker.Tag -> PickerSheet(
+            title = stringResource(Res.string.stock_filter_tag),
+            options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_tag_any))) +
+                TagFilter.entries.map { PickerOption(it.name, tagLabel(it)) },
+            selectedId = filters.tag?.name,
+            onSelect = { id -> onFiltersChange(filters.copy(tag = TagFilter.entries.firstOrNull { it.name == id })) },
+            onDismiss = dismiss,
+        )
+        StockPicker.Attribute -> PickerSheet(
+            title = stringResource(Res.string.stock_filter_attribute),
+            options = listOf(PickerOption(null, stringResource(Res.string.stock_filter_any_attribute))) +
+                state.attributeDefinitions.map { PickerOption(it.id, it.label) },
+            selectedId = filters.attributeId,
+            onSelect = { onFiltersChange(filters.copy(attributeId = it)) },
+            onDismiss = dismiss,
         )
         null -> Unit
     }
 }
 
 @Composable
+private fun trackingLabel(tracking: Tracking): String = stringResource(
+    when (tracking) {
+        Tracking.QUANTITY -> Res.string.stock_filter_consumables
+        Tracking.SERIAL -> Res.string.stock_filter_tools
+    },
+)
+
+@Composable
+private fun tagLabel(tag: TagFilter): String = stringResource(
+    when (tag) {
+        TagFilter.TAGGED -> Res.string.stock_filter_tag_with
+        TagFilter.UNTAGGED -> Res.string.stock_filter_tag_without
+    },
+)
+
+@Composable
+private fun stockLevelLabel(level: StockLevelFilter): String = stringResource(
+    when (level) {
+        StockLevelFilter.LOW -> Res.string.stock_filter_low_stock
+        StockLevelFilter.OUT -> Res.string.stock_filter_out_of_stock
+    },
+)
+
+@Composable
+private fun attributeLabel(definition: AttributeDefinition): String =
+    stringResource(Res.string.stock_filter_has_attribute, definition.label)
+
+/** The active filters as short labels, in chip order, for the empty state. */
+@Composable
+private fun activeFilterLabels(state: StockUiState): List<String> {
+    val filters = state.filters
+    return listOfNotNull(
+        state.selectedLocation?.name,
+        state.selectedCategory?.name,
+        filters.tracking?.let { trackingLabel(it) },
+        filters.stockLevel?.let { stockLevelLabel(it) },
+        filters.tag?.let { tagLabel(it) },
+        state.selectedAttribute?.let { attributeLabel(it) },
+    )
+}
+
+@Composable
 private fun FilterRow(
     state: StockUiState,
     onOpenPicker: (StockPicker) -> Unit,
-    onLocationSelect: (String?) -> Unit,
-    onCategorySelect: (String?) -> Unit,
-    onLowStockChange: (Boolean) -> Unit,
+    onFiltersChange: (StockFilters) -> Unit,
+    onClearFilters: () -> Unit,
     onReviewLocation: ((String) -> Unit)?,
 ) {
+    val filters = state.filters
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
@@ -291,6 +381,14 @@ private fun FilterRow(
             .horizontalScroll(rememberScrollState())
             .padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
     ) {
+        // First, so it stays visible however many filters are set.
+        if (filters.isActive) {
+            AssistChip(
+                onClick = onClearFilters,
+                label = { Text(stringResource(Res.string.stock_filter_clear_all)) },
+                leadingIcon = { Icon(painterResource(Res.drawable.ic_close), null, Modifier.size(AssistChipDefaults.IconSize)) },
+            )
+        }
         if (state.locations.isNotEmpty()) {
             PickerChip(
                 label = stringResource(Res.string.stock_filter_location),
@@ -298,7 +396,7 @@ private fun FilterRow(
                 leading = state.selectedLocation?.let { { LocationIcon(it.icon, it.color, size = FilterChipDefaults.IconSize) } },
                 clearDescription = stringResource(Res.string.stock_filter_clear_location),
                 onClick = { onOpenPicker(StockPicker.Location) },
-                onClear = { onLocationSelect(null) },
+                onClear = { onFiltersChange(filters.copy(locationId = null)) },
             )
         }
         if (state.categories.isNotEmpty()) {
@@ -307,21 +405,49 @@ private fun FilterRow(
                 selectedName = state.selectedCategory?.name,
                 clearDescription = stringResource(Res.string.stock_filter_clear_category),
                 onClick = { onOpenPicker(StockPicker.Category) },
-                onClear = { onCategorySelect(null) },
+                onClear = { onFiltersChange(filters.copy(categoryId = null)) },
             )
         }
-        val lowStockOnly = state.filters.lowStockOnly
-        FilterChip(
-            selected = lowStockOnly,
-            onClick = { onLowStockChange(!lowStockOnly) },
-            label = { Text(stringResource(Res.string.stock_filter_low_stock)) },
-            leadingIcon = if (lowStockOnly) {
-                { Icon(painterResource(Res.drawable.ic_check), null, Modifier.size(FilterChipDefaults.IconSize)) }
-            } else {
-                null
-            },
+        PickerChip(
+            label = stringResource(Res.string.stock_filter_type),
+            selectedName = filters.tracking?.let { trackingLabel(it) },
+            clearDescription = stringResource(Res.string.stock_filter_clear_type),
+            onClick = { onOpenPicker(StockPicker.Type) },
+            onClear = { onFiltersChange(filters.withTracking(null)) },
         )
-        val locationId = state.filters.locationId
+        StockLevelFilter.entries.forEach { level ->
+            val selected = filters.stockLevel == level
+            FilterChip(
+                selected = selected,
+                onClick = { onFiltersChange(filters.toggleStockLevel(level)) },
+                label = { Text(stockLevelLabel(level)) },
+                // Tools have no low-stock alert: the combination would always be empty.
+                enabled = !(level == StockLevelFilter.LOW && filters.tracking == Tracking.SERIAL),
+                leadingIcon = if (selected) {
+                    { Icon(painterResource(Res.drawable.ic_check), null, Modifier.size(FilterChipDefaults.IconSize)) }
+                } else {
+                    null
+                },
+            )
+        }
+        PickerChip(
+            label = stringResource(Res.string.stock_filter_tag),
+            selectedName = filters.tag?.let { tagLabel(it) },
+            leading = { Icon(painterResource(Res.drawable.ic_nfc), null, Modifier.size(FilterChipDefaults.IconSize)) },
+            clearDescription = stringResource(Res.string.stock_filter_clear_tag),
+            onClick = { onOpenPicker(StockPicker.Tag) },
+            onClear = { onFiltersChange(filters.copy(tag = null)) },
+        )
+        if (state.attributeDefinitions.isNotEmpty()) {
+            PickerChip(
+                label = stringResource(Res.string.stock_filter_attribute),
+                selectedName = state.selectedAttribute?.let { attributeLabel(it) },
+                clearDescription = stringResource(Res.string.stock_filter_clear_attribute),
+                onClick = { onOpenPicker(StockPicker.Attribute) },
+                onClear = { onFiltersChange(filters.copy(attributeId = null)) },
+            )
+        }
+        val locationId = filters.locationId
         if (onReviewLocation != null && locationId != null && state.selectedLocation != null) {
             AssistChip(
                 onClick = { onReviewLocation(locationId) },
@@ -553,9 +679,7 @@ private fun StockPreview(state: StockUiState, query: String = "", dark: Boolean 
                 state = state,
                 query = query,
                 onQueryChange = {},
-                onLocationSelect = {},
-                onCategorySelect = {},
-                onLowStockChange = {},
+                onFiltersChange = {},
                 onClearFilters = {},
             )
         }
@@ -580,7 +704,7 @@ private fun StockPageFiltersPreview() {
     StockPreview(
         sampleState(
             items = listOf(sample("4", "Wood screw 4x40", "SCR-440", 0, thresholdMilli = 0, categoryId = "hw")),
-            filters = StockFilters(locationId = "shelf", categoryId = "hw", lowStockOnly = true),
+            filters = StockFilters(locationId = "shelf", categoryId = "hw", stockLevel = StockLevelFilter.LOW),
         ),
         dark = false,
     )
@@ -592,7 +716,7 @@ private fun StockPageFiltersDarkPreview() {
     StockPreview(
         sampleState(
             items = listOf(sample("4", "Wood screw 4x40", "SCR-440", 0, thresholdMilli = 0, categoryId = "hw")),
-            filters = StockFilters(locationId = "shelf", lowStockOnly = true),
+            filters = StockFilters(locationId = "shelf", tracking = Tracking.QUANTITY, tag = TagFilter.UNTAGGED, stockLevel = StockLevelFilter.LOW),
         ),
         dark = true,
     )
@@ -613,5 +737,5 @@ private fun StockPageNoResultsPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun StockPageFiltersNoResultsPreview() {
-    StockPreview(sampleState(items = emptyList(), filters = StockFilters(categoryId = "hw", lowStockOnly = true)), dark = false)
+    StockPreview(sampleState(items = emptyList(), filters = StockFilters(categoryId = "hw", stockLevel = StockLevelFilter.LOW)), dark = false)
 }

@@ -8,6 +8,7 @@ import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.StockMovement
+import ch.mathorck.easystock.viewmodels.StockFilters
 import ch.mathorck.easystock.viewmodels.filterStock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -140,8 +141,8 @@ class StockFilterQueryTest {
         move("bolt", 1_000, "van")
 
         val atRoom = articles.observeStockAt("room").first()
-        assertEquals(listOf("screw"), atRoom.filterStock("", "hw", false).map { it.article.id })
+        assertEquals(listOf("screw"), atRoom.filterStock("", StockFilters(categoryId = "hw")).map { it.article.id })
         val all = articles.observeStock().first()
-        assertEquals(listOf("bolt", "screw"), all.filterStock("", "hw", false).map { it.article.id })
+        assertEquals(listOf("bolt", "screw"), all.filterStock("", StockFilters(categoryId = "hw")).map { it.article.id })
     }
 }
