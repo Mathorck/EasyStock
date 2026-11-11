@@ -95,6 +95,7 @@ import easystock.shared.generated.resources.backup_done_updated
 import easystock.shared.generated.resources.backup_downloading
 import easystock.shared.generated.resources.backup_error_damaged
 import easystock.shared.generated.resources.backup_error_failed
+import easystock.shared.generated.resources.backup_error_server_mode_unavailable
 import easystock.shared.generated.resources.backup_error_newer_version
 import easystock.shared.generated.resources.backup_error_not_a_backup
 import easystock.shared.generated.resources.backup_error_not_on_wifi
@@ -641,6 +642,7 @@ internal fun BackupError.message(): StringResource = when (this) {
     BackupError.UNREACHABLE -> Res.string.backup_error_unreachable
     BackupError.TIMEOUT -> Res.string.backup_error_timeout
     BackupError.FAILED -> Res.string.backup_error_failed
+    BackupError.SERVER_MODE_UNAVAILABLE -> Res.string.backup_error_server_mode_unavailable
 }
 
 @Composable

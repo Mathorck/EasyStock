@@ -197,6 +197,8 @@ class BackupViewModel(private val service: BackupService) : ViewModel() {
         when (scanned) {
             is ScannedQr.Data -> received(ImportInput.Qr(scanned.payload))
             is ScannedQr.Wifi -> download(scanned.ticket)
+            // Server mode is not available yet: the code is read, then reported
+            is ScannedQr.Join -> fail(BackupError.SERVER_MODE_UNAVAILABLE, BackupStep.Home)
         }
     }
 

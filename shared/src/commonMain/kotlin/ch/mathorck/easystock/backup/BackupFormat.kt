@@ -141,6 +141,9 @@ enum class BackupError {
 
     /** Reading or writing a file failed (storage full, file moved, ...). */
     FAILED,
+
+    /** A server QR code was scanned: this version of the app can't join a server yet. */
+    SERVER_MODE_UNAVAILABLE,
 }
 
 class BackupException(val error: BackupError, message: String = error.name, cause: Throwable? = null) :

@@ -1,5 +1,7 @@
 package ch.mathorck.easystock.backup
 
+import ch.mathorck.easystock.server.JOIN_QR_PREFIX
+import ch.mathorck.easystock.server.JoinCode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.io.encoding.Base64
@@ -7,6 +9,7 @@ import kotlin.io.encoding.Base64
 // Two kinds of QR codes, both text in the QR alphanumeric alphabet (uppercase prefix + Base45):
 //   ES1:<base45>   the backup itself: [QR_BUNDLE_MAGIC] + deflate(BackupBundle JSON), optionally encrypted
 //   ESW1:<base45>  a Wi-Fi transfer ticket (JSON [WifiTicket]): where to download and the stream key
+// The same scanner also reads the server QR codes (server/JoinCode): easystock://join?...
 
 const val DATA_QR_PREFIX = "ES1:"
 const val WIFI_QR_PREFIX = "ESW1:"
@@ -57,7 +60,10 @@ object QrTransfer {
     fun wifiQrText(ticket: WifiTicket): String =
         WIFI_QR_PREFIX + Base45.encode(backupJson.encodeToString(WifiTicket.serializer(), ticket).encodeToByteArray())
 
-    /** Reads a scanned text. Throws [BackupException] ([BackupError.NOT_A_BACKUP]) for any other QR code. */
+    /**
+     * Reads a scanned text. Throws [BackupException] ([BackupError.NOT_A_BACKUP]) for any other QR code,
+     * a malformed join code included.
+     */
     fun parse(text: String): ScannedQr = try {
         when {
             text.startsWith(DATA_QR_PREFIX) -> ScannedQr.Data(Base45.decode(text.substring(DATA_QR_PREFIX.length)))
@@ -65,6 +71,7 @@ object QrTransfer {
                 val json = Base45.decode(text.substring(WIFI_QR_PREFIX.length)).decodeToString()
                 ScannedQr.Wifi(backupJson.decodeFromString(WifiTicket.serializer(), json).also { it.validate() })
             }
+            text.startsWith(JOIN_QR_PREFIX) -> ScannedQr.Join(JoinCode.parse(text))
             else -> throw BackupException(BackupError.NOT_A_BACKUP, "Unknown QR code")
         }
     } catch (e: BackupException) {
@@ -80,6 +87,9 @@ sealed interface ScannedQr {
 
     /** Where to download a backup on the local network. */
     data class Wifi(val ticket: WifiTicket) : ScannedQr
+
+    /** A server QR code (server mode). */
+    data class Join(val code: JoinCode) : ScannedQr
 }
 
 /**
