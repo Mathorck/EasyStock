@@ -155,10 +155,13 @@ fun SettingsPage(
         )
     }
     // Joined: sync_state is written, the account screen shows; the connect screen starts afresh next time
-    LaunchedEffect(syncState?.serverUrl) {
-        if (syncState != null && connect.state.value.step == ConnectStep.Done) {
+    // (the sync_state row and the Done step may come in either order)
+    val connectState by connect.state.collectAsStateWithLifecycle()
+    val joinedUrl = syncState?.serverUrl?.takeIf { connectState.step == ConnectStep.Done }
+    LaunchedEffect(joinedUrl) {
+        if (joinedUrl != null) {
             connect.cancel()
-            onJoined(syncState.serverUrl.substringAfter("://"))
+            onJoined(joinedUrl.substringAfter("://"))
         }
     }
     // Where a subpage opened from Server goes back to (the backup before the erase, the administration)
