@@ -102,7 +102,7 @@
 
     <string name="backup_conflict_category_renamed">La catégorie « %1$s » existe déjà : importée sous « %2$s ».</string>
     <string name="backup_conflict_sku_renamed">Le SKU « %1$s » est déjà utilisé : importé sous « %2$s ».</string>
-    <string name="backup_conflict_barcode_cleared">Le tag NFC « %1$s » est déjà sur un autre article : retiré de l’article importé.</string>
+    <string name="backup_conflict_barcode_cleared">Le tag NFC « %1$s » est déjà sur un autre article ou emplacement : retiré de l’élément importé.</string>
     <string name="backup_conflict_serial_renamed">Le numéro de série « %1$s » est déjà utilisé : importé sous « %2$s ».</string>
     <string name="backup_conflict_attribute_merged">L’attribut « %1$s » existe déjà : les deux ont été combinés.</string>
     <string name="backup_conflict_attribute_key_kept">La clé d’attribut « %1$s » ne peut pas changer : « %2$s » a été conservée.</string>

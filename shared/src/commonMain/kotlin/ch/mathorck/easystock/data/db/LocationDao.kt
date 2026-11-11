@@ -2,10 +2,13 @@ package ch.mathorck.easystock.data.db
 
 import androidx.room.ColumnInfo
 import androidx.room.Dao
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.LocationColors
 import ch.mathorck.easystock.data.model.LocationIcons
@@ -23,6 +26,19 @@ class LocationException(val error: LocationError) : IllegalStateException("Locat
 data class LocationArticleCount(
     @ColumnInfo(name = "location_id") val locationId: String,
     @ColumnInfo(name = "article_count") val articleCount: Int,
+)
+
+/** Stock (sum of the movements) of one article at one location. */
+data class LocationArticleStock(
+    @Embedded val article: Article,
+    @ColumnInfo(name = "stock_location_id") val locationId: String,
+    @ColumnInfo(name = "stock") val stockMilli: Long,
+)
+
+/** A row holding an NFC tag. */
+data class TagHolderRow(
+    val id: String,
+    @ColumnInfo(name = "deleted_at") val deletedAt: Long?,
 )
 
 /** Settings > Locations: create, rename, move and soft delete. Never touches stock_movement rows. */
@@ -46,13 +62,35 @@ abstract class LocationDao {
     )
     abstract fun observeArticleCounts(): Flow<List<LocationArticleCount>>
 
+    /**
+     * Active, non-archived articles with a non-zero stock at each of [ids] (one row per article and location).
+     * The contents of a location: see viewmodels/LocationContents.
+     */
+    @Query(
+        """
+        SELECT article.*, stock_movement.location_id AS stock_location_id, SUM(stock_movement.quantity) AS stock
+        FROM article
+        JOIN stock_movement ON stock_movement.article_id = article.id
+        WHERE stock_movement.location_id IN (:ids) AND article.deleted_at IS NULL AND article.archived = 0
+        GROUP BY stock_movement.location_id, article.id
+        HAVING SUM(stock_movement.quantity) <> 0
+        ORDER BY article.name COLLATE NOCASE, article.id
+        """,
+    )
+    abstract fun observeArticleStockIn(ids: List<String>): Flow<List<LocationArticleStock>>
+
+    /** Active, non-archived serial units whose cached location is one of [ids], by serial number. */
+    @Query("SELECT * FROM item WHERE location_id IN (:ids) AND deleted_at IS NULL AND archived = 0 ORDER BY serial_number COLLATE NOCASE, id")
+    abstract fun observeItemsIn(ids: List<String>): Flow<List<Item>>
+
     @Insert
     protected abstract suspend fun insertRow(location: Location)
 
     @Update
     protected abstract suspend fun updateRow(location: Location)
 
-    @Query("UPDATE location SET deleted_at = :now, updated_at = :now WHERE id IN (:ids) AND deleted_at IS NULL")
+    /** Also frees the NFC tag, like [Location.softDeleted]. */
+    @Query("UPDATE location SET barcode = NULL, deleted_at = :now, updated_at = :now WHERE id IN (:ids) AND deleted_at IS NULL")
     protected abstract suspend fun softDeleteRows(ids: List<String>, now: Long): Int
 
     /** Positions (article, unit, location) with a non-zero movement sum inside [ids]. */
@@ -77,7 +115,24 @@ abstract class LocationDao {
         return ids.isNotEmpty() && (nonZeroPositions(ids) > 0 || itemsAt(ids) > 0)
     }
 
-    /** Creates a location at the top level or under [parentId]. Throws [LocationException] if refused. */
+    /** Any row holding the tag, soft-deleted ones included (the unique indexes cover them). */
+    @Query("SELECT id, deleted_at FROM location WHERE barcode = :tagId")
+    protected abstract suspend fun locationTagHolders(tagId: String): List<TagHolderRow>
+
+    @Query("SELECT id, deleted_at FROM article WHERE barcode = :tagId")
+    protected abstract suspend fun articleTagHolders(tagId: String): List<TagHolderRow>
+
+    @Query("UPDATE location SET barcode = NULL, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun clearLocationTag(id: String, now: Long)
+
+    @Query("UPDATE article SET barcode = NULL, updated_at = :now WHERE id = :id")
+    protected abstract suspend fun clearArticleTag(id: String, now: Long)
+
+    /**
+     * Creates a location at the top level or under [parentId], with the NFC tag [barcode] if given.
+     * Throws [LocationException] if refused, [TagAlreadyLinkedException] if an active article or location
+     * holds the tag (a soft-deleted holder is freed first).
+     */
     @Transaction
     open suspend fun createLocation(
         id: String,
@@ -86,14 +141,22 @@ abstract class LocationDao {
         now: Long,
         icon: String? = null,
         color: String? = null,
+        barcode: String? = null,
     ): Location {
         val all = activeLocations()
         if (parentId != null && all.none { it.id == parentId }) throw LocationException(LocationError.PARENT_NOT_FOUND)
         validateLocationName(name, all.childrenOf(parentId))?.let { throw LocationException(it) }
+        barcode?.let { tagId ->
+            val locations = locationTagHolders(tagId)
+            val articles = articleTagHolders(tagId)
+            if ((locations + articles).any { it.deletedAt == null }) throw TagAlreadyLinkedException(tagId)
+            locations.forEach { clearLocationTag(it.id, now) }
+            articles.forEach { clearArticleTag(it.id, now) }
+        }
         val location = Location(
             id = id, name = name.trim(), parentId = parentId,
             icon = LocationIcons.normalize(icon), color = LocationColors.normalize(color),
-            createdAt = now, updatedAt = now,
+            createdAt = now, updatedAt = now, barcode = barcode,
         )
         insertRow(location)
         return location

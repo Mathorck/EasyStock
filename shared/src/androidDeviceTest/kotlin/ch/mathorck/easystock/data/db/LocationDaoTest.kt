@@ -201,4 +201,33 @@ class LocationDaoTest {
         val counts = dao.observeArticleCounts().first().associate { it.locationId to it.articleCount }
         assertEquals(mapOf("bin" to 1), counts)
     }
+
+    @Test
+    fun contentsListTheNonZeroStockPerArticleAndLocationAndTheUnits() = runBlocking {
+        db.articleDao().insert(Article(id = "old", name = "Old", archived = true, createdAt = 0, updatedAt = 0))
+        db.articleDao().insert(Article(id = "drill", name = "Drill", tracking = Tracking.SERIAL, createdAt = 0, updatedAt = 0))
+        addMovement("bin", 3000)
+        addMovement("bin", -1000)
+        addMovement("shelf", 500)
+        addMovement("cabinet", 2000)
+        // Zero sum and archived articles are left out
+        addMovement("garage", 1000)
+        addMovement("garage", -1000)
+        addMovement("bin", 1000, article = "old")
+        db.stockActionDao().addItem(
+            Item(id = "d1", articleId = "drill", serialNumber = "D-1", locationId = "bin", createdAt = 0, updatedAt = 0),
+            StockMovement(
+                id = "m-d1", articleId = "drill", itemId = "d1", locationId = "bin", quantityMilli = 1000,
+                reason = MovementReason.PURCHASE, occurredAt = 5, createdAt = 5,
+            ),
+        )
+
+        val stock = dao.observeArticleStockIn(listOf("shelf", "bin", "garage")).first()
+        assertEquals(
+            setOf(Triple("bolt", "bin", 2000L), Triple("bolt", "shelf", 500L), Triple("drill", "bin", 1000L)),
+            stock.map { Triple(it.article.id, it.locationId, it.stockMilli) }.toSet(),
+        )
+        assertEquals(listOf("d1"), dao.observeItemsIn(listOf("shelf", "bin")).first().map { it.id })
+        assertTrue(dao.observeItemsIn(listOf("cabinet")).first().isEmpty())
+    }
 }

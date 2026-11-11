@@ -12,7 +12,7 @@
     <string name="scan_hint_ready">Placez le dos du téléphone contre le tag NFC de votre article.</string>
     <string name="scan_hint_reading">Ne bougez pas le téléphone pendant la lecture du tag.</string>
     <string name="scan_hint_success">Ouverture de la fiche article.</string>
-    <string name="scan_hint_not_found">Ce tag ne correspond encore à aucun article. Vous pouvez le lier à un article.</string>
+    <string name="scan_hint_not_found">Ce tag n’est encore lié à rien. Liez-le à un article ou à un emplacement, ou créez-en un avec ce tag.</string>
     <string name="scan_hint_error">Déplacez lentement le téléphone sur le tag. Son antenne NFC se trouve souvent près de la caméra.</string>
     <string name="scan_hint_nfc_disabled">Le scan nécessite le NFC. Activez-le, puis revenez sur cette page.</string>
     <string name="scan_hint_nfc_unavailable">Vous pouvez toujours gérer votre stock depuis la page Stock.</string>

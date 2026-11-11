@@ -102,7 +102,7 @@
 
     <string name="backup_conflict_category_renamed">Category “%1$s” already exists: imported as “%2$s”.</string>
     <string name="backup_conflict_sku_renamed">SKU “%1$s” already used: imported as “%2$s”.</string>
-    <string name="backup_conflict_barcode_cleared">NFC tag “%1$s” already on another article: removed from the imported one.</string>
+    <string name="backup_conflict_barcode_cleared">NFC tag “%1$s” already on another article or location: removed from the imported one.</string>
     <string name="backup_conflict_serial_renamed">Serial number “%1$s” already used: imported as “%2$s”.</string>
     <string name="backup_conflict_attribute_merged">Attribute “%1$s” already exists: both were combined.</string>
     <string name="backup_conflict_attribute_key_kept">Attribute key “%1$s” can’t change: “%2$s” was kept.</string>

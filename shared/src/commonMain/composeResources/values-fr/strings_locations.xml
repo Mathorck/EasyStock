@@ -64,4 +64,18 @@
     <string name="locations_color_orange">Orange</string>
     <string name="locations_color_brown">Brun</string>
     <string name="locations_color_blue_grey">Gris bleu</string>
+    <string name="location_contents_include_sub">Inclure les sous-emplacements</string>
+    <string name="location_contents_sub_locations">Sous-emplacements</string>
+    <string name="location_contents_here">Directement ici</string>
+    <string name="location_contents_empty">Rien n’est rangé ici.</string>
+    <string name="location_contents_empty_here">Rien directement ici. Incluez les sous-emplacements pour voir leur contenu.</string>
+    <string name="location_contents_review">Réviser cet emplacement</string>
+    <string name="location_contents_gone">Cet emplacement n’existe plus.</string>
+    <string name="location_contents_open">Voir le contenu</string>
+    <string name="location_contents_units">Unités ici</string>
+    <string name="locations_has_tag">A un tag NFC</string>
+    <plurals name="location_contents_articles">
+        <item quantity="one">%1$d article</item>
+        <item quantity="other">%1$d articles</item>
+    </plurals>
 </resources>

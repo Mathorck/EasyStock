@@ -71,6 +71,7 @@ abstract class BackupDao {
     // Frees unique values before the updates, so two rows can swap a value (name, SKU, tag, serial)
     @Query("UPDATE category SET name = :name WHERE id = :id") protected abstract suspend fun renameCategory(id: String, name: String)
     @Query("UPDATE article SET sku = NULL, barcode = NULL WHERE id = :id") protected abstract suspend fun clearArticleUniques(id: String)
+    @Query("UPDATE location SET barcode = NULL WHERE id = :id") protected abstract suspend fun clearLocationTag(id: String)
     @Query("UPDATE item SET serial_number = NULL WHERE id = :id") protected abstract suspend fun clearSerial(id: String)
 
     /** Cache only, not an edit: `updated_at` is unchanged. */
@@ -126,6 +127,7 @@ abstract class BackupDao {
         val updates = plan.updates
         updates.categories.forEach { renameCategory(it.id, "\u0000merge:${it.id}") }
         updates.articles.forEach { clearArticleUniques(it.id) }
+        updates.locations.forEach { clearLocationTag(it.id) }
         updates.items.forEach { clearSerial(it.id) }
 
         // Parents first; inserts before updates (an update may point to a new row)

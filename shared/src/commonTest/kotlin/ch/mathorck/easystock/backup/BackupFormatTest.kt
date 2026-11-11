@@ -91,6 +91,26 @@ class BackupFormatTest {
     }
 
     @Test
+    fun schema6LocationTagIsWritten() {
+        val locations = BackupCodec.encodeTable(full(), BackupTable.LOCATION).decodeToString()
+
+        assertTrue("\"barcode\":\"04:B5:6C\"" in locations)
+    }
+
+    /** A schema 5 backup has no tag on its locations: null. */
+    @Test
+    fun schema5LocationsDecodeWithoutTag() {
+        val data = BackupData(locations = listOf(location("l1").copy(barcode = "TAG")))
+        val rows = backupJson.parseToJsonElement(BackupCodec.encodeTable(data, BackupTable.LOCATION).decodeToString()).jsonArray
+        val stripped = JsonArray(rows.map { JsonObject(it.jsonObject - "barcode") }).toString().encodeToByteArray()
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 5))
+
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.LOCATION) stripped else null }
+
+        assertEquals(location("l1"), decoded.locations.single())
+    }
+
+    @Test
     fun schema5ReviewTablesAreWritten() {
         val reviews = BackupCodec.encodeTable(full(), BackupTable.STOCK_REVIEW).decodeToString()
         val lines = BackupCodec.encodeTable(full(), BackupTable.STOCK_REVIEW_LINE).decodeToString()
@@ -215,7 +235,7 @@ class BackupFormatTest {
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
         assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(5, DB_VERSION)
+        assertEquals(6, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
@@ -278,6 +298,18 @@ class BackupFormatTest {
     fun duplicateUniqueValueIsDamaged() {
         val data = BackupData(categories = listOf(category("c1", "Tools"), category("c2", "Tools")))
         assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun tagOnAnArticleAndALocationIsDamaged() {
+        val data = BackupData(locations = listOf(location("crate").copy(barcode = "TAG")), articles = listOf(article("a", barcode = "TAG")))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun locationTagsAreAccepted() {
+        val data = BackupData(locations = listOf(location("crate").copy(barcode = "TAG"), location("box")), articles = listOf(article("a", barcode = "OTHER")))
+        validateBackup(data)
     }
 
     @Test

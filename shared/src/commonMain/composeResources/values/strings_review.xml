@@ -86,7 +86,7 @@
     <string name="review_location_action">Review this location</string>
     <string name="review_chip">Review</string>
     <string name="review_tag_failed">Could not read the tag. Hold it still and try again.</string>
-    <string name="review_tag_unknown">This tag is not linked to an article.</string>
+    <string name="review_tag_unknown">This tag is not linked to an article or a location.</string>
     <string name="review_tag_not_in_review">Not expected here: add it as found item.</string>
     <string name="review_tag_hint">Scan a tag to jump to its line.</string>
     <string name="review_gone">This review no longer exists.</string>
@@ -99,4 +99,6 @@
     <string name="review_pending_unit">New unit, created when the review is applied</string>
     <string name="review_change_create">Create %1$s (%2$s) at %3$s</string>
     <string name="review_skipped_duplicate">%1$s: this serial number is now used by another unit, nothing is created</string>
+    <string name="review_tag_location_outside">This location is not part of this review.</string>
+    <string name="review_tag_location_empty">Nothing to count at this location in this review.</string>
 </resources>

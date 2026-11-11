@@ -23,7 +23,7 @@ enum class ConflictType {
     /** Another article already has this SKU: the imported one got a suffix. */
     SKU_RENAMED,
 
-    /** The NFC tag is already on another article here: removed from the imported article. */
+    /** The NFC tag is already on another article or location here: removed from the imported row (one tag = one thing). */
     BARCODE_CLEARED,
 
     /** Another unit already has this serial number: the imported one got a suffix. */
@@ -121,6 +121,37 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             previous?.let(value)?.let { if (owners[normalize(it)] == id(next)) owners.remove(normalize(it)) }
             value(next)?.let { owners[normalize(it)] = id(next) }
         }
+    }
+
+    /**
+     * One tag = one thing, across articles and locations: owner key ("article:id", "location:id") of each
+     * NFC tag in the merged state. Tags of local rows that an incoming row replaces are released up front,
+     * so a tag moved from an article to a location on the other device follows it.
+     */
+    private val tagOwners = HashMap<String, String>().apply {
+        local.locations.forEach { row -> row.barcode?.let { put(it, locationKey(row.id)) } }
+        local.articles.forEach { row -> row.barcode?.let { put(it, articleKey(row.id)) } }
+        val localLocations = local.locations.associateBy { it.id }
+        incoming.locations.forEach { row ->
+            val previous = localLocations[row.id] ?: return@forEach
+            if (newer(row, previous, Location::updatedAt)) previous.barcode?.let { if (get(it) == locationKey(row.id)) remove(it) }
+        }
+        val localArticles = local.articles.associateBy { it.id }
+        incoming.articles.forEach { row ->
+            val previous = localArticles[row.id] ?: return@forEach
+            if (newer(row, previous, Article::updatedAt)) previous.barcode?.let { if (get(it) == articleKey(row.id)) remove(it) }
+        }
+    }
+
+    private fun locationKey(id: String) = "location:$id"
+    private fun articleKey(id: String) = "article:$id"
+
+    /** Takes [tag] for [key]; false (nothing changed) when another row holds it. */
+    private fun claimTag(tag: String, key: String): Boolean {
+        val owner = tagOwners[tag]
+        if (owner != null && owner != key) return false
+        tagOwners[tag] = key
+        return true
     }
 
     /** "value (2)", "value (3)"... the first free one, cut to [maxLength]. */
@@ -310,7 +341,14 @@ private class Merger(private val local: BackupData, private val incoming: Backup
         for (row in ordered(incoming.locations, table)) {
             val previous = table.final[row.id]
             if (!newer(row, previous, Location::updatedAt)) continue
-            if (previous == null) table.insert(row) else table.update(row)
+            var candidate = row
+            row.barcode?.let { barcode ->
+                if (!claimTag(barcode, locationKey(row.id))) {
+                    candidate = candidate.copy(barcode = null)
+                    conflicts += MergeConflict(ConflictType.BARCODE_CLEARED, BackupTable.LOCATION, row.id, barcode, row.name)
+                }
+            }
+            if (previous == null) table.insert(candidate) else table.update(candidate)
         }
         // A newer parent on each side can make a cycle: keep the local parent of one updated row until none is left
         while (true) {
@@ -329,7 +367,6 @@ private class Merger(private val local: BackupData, private val incoming: Backup
     private fun mergeArticles(): Table<Article> {
         val table = Table(local.articles) { it.id }
         val skus = UniqueIndex(table.final.values, { it.id }, { it.sku }, String::lowercase)
-        val barcodes = UniqueIndex(table.final.values, { it.id }, { it.barcode }) { it }
         for (row in ordered(incoming.articles, table)) {
             val previous = table.final[row.id]
             if (!newer(row, previous, Article::updatedAt)) continue
@@ -341,13 +378,12 @@ private class Merger(private val local: BackupData, private val incoming: Backup
                 }
             }
             row.barcode?.let { barcode ->
-                if (!barcodes.isFree(barcode, row.id)) {
+                if (!claimTag(barcode, articleKey(row.id))) {
                     candidate = candidate.copy(barcode = null)
                     conflicts += MergeConflict(ConflictType.BARCODE_CLEARED, BackupTable.ARTICLE, row.id, barcode, row.name)
                 }
             }
             skus.replace(previous, candidate)
-            barcodes.replace(previous, candidate)
             if (previous == null) table.insert(candidate) else table.update(candidate)
         }
         return table

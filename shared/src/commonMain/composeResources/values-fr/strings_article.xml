@@ -11,6 +11,7 @@
     <string name="article_section_locations">Stock par emplacement</string>
     <string name="article_locations_empty">Aucun stock dans les emplacements</string>
     <string name="article_section_history">Historique</string>
+    <string name="article_section_properties">Propriétés</string>
     <string name="article_history_empty">Aucun mouvement pour l’instant</string>
     <string name="article_reason_purchase">Achat</string>
     <string name="article_reason_consumption">Consommation</string>

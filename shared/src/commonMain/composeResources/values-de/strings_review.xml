@@ -86,7 +86,7 @@
     <string name="review_location_action">Diesen Lagerort prüfen</string>
     <string name="review_chip">Prüfen</string>
     <string name="review_tag_failed">Tag konnte nicht gelesen werden. Ruhig halten und erneut versuchen.</string>
-    <string name="review_tag_unknown">Dieser Tag ist mit keinem Artikel verknüpft.</string>
+    <string name="review_tag_unknown">Dieser Tag ist mit keinem Artikel und keinem Lagerort verknüpft.</string>
     <string name="review_tag_not_in_review">Hier nicht erwartet: als gefunden hinzufügen.</string>
     <string name="review_tag_hint">Einen Tag scannen, um zur Zeile zu springen.</string>
     <string name="review_gone">Diese Inventur existiert nicht mehr.</string>
@@ -99,4 +99,6 @@
     <string name="review_pending_unit">Neue Einheit, wird beim Anwenden der Inventur erstellt</string>
     <string name="review_change_create">%1$s (%2$s) bei %3$s erstellen</string>
     <string name="review_skipped_duplicate">%1$s: Diese Seriennummer wird jetzt von einer anderen Einheit verwendet, nichts wird erstellt</string>
+    <string name="review_tag_location_outside">Dieser Lagerort gehört nicht zu dieser Inventur.</string>
+    <string name="review_tag_location_empty">An diesem Lagerort gibt es in dieser Inventur nichts zu zählen.</string>
 </resources>

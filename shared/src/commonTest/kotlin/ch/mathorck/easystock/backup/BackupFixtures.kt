@@ -75,7 +75,7 @@ object BackupFixtures {
             ),
         ),
         categoryAttributes = listOf(CategoryAttribute(id = "ca1", categoryId = "c1", attributeId = "a1", required = true, sortOrder = 3, createdAt = 1, updatedAt = 2)),
-        locations = listOf(location("room"), location("shelf", parent = "room")),
+        locations = listOf(location("room"), location("shelf", parent = "room").copy(barcode = "04:B5:6C")),
         articles = listOf(
             Article(
                 id = "art1", sku = "S-1", name = "Drill \"Ünïcode\" ✓", description = "line1\nline2", categoryId = "c1",

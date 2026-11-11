@@ -30,10 +30,14 @@ data class LocationForm(
     val color: String? = null,
 )
 
-/** The open dialog. [editing] is null for a new location. [parents]: where it can go (never itself or below). */
+/**
+ * The open dialog. [editing] is null for a new location (its current row while editing, so its tag is
+ * up to date). [parents]: where it can go (never itself or below). [tagId]: the NFC tag a new location gets.
+ */
 data class LocationDialogState(
     val editing: Location?,
     val form: LocationForm,
+    val tagId: String? = null,
     val error: LocationError?,
     val parents: List<StockLocationNode>,
     val saving: Boolean = false,
@@ -63,6 +67,7 @@ data class LocationListUiState(
 private data class LocationDialogInput(
     val editing: Location?,
     val form: LocationForm,
+    val tagId: String? = null,
     val saving: Boolean = false,
     val failed: Boolean = false,
 )
@@ -77,6 +82,10 @@ class LocationListViewModel(
     private val dialog = MutableStateFlow<LocationDialogInput?>(null)
     private val pendingDelete = MutableStateFlow<LocationDeleteRequest?>(null)
     private val message = MutableStateFlow<LocationMessage?>(null)
+    private val _created = MutableStateFlow<String?>(null)
+
+    /** ID of the location just created, until [consumeCreated] (the Scan page opens it). */
+    val created: StateFlow<String?> = _created
 
     val state: StateFlow<LocationListUiState> = combine(
         combine(dao.observeLocations(), dao.observeArticleCounts()) { l, c -> l to c },
@@ -90,10 +99,11 @@ class LocationListViewModel(
                 LocationRow(it.location, it.depth, articleCounts[it.location.id] ?: 0, childCounts[it.location.id] ?: 0)
             },
             dialog = input?.let {
-                val editing = it.editing
+                val editing = it.editing?.let { e -> locations.firstOrNull { l -> l.id == e.id } ?: e }
                 LocationDialogState(
                     editing = editing,
                     form = it.form,
+                    tagId = it.tagId,
                     error = validateLocationName(it.form.name, locations.childrenOf(it.form.parentId), editing?.id),
                     parents = (if (editing == null) locations else locations.validParentsFor(editing.id)).toLocationTree(),
                     saving = it.saving,
@@ -105,9 +115,13 @@ class LocationListViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LocationListUiState())
 
-    /** New location at the top level, or under [parent] ("Add sub-location"). */
-    fun startCreate(parent: Location? = null) {
-        dialog.value = LocationDialogInput(editing = null, form = LocationForm(parentId = parent?.id))
+    /** New location at the top level, or under [parent] ("Add sub-location"), with the NFC tag [tagId] if any. */
+    fun startCreate(parent: Location? = null, tagId: String? = null) {
+        dialog.value = LocationDialogInput(editing = null, form = LocationForm(parentId = parent?.id), tagId = tagId)
+    }
+
+    fun consumeCreated() {
+        _created.value = null
     }
 
     fun startEdit(location: Location) {
@@ -137,7 +151,9 @@ class LocationListViewModel(
                 val now = clock.now().toEpochMilliseconds()
                 val editing = input.editing
                 if (editing == null) {
-                    dao.createLocation(newId(), input.form.name, input.form.parentId, now, input.form.icon, input.form.color)
+                    val id = newId()
+                    dao.createLocation(id, input.form.name, input.form.parentId, now, input.form.icon, input.form.color, input.tagId)
+                    _created.value = id
                 } else {
                     dao.updateLocation(editing.id, input.form.name, input.form.parentId, now, input.form.icon, input.form.color)
                 }
