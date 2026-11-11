@@ -2,9 +2,12 @@
   <img src="docs/images/icon.png" alt="EasyStock icon" width="96">
 </p>
 
-<h1 align="center">EasyStock</h1>
+# 📦 EasyStock: Your Offline NFC Stock Manager
 
-<p align="center">Manage a physical stock with NFC tags. Free, open source, offline, no account.</p>
+<p align="center">
+  <a href="https://github.com/Mathorck/EasyStock/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" alt="Get it on GitHub" height="60"></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/Mathorck/EasyStock"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="60"></a>
+</p>
 
 <p align="center">
   <a href="https://github.com/Mathorck/EasyStock/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mathorck/EasyStock"></a>
@@ -15,86 +18,113 @@
   <img alt="Kotlin 2.4.21" src="https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Compose Multiplatform 1.12.2" src="https://img.shields.io/badge/Compose%20Multiplatform-1.12.2-4285F4?logo=jetpackcompose&logoColor=white">
   <img alt="Offline first, no account" src="https://img.shields.io/badge/offline%20first-no%20account-485C43">
-  <a href="https://github.com/Mathorck/EasyStock/releases/latest"><img alt="Download APK" src="https://img.shields.io/badge/Download-APK-485C43?logo=android&logoColor=white"></a>
 </p>
 
-EasyStock is an Android app to manage a physical stock with NFC tags. Scan the tag on a shelf or bin to see the article, update the quantity on the spot, and get notified when stock drops below a threshold. It is built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Everything works offline on the phone: no server, no account, data stays on the device.
-
-School project (TIP, CPNE-TI, 2026-2027). Target hardware budget: 100 CHF.
-
-## Features
-
-- **NFC scan:** scan a tag to open its article. Scanning a location tag: _to be confirmed_.
-- **Stock list:** quantities per article, filters, search across names and attributes, add or remove stock in one tap.
-- **Article photos:** take a picture or pick one from the gallery, then crop it.
-- **Categories and attributes:** custom attributes per category (text, number, measurement with a unit chosen per value).
-- **Name templates:** build the article name from its attributes.
-- **Serial units and consumables:** track tools one by one (each unit has its own properties and location) or count consumables as a quantity.
-- **Locations:** hierarchy (room > shelf > bin) with an icon and a color per location.
-- **Low-stock threshold:** per article, with a notification (not for serial-tracked articles).
-- **Stock review:** go through a location, tick off what is there and see the gaps in a summary.
-- **Backup and transfer:** export to a file, a QR code or over the local Wi-Fi; optional password; merge into or replace the existing data.
-- **Languages:** English, French, German.
-
-3D-printable NFC tag holders will be published separately.
+---
 
 ## Screenshots
 
-<!-- Filled in with the screenshots in docs/images/screenshots -->
+<!-- Filled in phase 2: centered grid, 3 per row, width 250, italic caption under each, files in docs/images/screenshots -->
+
+---
+
+## About EasyStock
+
+EasyStock is a free, open-source Android app to manage a physical stock with NFC tags. Scan the tag on a shelf or bin to see the article, update the quantity on the spot, and get notified when stock drops below a threshold.
+
+It is built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Everything works offline on the phone: no server, no account, no tracking. Data stays on the device, which keeps personal data minimal and local, in line with the Swiss nFADP and the GDPR.
+
+School project (TIP, CPNE-TI, 2026-2027). Target hardware budget: 100 CHF. 3D-printable NFC tag holders will be published separately.
+
+---
+
+## ⚠️ Disclaimer
+
+- **EARLY VERSION**: EasyStock is at 0.x. The data format may change between minor versions.
+- **BACK UP BEFORE UPDATING**: export a backup file first (Settings > backup).
+- **USE PERMANENT-UID NFC TAGS**: NTAG213, NTAG215 or NTAG216. Not bank cards or phone-emulated cards, whose ID changes on every read.
+- **iOS IS NOT SUPPORTED**: the iOS target compiles from the same code but is not tested.
+
+---
+
+## 🏷️ Supported NFC tags
+
+- The app reads the tag UID in reader mode (NFC-A/B/F/V). It does not read or write NDEF data, so tags stay untouched.
+- One tag = one article. A scan looks the article up by its tag ID. Deleting an article frees its tag for reuse.
+- Location tags: _to be confirmed_.
+- NFC needs a real device, the emulator can't scan.
+
+---
+
+## Features
+
+### NFC scan
+- Scan a tag to open its article and its stock.
+
+### Stock and search
+- Quantities per article, filters, add or remove stock in one tap.
+- Search across names and attributes.
+
+### Articles and photos
+- Take a picture or pick one from the gallery, then crop it.
+
+### Attributes and measurements
+- Custom attributes per category: text, number, or measurement with a unit chosen per value.
+
+### Name templates
+- Build the article name from its attributes.
+
+### Tools and consumables
+- Track tools one by one (serial units with their own properties and location), or count consumables as a quantity.
+
+### Locations
+- Hierarchy (room > shelf > bin), with an icon and a color per location.
+
+### Low stock
+- Threshold per article, with a notification. Not applied to serial-tracked articles.
+
+### Stock review
+- Go through a location, tick off what is there, and see the gaps in a summary.
+
+### Backup and transfer
+- Export to a file, a QR code, or over the local Wi-Fi.
+- Optional password. Merge into or replace the existing data.
+
+### Languages
+- English, French, German.
+
+---
 
 ## Roadmap
 
-- Server mode (multiple users, movement history). Optional, standalone stays the default.
+- Server mode (multiple users, movement history). Optional: standalone stays the default.
 
-## Prerequisites
+---
 
-- Android Studio (recent stable) with Android SDK 37
-- JDK 21 (Gradle daemon toolchain, auto-provisioned)
-- Android device or emulator, API 26+ (NFC needs a real device)
-- iOS: Mac + Xcode. The iOS target compiles from the same code but is **not tested or supported**.
+## How to build
 
-## Setup
-
-1. Clone the repo
-2. Open the root folder in Android Studio and let Gradle sync
-3. Run the `androidApp` configuration, or:
+Requirements: Android Studio (recent stable) with Android SDK 37, JDK 21 (auto-provisioned by Gradle), a device or emulator on API 26+.
 
 ```
-./gradlew :androidApp:assembleDebug
+./gradlew :androidApp:assembleDebug       # debug APK
+./gradlew :shared:testAndroidHostTest     # shared logic tests, JVM
 ```
 
-## Tests
+Or open the root folder in Android Studio and run the `androidApp` configuration. No environment variables are needed.
 
-```
-./gradlew :shared:testAndroidHostTest     # shared logic, JVM
-./gradlew :shared:iosSimulatorArm64Test   # macOS only
-```
-
-## Environment variables
-
-None.
-
-## Architecture
-
-Kotlin Multiplatform + Compose Multiplatform.
+Kotlin Multiplatform + Compose Multiplatform:
 
 | Path | Content |
 |---|---|
-| `shared/src/commonMain` | All UI and logic shared by Android and iOS |
+| `shared/src/commonMain` | All UI and logic |
 | `shared/src/commonMain/composeResources` | Icons and strings (`values`, `values-fr`, `values-de`) |
-| `androidApp` | Android entry point (`MainActivity`) |
-| `iosApp` | iOS entry point (Xcode project) |
-| `docs/schema.dbml` | Database schema |
+| `androidApp` | Android entry point |
+| `iosApp` | iOS entry point (not supported) |
+| `docs/schema.dbml` | Database schema ([dbdiagram.io](https://dbdiagram.io) can draw it) |
 
-### Data model
+Data model: catalogue (`category`, `attribute_definition`, `category_attribute`, `article`), physical stock (`location`, `item`), and `stock_movement`, append-only (stock = `SUM(quantity)`). UUID keys generated on the device, UTC timestamps, soft delete via `deleted_at`.
 
-Full schema: [`docs/schema.dbml`](docs/schema.dbml) (paste it into [dbdiagram.io](https://dbdiagram.io) to see the diagram). Same logical model on SQLite (phone) and PostgreSQL (future server).
-
-- **Catalogue:** `category`, `attribute_definition`, `category_attribute`, `article`
-- **Physical stock:** `location` (hierarchical), `item` (serial-tracked units)
-- **Movements:** `stock_movement`, append-only. Stock = `SUM(quantity)`.
-
-Rules: UUID keys generated on the device, UTC timestamps set by the app, soft delete via `deleted_at`.
+---
 
 ## Contributing
 
@@ -120,6 +150,8 @@ Examples: `feat(scan): read NFC tag id`, `fix: keep selected tab on rotation`.
 
 Code, comments and commit messages in English. Files in UTF-8.
 
+---
+
 ## Releases
 
 Tags are plain [SemVer](https://semver.org), no `v` prefix. Pushing a tag `X.Y.Z` runs [`.github/workflows/release.yml`](.github/workflows/release.yml): tests, signed release APK, then a GitHub release with the APK, its SHA-256 and notes generated by [git-cliff](https://git-cliff.org) from the commits ([`cliff.toml`](cliff.toml)). A tag with a suffix (`1.0.0-beta.1`) is published as a pre-release.
@@ -142,6 +174,22 @@ Required repository secrets (Settings > Secrets and variables > Actions):
 
 Never commit the keystore. Losing it means users can't update the app anymore, keep a backup outside the repo.
 
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 EasyStock contributors. Free to use, change and share, as long as the copyright notice is kept.
+
+---
+
+## Star History
+
+If EasyStock is useful to you, a star helps others find it.
+
+<a href="https://star-history.com/#Mathorck/EasyStock&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Mathorck/EasyStock&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Mathorck/EasyStock&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Mathorck/EasyStock&type=Date" />
+  </picture>
+</a>
