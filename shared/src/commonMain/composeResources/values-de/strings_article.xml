@@ -11,6 +11,7 @@
     <string name="article_section_locations">Bestand pro Lagerort</string>
     <string name="article_locations_empty">An keinem Lagerort Bestand</string>
     <string name="article_section_history">Verlauf</string>
+    <string name="article_section_properties">Eigenschaften</string>
     <string name="article_history_empty">Noch keine Bewegungen</string>
     <string name="article_reason_purchase">Einkauf</string>
     <string name="article_reason_consumption">Verbrauch</string>

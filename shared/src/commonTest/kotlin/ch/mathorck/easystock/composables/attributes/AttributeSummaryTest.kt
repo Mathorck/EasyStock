@@ -116,4 +116,18 @@ class AttributeSummaryTest {
         assertEquals(listOf("b"), ids("nail"))
         assertTrue(ids("60 m").isEmpty())
     }
+
+    @Test
+    fun rowsHaveLabelsAndUnitRowsSkipArticleValues() {
+        val catalog = AttributeCatalog(all, listOf(link("type", 0), link("diameter", 1), link("length", 2)))
+        val article = JsonObject(mapOf("type" to JsonPrimitive("static"), "diameter" to num("10.50"), "length" to num("50")))
+        val rows = catalog.rows("cat", article)
+        assertEquals(listOf("type", "diameter", "length"), rows.map { it.key })
+        assertEquals("10.5 mm", rows[1].value)
+        assertTrue(catalog.rows("cat", null).isEmpty())
+        val unit = JsonObject(mapOf("type" to JsonPrimitive("static"), "length" to num("60")))
+        assertEquals(listOf("length"), catalog.unitRows("cat", article, unit).map { it.key })
+        assertEquals("60 m", catalog.unitRows("cat", article, unit).single().value)
+        assertEquals(2, catalog.unitRows("cat", null, unit).size)
+    }
 }

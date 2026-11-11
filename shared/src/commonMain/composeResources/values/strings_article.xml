@@ -11,6 +11,7 @@
     <string name="article_section_locations">Stock per location</string>
     <string name="article_locations_empty">No stock at any location</string>
     <string name="article_section_history">History</string>
+    <string name="article_section_properties">Properties</string>
     <string name="article_history_empty">No movements yet</string>
     <string name="article_reason_purchase">Purchase</string>
     <string name="article_reason_consumption">Consumption</string>

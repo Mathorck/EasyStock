@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.composables.article
 
+import ch.mathorck.easystock.composables.attributes.ATTRIBUTE_SUMMARY_SEPARATOR
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -115,6 +116,13 @@ internal fun UnitActionRow(unit: UnitRow, onEdit: () -> Unit, onMove: () -> Unit
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (unit.properties.isNotEmpty()) {
+                Text(
+                    unit.properties.joinToString(ATTRIBUTE_SUMMARY_SEPARATOR) { "${it.label}: ${it.value}" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         StatusChip(unit.status)
         Box {

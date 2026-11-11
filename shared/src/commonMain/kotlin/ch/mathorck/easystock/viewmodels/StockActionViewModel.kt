@@ -2,7 +2,9 @@ package ch.mathorck.easystock.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ch.mathorck.easystock.composables.attributes.AttributeCatalog
 import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.composables.attributes.AttributeRow
 import ch.mathorck.easystock.composables.attributes.validateAttributes
 import ch.mathorck.easystock.data.db.ArticleDetailDao
 import ch.mathorck.easystock.data.db.AttributeDao
@@ -22,6 +24,7 @@ import ch.mathorck.easystock.data.db.UnitAction
 import ch.mathorck.easystock.data.db.canMoveUnit
 import ch.mathorck.easystock.data.db.unitActions
 import ch.mathorck.easystock.data.db.unitTransition
+import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.Item
 import ch.mathorck.easystock.data.model.ItemStatus
 import ch.mathorck.easystock.data.model.Location
@@ -241,10 +244,18 @@ data class UnitRow(
     val lastLocationId: String?,
     val actions: List<UnitAction>,
     val canMove: Boolean,
+    /** Values this unit sets itself, different from the article's. */
+    val properties: List<AttributeRow> = emptyList(),
 )
 
 /** [locations] should include soft-deleted ones so every unit has a path. */
-fun unitRows(items: List<Item>, lastLocations: List<ItemLastLocation>, locations: List<Location>): List<UnitRow> {
+fun unitRows(
+    items: List<Item>,
+    lastLocations: List<ItemLastLocation>,
+    locations: List<Location>,
+    article: Article? = null,
+    catalog: AttributeCatalog? = null,
+): List<UnitRow> {
     val paths = buildLocationOptions(locations).associate { it.id to it.path }
     val last = lastLocations.associate { it.itemId to it.locationId }
     return items.map { item ->
@@ -256,6 +267,7 @@ fun unitRows(items: List<Item>, lastLocations: List<ItemLastLocation>, locations
             lastLocationId = last[item.id],
             actions = unitActions(item.status),
             canMove = canMoveUnit(item.status),
+            properties = catalog?.unitRows(article?.categoryId, article?.attributes, item.attributes).orEmpty(),
         )
     }
 }
@@ -337,7 +349,9 @@ class StockActionViewModel(
         detailDao.observeItems(articleId),
         detailDao.observeLastItemLocations(articleId),
         detailDao.observeAllLocations(),
-    ) { items, last, locations -> unitRows(items, last, locations) }
+        detailDao.observeArticle(articleId),
+        combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
+    ) { items, last, locations, found, catalog -> unitRows(items, last, locations, found?.article, catalog) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Null when the sheet is closed. */
