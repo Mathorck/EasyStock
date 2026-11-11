@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Server -->
+    <string name="settings_server">Server</string>
+    <string name="settings_server_not_connected">Not connected</string>
+
+    <!-- Connect -->
+    <string name="server_connect_title">Connect to a server</string>
+    <string name="server_connect_intro">Use this phone with an EasyStock server. Scan the code your administrator gave you, or type the server address to log in.</string>
+    <string name="server_connect_button">Connect</string>
+    <string name="server_connect_scan">Scan a QR code</string>
+    <string name="server_connect_or">or</string>
+    <string name="server_connect_address">Server address</string>
+    <string name="server_connect_address_hint">For example stock.example.org or 192.168.1.20:8080. You can paste a join link here too.</string>
+    <string name="server_connect_address_invalid">This address can’t be read. Type the host, or host:port, without spaces.</string>
+    <string name="server_connect_next">Continue</string>
+    <string name="server_scan_hint">Point the camera at the server’s QR code.</string>
+    <string name="server_checking">Contacting the server…</string>
+    <string name="server_cancel">Cancel</string>
+    <string name="server_ok">OK</string>
+
+    <string name="server_https_failed_title">No secure connection</string>
+    <string name="server_https_failed_message">%1$s did not answer over HTTPS. You can try an unencrypted connection (HTTP), but only on a network you trust.</string>
+    <string name="server_try_http">Try HTTP</string>
+    <string name="server_http_warning_title">Unsecured connection</string>
+    <string name="server_http_warning_message">%1$s uses HTTP: your password and the stock data travel unencrypted. Only continue on a network you trust, such as your home or company network.</string>
+    <string name="server_http_continue">Continue with HTTP</string>
+    <string name="server_unsecured">Unsecured connection (HTTP)</string>
+    <string name="server_secured">Secure connection (HTTPS)</string>
+    <string name="server_pinned">Secure connection, certificate checked against the QR code</string>
+
+    <string name="server_not_empty_title">This phone already has data</string>
+    <string name="server_not_empty_message">A phone can join a server only when it is empty: it then gets the server’s data. Export a backup first if you want to keep what is on this phone, then erase it.</string>
+    <string name="server_export_then_erase">Export a backup, then erase</string>
+    <string name="server_erasing">Erasing…</string>
+
+    <string name="server_guest_title">Welcome to %1$s</string>
+    <string name="server_guest_message">This code gives guest access, to look at the stock.</string>
+    <string name="server_guest_login">Log in to my account</string>
+    <string name="server_guest_continue">Continue as guest</string>
+    <string name="server_guest_off">Guest access is turned off on this server.</string>
+
+    <string name="server_form_login_title">Log in</string>
+    <string name="server_form_invite_title">Create your account</string>
+    <string name="server_form_setup_title">Create the first administrator</string>
+    <string name="server_form_setup_message">This server is new: the account you create now is its administrator.</string>
+    <string name="server_form_reset_title">Choose a new password</string>
+    <string name="server_form_reset_message">Your other devices will be logged out.</string>
+    <string name="server_form_guest_title">Your name</string>
+    <string name="server_form_guest_message">Shown to the administrator, who can turn your guest access into an account.</string>
+    <string name="server_field_username">Username</string>
+    <string name="server_field_username_rule">3 to 32 letters, digits, dots, dashes or underscores</string>
+    <string name="server_field_display_name">Display name</string>
+    <string name="server_field_display_name_rule">Up to 50 characters</string>
+    <string name="server_field_password">Password</string>
+    <string name="server_field_new_password">New password</string>
+    <string name="server_field_password_rule">At least 10 characters</string>
+    <string name="server_field_password_show">Show the password</string>
+    <string name="server_field_password_hide">Hide the password</string>
+    <string name="server_field_required">Required</string>
+    <string name="server_form_submit_login">Log in</string>
+    <string name="server_form_submit_create">Create the account</string>
+    <string name="server_form_submit_reset">Save the password</string>
+    <string name="server_form_submit_guest">Continue</string>
+    <string name="server_joined">Connected to %1$s</string>
+
+    <!-- Errors -->
+    <string name="server_error_title">Can’t connect</string>
+    <string name="server_error_network">The server did not answer. Check the address, and that this phone is on the right network.</string>
+    <string name="server_error_not_a_server">This address answers, but it is not an EasyStock server.</string>
+    <string name="server_error_api_unsupported">This server uses another version of EasyStock. Update the app or the server.</string>
+    <string name="server_error_app_too_old">This server needs a newer version of the app. Update EasyStock.</string>
+    <string name="server_error_setup_done">This server is already set up. Ask its administrator for an invitation.</string>
+    <string name="server_error_not_set_up">This server is not set up yet. Its administrator must scan the setup code first.</string>
+    <string name="server_error_wrong_credentials">Wrong username or password.</string>
+    <string name="server_error_account_locked">Too many attempts: this account is locked for a while. Try again later.</string>
+    <string name="server_error_account_disabled">This account is disabled. Ask the administrator.</string>
+    <string name="server_error_code_invalid">This code is not valid on this server.</string>
+    <string name="server_error_code_expired">This code has expired. Ask for a new one.</string>
+    <string name="server_error_code_used">This code was already used. Ask for a new one.</string>
+    <string name="server_error_guest_limit">This server has too many guests right now. Try again later, or ask the administrator.</string>
+    <string name="server_error_username_taken">This username is already taken.</string>
+    <string name="server_error_invalid">The server refused these values. Check the fields.</string>
+    <string name="server_error_rate_limited">Too many attempts. Wait a moment and try again.</string>
+    <string name="server_error_session_revoked">Your session has ended on the server.</string>
+    <string name="server_error_no_promotion">There is no pending promotion any more.</string>
+    <string name="server_error_server">The server had a problem. Try again later.</string>
+    <string name="server_error_local">The connection could not be saved on this phone. Nothing was changed.</string>
+    <string name="server_error_logout_failed">The data of this phone could not be erased. Try again.</string>
+
+    <!-- Account -->
+    <string name="server_account_address">Server</string>
+    <string name="server_account_name">Name</string>
+    <string name="server_account_role">Role</string>
+    <string name="server_account_short_code">Your guest code</string>
+    <string name="server_account_short_code_hint">Give this code to the administrator, so they can find you.</string>
+    <string name="server_account_last_sync">Last sync</string>
+    <string name="server_account_sync_unavailable">Never: sync is not available yet in this version</string>
+    <string name="server_account_offline">The server can’t be reached: showing what is stored on this phone.</string>
+    <string name="server_account_administration">Administration</string>
+    <string name="server_promotion_banner">The administrator gave you the %1$s role. Choose a username and a password to finish.</string>
+    <string name="server_promotion_open">Finish</string>
+    <string name="server_promotion_title">Create your account</string>
+
+    <string name="server_logout">Log out</string>
+    <string name="server_logout_title">Log out?</string>
+    <string name="server_logout_message">This phone leaves the server: all the data and photos on this phone are erased. They stay on the server.</string>
+    <string name="server_logout_guest_message">Your guest account will be deleted on the server, and all the data and photos on this phone are erased.</string>
+    <string name="server_logout_pending">%1$d changes have not been sent to the server yet.</string>
+    <string name="server_logout_sync_first">Sync, then log out</string>
+    <string name="server_logout_sync_unavailable">Sync is not available yet in this version.</string>
+    <string name="server_logout_lose">Log out and lose them</string>
+    <string name="server_logout_confirm">Log out</string>
+    <string name="server_logout_running">Logging out…</string>
+    <string name="server_logout_offline_title">Server unreachable</string>
+    <string name="server_logout_offline_message">The server can’t be told. Log out on this phone only? The session then stays valid on the server until an administrator removes the device.</string>
+    <string name="server_logout_offline_confirm">Log out on this phone</string>
+    <string name="server_logout_stay">Stay connected</string>
+    <string name="server_logged_out">Logged out</string>
+    <string name="server_revoked_title">Disconnected from the server</string>
+    <string name="server_revoked_message">Your session on the server has ended (logged out elsewhere, account disabled or password reset). The data of this phone was erased.</string>
+</resources>

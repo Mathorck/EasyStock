@@ -417,4 +417,25 @@ class ConnectViewModelTest {
         vm.passwordChanged("secret password")
         assertTrue("secret" !in vm.state.value.toString())
     }
+
+    @Test
+    fun aScannedCode() {
+        val vm = vm()
+        vm.startScan()
+        vm.scanned("easystock://join?u=https%3A%2F%2Fnas.example&k=invite&t=tok")
+        assertEquals(FormMode.INVITE, assertIs<ConnectStep.Form>(vm.state.value.step).mode)
+        // The camera keeps reading: a second read is ignored
+        vm.scanned("easystock://join?u=https%3A%2F%2Fother.example&k=invite&t=tok")
+        assertEquals(1, apis.size)
+    }
+
+    @Test
+    fun aScannedBackupCodeIsNotAServerCode() {
+        val vm = vm()
+        vm.startScan()
+        vm.scanned("EZS1:something")
+        assertEquals(ConnectError.CODE_INVALID, vm.state.value.error)
+        assertEquals(ConnectStep.Choose, vm.state.value.step)
+        assertTrue(apis.isEmpty())
+    }
 }

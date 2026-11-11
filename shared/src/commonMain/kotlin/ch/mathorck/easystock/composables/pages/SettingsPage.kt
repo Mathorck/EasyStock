@@ -39,7 +39,20 @@ import ch.mathorck.easystock.auth.SettingsGates
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.composables.settings.AppInfoScreen
+import ch.mathorck.easystock.composables.server.AccountScreen
+import ch.mathorck.easystock.composables.server.ConnectScreen
 import ch.mathorck.easystock.composables.server.admin.AdministrationScreen
+import ch.mathorck.easystock.auth.rememberJoinPlatform
+import ch.mathorck.easystock.data.db.rememberAppDatabase
+import ch.mathorck.easystock.data.model.SyncState
+import ch.mathorck.easystock.reset.rememberDataReset
+import ch.mathorck.easystock.server.ServerConnection
+import ch.mathorck.easystock.viewmodels.server.ConnectStep
+import ch.mathorck.easystock.viewmodels.server.ConnectViewModel
+import kotlinx.coroutines.flow.map
+import easystock.shared.generated.resources.ic_settings
+import easystock.shared.generated.resources.settings_server
+import easystock.shared.generated.resources.settings_server_not_connected
 import easystock.shared.generated.resources.admin_title
 import easystock.shared.generated.resources.ic_dns
 import easystock.shared.generated.resources.settings_administration_summary
@@ -101,8 +114,17 @@ import org.jetbrains.compose.resources.stringResource
 /** Full-screen subpages opened from the settings list. */
 enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo, Administration, Server }
 
+/** The `sync_state` row once read: null while the database has not answered yet. */
+private class SyncLoad(val state: SyncState?)
+
 @Composable
-fun SettingsPage(onDataReset: () -> Unit = {}) {
+fun SettingsPage(
+    onDataReset: () -> Unit = {},
+    /** After a logout: the phone is standalone and empty again. */
+    onLoggedOut: () -> Unit = {},
+    /** After a join, with the server address. */
+    onJoined: (String) -> Unit = {},
+) {
     val service = rememberBackupService()
     var language by remember { mutableStateOf(currentAppLanguage()) }
     var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
@@ -111,6 +133,40 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
     val backupState by backup.state.collectAsStateWithLifecycle()
     val share = (backupState.step as? BackupStep.SendingWifi)?.takeIf { it.state.isActive() }?.deadline
     val gates = SettingsGates.of(LocalPermissions.current)
+    val db = rememberAppDatabase()
+    val syncFlow = remember(db) { db.sessionDao().observeSyncState().map(::SyncLoad) }
+    val syncLoad by syncFlow.collectAsStateWithLifecycle(null)
+    val syncState = syncLoad?.state
+    // Built without any network call: the connect screen calls only after a scan or a typed address
+    val joinPlatform = rememberJoinPlatform()
+    val dataReset = rememberDataReset()
+    val connect = viewModel(key = "settings-connect") {
+        ConnectViewModel(
+            joinApi = joinPlatform.joinApi,
+            isPhoneEmpty = joinPlatform.emptyCheck::isEmpty,
+            erase = {
+                // Stops a Wi-Fi share and drops the temporary backup files of the erased data
+                backup.reset()
+                dataReset.run()
+            },
+            commit = joinPlatform.join::commit,
+            deviceName = joinPlatform.deviceName,
+            appVersion = joinPlatform.appVersion,
+        )
+    }
+    // Joined: sync_state is written, the account screen shows; the connect screen starts afresh next time
+    LaunchedEffect(syncState?.serverUrl) {
+        if (syncState != null && connect.state.value.step == ConnectStep.Done) {
+            connect.cancel()
+            onJoined(syncState.serverUrl.substringAfter("://"))
+        }
+    }
+    // Where a subpage opened from Server goes back to (the backup before the erase, the administration)
+    var returnTo by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
+    val close = {
+        subpage = returnTo
+        returnTo = null
+    }
     // Each subpage composes its own back handler, only while it is open. A subpage the role
     // can no longer open (role changed) shows the list instead.
     when (subpage?.takeIf { it in gates.subpages }) {
@@ -119,9 +175,41 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
         SettingsSubpageId.Locations -> LocationsScreen(onBack = { subpage = null })
         SettingsSubpageId.Tags -> TagsScreen(onBack = { subpage = null })
         SettingsSubpageId.Reviews -> ReviewsScreen(onBack = { subpage = null })
-        SettingsSubpageId.Backup -> BackupScreen(onBack = { subpage = null })
-        SettingsSubpageId.Administration -> AdministrationScreen(onBack = { subpage = null })
-        SettingsSubpageId.Server -> Unit
+        SettingsSubpageId.Backup -> BackupScreen(
+            onBack = close,
+            onJoinCode = { code ->
+                // A server code scanned in the backup screen: the connect screen takes it from there
+                if (syncLoad?.state == null) connect.start(code)
+                returnTo = null
+                subpage = SettingsSubpageId.Server
+            },
+        )
+        SettingsSubpageId.Administration -> AdministrationScreen(onBack = close)
+        SettingsSubpageId.Server -> when {
+            syncLoad == null -> Unit
+            syncState == null -> ConnectScreen(
+                vm = connect,
+                onBack = { subpage = null },
+                onOpenBackup = {
+                    returnTo = SettingsSubpageId.Server
+                    subpage = SettingsSubpageId.Backup
+                },
+            )
+            else -> AccountScreen(
+                syncState = syncState,
+                onBack = { subpage = null },
+                onOpenAdministration = {
+                    returnTo = SettingsSubpageId.Server
+                    subpage = SettingsSubpageId.Administration
+                },
+                onLoggedOut = {
+                    backup.reset()
+                    returnTo = null
+                    subpage = null
+                    onLoggedOut()
+                },
+            )
+        }
         SettingsSubpageId.AppInfo -> AppInfoScreen(
             onBack = { subpage = null },
             onOpenBackup = { subpage = SettingsSubpageId.Backup },
@@ -139,8 +227,12 @@ fun SettingsPage(onDataReset: () -> Unit = {}) {
                 language = it
                 applyAppLanguage(it)
             },
-            onOpen = { subpage = it },
+            onOpen = {
+                returnTo = null
+                subpage = it
+            },
             gates = gates,
+            serverAddress = syncState?.let { ServerConnection.of(it).serverUrl.substringAfter("://") },
             wifiShareDeadline = share,
             onStopWifiShare = backup::reset,
         )
@@ -158,6 +250,8 @@ fun SettingsContent(
     /** Set while a Wi-Fi backup share runs: shows a row to get back to it. */
     wifiShareDeadline: ComparableTimeMark? = null,
     onStopWifiShare: () -> Unit = {},
+    /** The joined server, null in standalone mode. */
+    serverAddress: String? = null,
 ) {
     // Not saveable: the activity recreates on a language change, the dialog must not reopen
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -231,13 +325,19 @@ fun SettingsContent(
             )
         }
 
-        // Only for a connected Admin: nothing of this in standalone
+        SectionHeader(stringResource(Res.string.settings_section_server))
+        SubpageItem(
+            title = stringResource(Res.string.settings_server),
+            summary = serverAddress ?: stringResource(Res.string.settings_server_not_connected),
+            icon = Res.drawable.ic_dns,
+            onClick = { onOpen(SettingsSubpageId.Server) },
+        )
+        // Only for a connected Admin
         if (gates.server) {
-            SectionHeader(stringResource(Res.string.settings_section_server))
             SubpageItem(
                 title = stringResource(Res.string.admin_title),
                 summary = stringResource(Res.string.settings_administration_summary),
-                icon = Res.drawable.ic_dns,
+                icon = Res.drawable.ic_settings,
                 onClick = { onOpen(SettingsSubpageId.Administration) },
             )
         }

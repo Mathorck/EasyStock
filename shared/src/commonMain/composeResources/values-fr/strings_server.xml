@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Réglages › Serveur -->
+    <string name="settings_server">Serveur</string>
+    <string name="settings_server_not_connected">Non connecté</string>
+
+    <!-- Connexion -->
+    <string name="server_connect_title">Se connecter à un serveur</string>
+    <string name="server_connect_intro">Utilisez ce téléphone avec un serveur EasyStock. Scannez le code donné par votre administrateur, ou saisissez l’adresse du serveur pour vous connecter.</string>
+    <string name="server_connect_button">Se connecter</string>
+    <string name="server_connect_scan">Scanner un QR code</string>
+    <string name="server_connect_or">ou</string>
+    <string name="server_connect_address">Adresse du serveur</string>
+    <string name="server_connect_address_hint">Par exemple stock.example.org ou 192.168.1.20:8080. Vous pouvez aussi coller ici un lien d’invitation.</string>
+    <string name="server_connect_address_invalid">Cette adresse est illisible. Saisissez l’hôte, ou hôte:port, sans espaces.</string>
+    <string name="server_connect_next">Continuer</string>
+    <string name="server_scan_hint">Pointez la caméra vers le QR code du serveur.</string>
+    <string name="server_checking">Connexion au serveur…</string>
+    <string name="server_cancel">Annuler</string>
+    <string name="server_ok">OK</string>
+
+    <string name="server_https_failed_title">Pas de connexion sécurisée</string>
+    <string name="server_https_failed_message">%1$s n’a pas répondu en HTTPS. Vous pouvez essayer une connexion non chiffrée (HTTP), mais seulement sur un réseau de confiance.</string>
+    <string name="server_try_http">Essayer en HTTP</string>
+    <string name="server_http_warning_title">Connexion non sécurisée</string>
+    <string name="server_http_warning_message">%1$s utilise HTTP : votre mot de passe et les données du stock circulent sans chiffrement. Ne continuez que sur un réseau de confiance, comme celui de votre domicile ou de votre entreprise.</string>
+    <string name="server_http_continue">Continuer en HTTP</string>
+    <string name="server_unsecured">Connexion non sécurisée (HTTP)</string>
+    <string name="server_secured">Connexion sécurisée (HTTPS)</string>
+    <string name="server_pinned">Connexion sécurisée, certificat vérifié avec le QR code</string>
+
+    <string name="server_not_empty_title">Ce téléphone contient déjà des données</string>
+    <string name="server_not_empty_message">Un téléphone ne peut rejoindre un serveur que s’il est vide : il reçoit alors les données du serveur. Exportez d’abord une sauvegarde si vous voulez garder ce qui est sur ce téléphone, puis effacez-le.</string>
+    <string name="server_export_then_erase">Exporter une sauvegarde, puis effacer</string>
+    <string name="server_erasing">Effacement…</string>
+
+    <string name="server_guest_title">Bienvenue sur %1$s</string>
+    <string name="server_guest_message">Ce code donne un accès Invité, pour consulter le stock.</string>
+    <string name="server_guest_login">Me connecter à mon compte</string>
+    <string name="server_guest_continue">Continuer en tant qu’Invité</string>
+    <string name="server_guest_off">L’accès Invité est désactivé sur ce serveur.</string>
+
+    <string name="server_form_login_title">Connexion</string>
+    <string name="server_form_invite_title">Créer votre compte</string>
+    <string name="server_form_setup_title">Créer le premier administrateur</string>
+    <string name="server_form_setup_message">Ce serveur est neuf : le compte que vous créez maintenant en est l’administrateur.</string>
+    <string name="server_form_reset_title">Choisir un nouveau mot de passe</string>
+    <string name="server_form_reset_message">Vos autres appareils seront déconnectés.</string>
+    <string name="server_form_guest_title">Votre nom</string>
+    <string name="server_form_guest_message">Visible par l’administrateur, qui peut transformer votre accès Invité en compte.</string>
+    <string name="server_field_username">Nom d’utilisateur</string>
+    <string name="server_field_username_rule">3 à 32 lettres, chiffres, points, tirets ou soulignés</string>
+    <string name="server_field_display_name">Nom affiché</string>
+    <string name="server_field_display_name_rule">50 caractères au plus</string>
+    <string name="server_field_password">Mot de passe</string>
+    <string name="server_field_new_password">Nouveau mot de passe</string>
+    <string name="server_field_password_rule">Au moins 10 caractères</string>
+    <string name="server_field_password_show">Afficher le mot de passe</string>
+    <string name="server_field_password_hide">Masquer le mot de passe</string>
+    <string name="server_field_required">Obligatoire</string>
+    <string name="server_form_submit_login">Se connecter</string>
+    <string name="server_form_submit_create">Créer le compte</string>
+    <string name="server_form_submit_reset">Enregistrer le mot de passe</string>
+    <string name="server_form_submit_guest">Continuer</string>
+    <string name="server_joined">Connecté à %1$s</string>
+
+    <!-- Erreurs -->
+    <string name="server_error_title">Connexion impossible</string>
+    <string name="server_error_network">Le serveur n’a pas répondu. Vérifiez l’adresse, et que ce téléphone est sur le bon réseau.</string>
+    <string name="server_error_not_a_server">Cette adresse répond, mais ce n’est pas un serveur EasyStock.</string>
+    <string name="server_error_api_unsupported">Ce serveur utilise une autre version d’EasyStock. Mettez à jour l’app ou le serveur.</string>
+    <string name="server_error_app_too_old">Ce serveur demande une version plus récente de l’app. Mettez EasyStock à jour.</string>
+    <string name="server_error_setup_done">Ce serveur est déjà configuré. Demandez une invitation à son administrateur.</string>
+    <string name="server_error_not_set_up">Ce serveur n’est pas encore configuré. Son administrateur doit d’abord scanner le code de configuration.</string>
+    <string name="server_error_wrong_credentials">Nom d’utilisateur ou mot de passe incorrect.</string>
+    <string name="server_error_account_locked">Trop de tentatives : ce compte est bloqué un moment. Réessayez plus tard.</string>
+    <string name="server_error_account_disabled">Ce compte est désactivé. Adressez-vous à l’administrateur.</string>
+    <string name="server_error_code_invalid">Ce code n’est pas valable sur ce serveur.</string>
+    <string name="server_error_code_expired">Ce code a expiré. Demandez-en un nouveau.</string>
+    <string name="server_error_code_used">Ce code a déjà été utilisé. Demandez-en un nouveau.</string>
+    <string name="server_error_guest_limit">Ce serveur a trop d’Invités en ce moment. Réessayez plus tard, ou adressez-vous à l’administrateur.</string>
+    <string name="server_error_username_taken">Ce nom d’utilisateur est déjà pris.</string>
+    <string name="server_error_invalid">Le serveur a refusé ces valeurs. Vérifiez les champs.</string>
+    <string name="server_error_rate_limited">Trop de tentatives. Attendez un moment et réessayez.</string>
+    <string name="server_error_session_revoked">Votre session a pris fin sur le serveur.</string>
+    <string name="server_error_no_promotion">Il n’y a plus de promotion en attente.</string>
+    <string name="server_error_server">Le serveur a rencontré un problème. Réessayez plus tard.</string>
+    <string name="server_error_local">La connexion n’a pas pu être enregistrée sur ce téléphone. Rien n’a été modifié.</string>
+    <string name="server_error_logout_failed">Les données de ce téléphone n’ont pas pu être effacées. Réessayez.</string>
+
+    <!-- Compte -->
+    <string name="server_account_address">Serveur</string>
+    <string name="server_account_name">Nom</string>
+    <string name="server_account_role">Rôle</string>
+    <string name="server_account_short_code">Votre code Invité</string>
+    <string name="server_account_short_code_hint">Donnez ce code à l’administrateur, pour qu’il vous retrouve.</string>
+    <string name="server_account_last_sync">Dernière synchronisation</string>
+    <string name="server_account_sync_unavailable">Jamais : la synchronisation n’est pas encore disponible dans cette version</string>
+    <string name="server_account_offline">Le serveur est injoignable : affichage de ce qui est enregistré sur ce téléphone.</string>
+    <string name="server_account_administration">Administration</string>
+    <string name="server_promotion_banner">L’administrateur vous a donné le rôle %1$s. Choisissez un nom d’utilisateur et un mot de passe pour terminer.</string>
+    <string name="server_promotion_open">Terminer</string>
+    <string name="server_promotion_title">Créer votre compte</string>
+
+    <string name="server_logout">Se déconnecter</string>
+    <string name="server_logout_title">Se déconnecter ?</string>
+    <string name="server_logout_message">Ce téléphone quitte le serveur : toutes les données et photos de ce téléphone sont effacées. Elles restent sur le serveur.</string>
+    <string name="server_logout_guest_message">Votre compte Invité sera supprimé sur le serveur, et toutes les données et photos de ce téléphone sont effacées.</string>
+    <string name="server_logout_pending">%1$d modifications n’ont pas encore été envoyées au serveur.</string>
+    <string name="server_logout_sync_first">Synchroniser, puis se déconnecter</string>
+    <string name="server_logout_sync_unavailable">La synchronisation n’est pas encore disponible dans cette version.</string>
+    <string name="server_logout_lose">Se déconnecter et les perdre</string>
+    <string name="server_logout_confirm">Se déconnecter</string>
+    <string name="server_logout_running">Déconnexion…</string>
+    <string name="server_logout_offline_title">Serveur injoignable</string>
+    <string name="server_logout_offline_message">Le serveur ne peut pas être prévenu. Se déconnecter sur ce téléphone seulement ? La session reste alors valable sur le serveur jusqu’à ce qu’un administrateur retire l’appareil.</string>
+    <string name="server_logout_offline_confirm">Se déconnecter sur ce téléphone</string>
+    <string name="server_logout_stay">Rester connecté</string>
+    <string name="server_logged_out">Déconnecté</string>
+    <string name="server_revoked_title">Déconnecté du serveur</string>
+    <string name="server_revoked_message">Votre session sur le serveur a pris fin (déconnexion ailleurs, compte désactivé ou mot de passe réinitialisé). Les données de ce téléphone ont été effacées.</string>
+</resources>

@@ -33,6 +33,19 @@ import ch.mathorck.easystock.composables.pages.ScanPage
 import ch.mathorck.easystock.composables.pages.SettingsPage
 import ch.mathorck.easystock.enums.Page
 import ch.mathorck.easystock.nfc.NfcReaderHost
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import ch.mathorck.easystock.auth.ServerSessionEvents
+import ch.mathorck.easystock.auth.rememberJoinPlatform
+import ch.mathorck.easystock.reset.rememberDataReset
+import easystock.shared.generated.resources.server_joined
+import easystock.shared.generated.resources.server_logged_out
+import easystock.shared.generated.resources.server_ok
+import easystock.shared.generated.resources.server_revoked_message
+import easystock.shared.generated.resources.server_revoked_title
+import org.jetbrains.compose.resources.getString
 
 @Composable
 fun MainComposable() {
@@ -53,6 +66,8 @@ private fun MainContent() {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val resetDone = stringResource(Res.string.app_info_reset_done)
+    val loggedOut = stringResource(Res.string.server_logged_out)
+    ServerSessionWatcher(onWiped = { page = Page.Stock })
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -71,9 +86,46 @@ private fun MainContent() {
                         page = Page.Stock
                         scope.launch { snackbar.showSnackbar(resetDone) }
                     },
+                    onLoggedOut = {
+                        page = Page.Stock
+                        scope.launch { snackbar.showSnackbar(loggedOut) }
+                    },
+                    onJoined = { address ->
+                        scope.launch { snackbar.showSnackbar(getString(Res.string.server_joined, address)) }
+                    },
                 )
             }
         }
+    }
+}
+
+/**
+ * The server session outside any screen: at start, drops a token left by a join that stopped half way;
+ * when the server revoked the session (the client reported it), wipes the phone like a logout and says so.
+ */
+@Composable
+private fun ServerSessionWatcher(onWiped: () -> Unit) {
+    val joinPlatform = rememberJoinPlatform()
+    val dataReset = rememberDataReset()
+    // Local only: reads sync_state and the session file, no network
+    LaunchedEffect(joinPlatform) { runCatching { joinPlatform.join.forgetOrphanSession() } }
+    val revoked by ServerSessionEvents.revoked.collectAsStateWithLifecycle()
+    var showRevoked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(revoked) {
+        if (!revoked) return@LaunchedEffect
+        // A failed wipe is tried again at the next refused call
+        runCatching { dataReset.run() }
+        ServerSessionEvents.revokedHandled()
+        showRevoked = true
+        onWiped()
+    }
+    if (showRevoked) {
+        AlertDialog(
+            onDismissRequest = { showRevoked = false },
+            title = { Text(stringResource(Res.string.server_revoked_title)) },
+            text = { Text(stringResource(Res.string.server_revoked_message)) },
+            confirmButton = { TextButton(onClick = { showRevoked = false }) { Text(stringResource(Res.string.server_ok)) } },
+        )
     }
 }
 

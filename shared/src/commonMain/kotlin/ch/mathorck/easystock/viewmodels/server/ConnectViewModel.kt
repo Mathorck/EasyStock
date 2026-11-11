@@ -171,6 +171,13 @@ class ConnectViewModel(
 
     fun scanCancelled() = go(ConnectStep.Choose)
 
+    /** A QR code read by the camera: only a join code (either format) is taken. */
+    fun scanned(text: String) {
+        if (_state.value.step != ConnectStep.Scanning) return
+        val code = runCatching { JoinCode.parse(text.trim()) }.getOrNull()
+        if (code == null) fail(ConnectError.CODE_INVALID) else start(code)
+    }
+
     fun addressChanged(text: String) = _state.update { it.copy(address = text, addressInvalid = false) }
 
     /** The address field: a typed address (login) or a pasted join link. */
