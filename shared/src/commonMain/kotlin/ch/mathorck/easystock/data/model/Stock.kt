@@ -106,4 +106,8 @@ data class StockMovement(
     @SerialName("occurred_at") @ColumnInfo(name = "occurred_at") val occurredAt: Long,
     /** When it was recorded. */
     @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
+    /** Server mode: the user who recorded it, set by the server. Null in standalone mode and on Guest phones. */
+    @SerialName("created_by") @ColumnInfo(name = "created_by") val createdBy: String? = null,
+    /** Server mode: the device that recorded it, set by the server. Null in standalone mode and on Guest phones. */
+    @SerialName("device_id") @ColumnInfo(name = "device_id") val deviceId: String? = null,
 )

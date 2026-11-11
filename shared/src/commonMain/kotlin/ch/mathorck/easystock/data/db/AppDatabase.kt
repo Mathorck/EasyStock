@@ -16,13 +16,18 @@ import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.StockMovement
 import ch.mathorck.easystock.data.model.StockReview
 import ch.mathorck.easystock.data.model.StockReviewLine
+import ch.mathorck.easystock.data.model.SyncState
+import ch.mathorck.easystock.data.model.OutboxEntry
+import ch.mathorck.easystock.data.model.ServerUser
+import ch.mathorck.easystock.data.model.LowStockAlert
+import ch.mathorck.easystock.data.model.RejectedChange
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 const val DATABASE_NAME = "easystock.db"
 
 /** Current schema version. Also written in backups (see backup/BackupManifest). */
-const val DB_VERSION = 8
+const val DB_VERSION = 9
 
 @Database(
     entities = [
@@ -35,6 +40,12 @@ const val DB_VERSION = 8
         StockMovement::class,
         StockReview::class,
         StockReviewLine::class,
+        // Server mode, app only (never synced, never in a backup)
+        SyncState::class,
+        OutboxEntry::class,
+        ServerUser::class,
+        LowStockAlert::class,
+        RejectedChange::class,
     ],
     version = DB_VERSION,
     autoMigrations = [
@@ -52,6 +63,7 @@ const val DB_VERSION = 8
         AutoMigration(from = 6, to = 7),
         // stock_review_line.info_fixed_at
         AutoMigration(from = 7, to = 8),
+        // 8 to 9 (server mode tables, movement author, outbox triggers): manual, see MIGRATION_8_9
     ],
     exportSchema = true,
 )
@@ -81,6 +93,7 @@ expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
 /** Builds the database from a platform builder (see androidMain / iosMain). */
 fun buildAppDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =
     builder
+        .withAppSchema()
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()
