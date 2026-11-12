@@ -1,0 +1,63 @@
+{
+  "name": "sku-suffix-skips-taken-values",
+  "description": "The first free suffix is used; the base is cut so base plus suffix fits 50 characters",
+  "actorRole": "admin",
+  "existing": {
+    "article": [
+      {
+        "id": "a1",
+        "name": "a1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      },
+      {
+        "id": "a2",
+        "name": "a2",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (2)"
+      }
+    ]
+  },
+  "incoming": {
+    "article": [
+      {
+        "id": "a3",
+        "name": "a3",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "article",
+        "id": "a3",
+        "status": "changed",
+        "conflict": "SKU_RENAMED",
+        "row": {
+          "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (3)"
+        }
+      }
+    ],
+    "final": {
+      "article": [
+        {
+          "id": "a1",
+          "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        },
+        {
+          "id": "a2",
+          "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (2)"
+        },
+        {
+          "id": "a3",
+          "sku": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX (3)"
+        }
+      ]
+    }
+  }
+}

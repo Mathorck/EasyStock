@@ -1,0 +1,50 @@
+{
+  "name": "category-name-collision-renamed",
+  "description": "Incoming category with the name of another category",
+  "actorRole": "admin",
+  "existing": {
+    "category": [
+      {
+        "id": "c1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Bolts"
+      }
+    ]
+  },
+  "incoming": {
+    "category": [
+      {
+        "id": "c2",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Bolts"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "category",
+        "id": "c2",
+        "status": "changed",
+        "conflict": "CATEGORY_RENAMED",
+        "row": {
+          "name": "Bolts (2)"
+        }
+      }
+    ],
+    "final": {
+      "category": [
+        {
+          "id": "c1",
+          "name": "Bolts"
+        },
+        {
+          "id": "c2",
+          "name": "Bolts (2)"
+        }
+      ]
+    }
+  }
+}

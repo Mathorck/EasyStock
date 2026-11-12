@@ -128,3 +128,10 @@ kover {
         }
     }
 }
+
+// The merge test cases shared with the server are read by MergeTestCasesTest: a changed case reruns the host tests
+tasks.withType<Test>().configureEach {
+    inputs.dir(rootProject.layout.projectDirectory.dir("docs/test-cases"))
+        .withPropertyName("sharedTestCases")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}

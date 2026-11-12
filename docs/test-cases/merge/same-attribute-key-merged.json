@@ -1,0 +1,74 @@
+{
+  "name": "same-attribute-key-merged",
+  "description": "Incoming attribute with the key of an existing one: both are the same attribute, links follow it",
+  "actorRole": "admin",
+  "existing": {
+    "attribute_definition": [
+      {
+        "id": "d1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "key": "length",
+        "label": "Length",
+        "dataType": "number"
+      }
+    ],
+    "category": [
+      {
+        "id": "c1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Bolts"
+      }
+    ]
+  },
+  "incoming": {
+    "attribute_definition": [
+      {
+        "id": "d2",
+        "createdAt": 1,
+        "updatedAt": 20,
+        "key": "length",
+        "label": "Length (mm)",
+        "dataType": "number"
+      }
+    ],
+    "category_attribute": [
+      {
+        "id": "ca1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "categoryId": "c1",
+        "attributeId": "d2"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "attribute_definition",
+        "id": "d2",
+        "status": "changed",
+        "conflict": "ATTRIBUTE_MERGED",
+        "row": {
+          "id": "d1"
+        }
+      }
+    ],
+    "final": {
+      "attribute_definition": [
+        {
+          "id": "d1",
+          "key": "length"
+        }
+      ],
+      "category_attribute": [
+        {
+          "id": "ca1",
+          "categoryId": "c1",
+          "attributeId": "d1"
+        }
+      ]
+    }
+  }
+}

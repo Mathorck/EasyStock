@@ -1,0 +1,61 @@
+{
+  "name": "serial-collision-gets-suffix",
+  "description": "Incoming unit with the serial number of another unit",
+  "actorRole": "admin",
+  "existing": {
+    "article": [
+      {
+        "id": "a1",
+        "name": "a1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "tracking": "serial"
+      }
+    ],
+    "item": [
+      {
+        "id": "i1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "articleId": "a1",
+        "serialNumber": "SN-1"
+      }
+    ]
+  },
+  "incoming": {
+    "item": [
+      {
+        "id": "i2",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "articleId": "a1",
+        "serialNumber": "SN-1"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "item",
+        "id": "i2",
+        "status": "changed",
+        "conflict": "SERIAL_RENAMED",
+        "row": {
+          "serialNumber": "SN-1 (2)"
+        }
+      }
+    ],
+    "final": {
+      "item": [
+        {
+          "id": "i1",
+          "serialNumber": "SN-1"
+        },
+        {
+          "id": "i2",
+          "serialNumber": "SN-1 (2)"
+        }
+      ]
+    }
+  }
+}

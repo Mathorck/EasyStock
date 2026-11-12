@@ -1,0 +1,58 @@
+{
+  "name": "location-cycle-keeps-the-parent",
+  "description": "An incoming parent that would make a location its own ancestor: the existing parent is kept",
+  "actorRole": "admin",
+  "existing": {
+    "location": [
+      {
+        "id": "l1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Hall"
+      },
+      {
+        "id": "l2",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Shelf",
+        "parentId": "l1"
+      }
+    ]
+  },
+  "incoming": {
+    "location": [
+      {
+        "id": "l1",
+        "createdAt": 1,
+        "updatedAt": 20,
+        "name": "Hall",
+        "parentId": "l2"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "location",
+        "id": "l1",
+        "status": "changed",
+        "conflict": "LOCATION_PARENT_KEPT",
+        "row": {
+          "parentId": null
+        }
+      }
+    ],
+    "final": {
+      "location": [
+        {
+          "id": "l1",
+          "parentId": null
+        },
+        {
+          "id": "l2",
+          "parentId": "l1"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "category-attribute-already-linked-skipped",
+  "description": "Incoming link of an attribute the category already has",
+  "actorRole": "admin",
+  "existing": {
+    "attribute_definition": [
+      {
+        "id": "d1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "key": "length",
+        "label": "Length",
+        "dataType": "number"
+      }
+    ],
+    "category": [
+      {
+        "id": "c1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Bolts"
+      }
+    ],
+    "category_attribute": [
+      {
+        "id": "ca1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "categoryId": "c1",
+        "attributeId": "d1"
+      }
+    ]
+  },
+  "incoming": {
+    "category_attribute": [
+      {
+        "id": "ca2",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "categoryId": "c1",
+        "attributeId": "d1"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "category_attribute",
+        "id": "ca2",
+        "status": "changed",
+        "conflict": "CATEGORY_ATTRIBUTE_SKIPPED"
+      }
+    ],
+    "final": {
+      "category_attribute": [
+        {
+          "id": "ca1"
+        }
+      ]
+    }
+  }
+}

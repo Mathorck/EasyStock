@@ -1,0 +1,52 @@
+{
+  "name": "sku-collision-gets-suffix",
+  "description": "Incoming article with an SKU already used by another article",
+  "actorRole": "admin",
+  "existing": {
+    "article": [
+      {
+        "id": "a1",
+        "name": "a1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "sku": "BLT-8"
+      }
+    ]
+  },
+  "incoming": {
+    "article": [
+      {
+        "id": "a2",
+        "name": "a2",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "sku": "BLT-8"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "article",
+        "id": "a2",
+        "status": "changed",
+        "conflict": "SKU_RENAMED",
+        "row": {
+          "sku": "BLT-8 (2)"
+        }
+      }
+    ],
+    "final": {
+      "article": [
+        {
+          "id": "a1",
+          "sku": "BLT-8"
+        },
+        {
+          "id": "a2",
+          "sku": "BLT-8 (2)"
+        }
+      ]
+    }
+  }
+}

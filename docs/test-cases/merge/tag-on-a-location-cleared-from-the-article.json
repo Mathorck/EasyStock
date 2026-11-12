@@ -1,0 +1,54 @@
+{
+  "name": "tag-on-a-location-cleared-from-the-article",
+  "description": "Incoming article with the NFC tag of an existing location: one tag = one thing",
+  "actorRole": "admin",
+  "existing": {
+    "location": [
+      {
+        "id": "l1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Shelf",
+        "barcode": "04A1B2C3"
+      }
+    ]
+  },
+  "incoming": {
+    "article": [
+      {
+        "id": "a1",
+        "name": "a1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "barcode": "04A1B2C3"
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "article",
+        "id": "a1",
+        "status": "changed",
+        "conflict": "BARCODE_CLEARED",
+        "row": {
+          "barcode": null
+        }
+      }
+    ],
+    "final": {
+      "location": [
+        {
+          "id": "l1",
+          "barcode": "04A1B2C3"
+        }
+      ],
+      "article": [
+        {
+          "id": "a1",
+          "barcode": null
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "movement-is-never-changed",
+  "description": "Incoming movement with an existing id and another quantity: the existing one is kept",
+  "actorRole": "editor",
+  "existing": {
+    "location": [
+      {
+        "id": "l1",
+        "createdAt": 1,
+        "updatedAt": 10,
+        "name": "Shelf"
+      }
+    ],
+    "article": [
+      {
+        "id": "a1",
+        "name": "a1",
+        "createdAt": 1,
+        "updatedAt": 10
+      }
+    ],
+    "stock_movement": [
+      {
+        "id": "m1",
+        "articleId": "a1",
+        "locationId": "l1",
+        "quantity": 2000,
+        "reason": "purchase",
+        "occurredAt": 5,
+        "createdAt": 5
+      }
+    ]
+  },
+  "incoming": {
+    "stock_movement": [
+      {
+        "id": "m1",
+        "articleId": "a1",
+        "locationId": "l1",
+        "quantity": 3000,
+        "reason": "purchase",
+        "occurredAt": 5,
+        "createdAt": 5
+      }
+    ]
+  },
+  "expected": {
+    "results": [
+      {
+        "table": "stock_movement",
+        "id": "m1",
+        "status": "changed",
+        "conflict": "MOVEMENT_KEPT"
+      }
+    ],
+    "final": {
+      "stock_movement": [
+        {
+          "id": "m1",
+          "quantity": 2000
+        }
+      ]
+    }
+  }
+}

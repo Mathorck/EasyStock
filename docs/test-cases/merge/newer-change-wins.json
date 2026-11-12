@@ -1,0 +1,54 @@
+{
+  "name": "newer-change-wins",
+  "description": "Same row on both sides: the newer updatedAt wins, a soft delete is an update",
+  "actorRole": "admin",
+  "existing": {
+    "article": [
+      {
+        "id": "a1",
+        "name": "Old bolt",
+        "createdAt": 1,
+        "updatedAt": 10
+      },
+      {
+        "id": "a2",
+        "name": "Nut",
+        "createdAt": 1,
+        "updatedAt": 30
+      }
+    ]
+  },
+  "incoming": {
+    "article": [
+      {
+        "id": "a1",
+        "name": "Bolt M8",
+        "createdAt": 1,
+        "updatedAt": 20
+      },
+      {
+        "id": "a2",
+        "name": "Nut",
+        "createdAt": 1,
+        "updatedAt": 20,
+        "deletedAt": 20
+      }
+    ]
+  },
+  "expected": {
+    "results": [],
+    "final": {
+      "article": [
+        {
+          "id": "a1",
+          "name": "Bolt M8"
+        },
+        {
+          "id": "a2",
+          "name": "Nut",
+          "deletedAt": null
+        }
+      ]
+    }
+  }
+}
