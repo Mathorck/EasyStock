@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.sync
 
 import ch.mathorck.easystock.server.ServerClient
+import ch.mathorck.easystock.server.ServerInfo
 import ch.mathorck.easystock.server.ServerJson
 import ch.mathorck.easystock.server.apiCall
 import io.ktor.client.call.body
@@ -97,6 +98,9 @@ interface SyncApi {
 
     suspend fun pull(since: Long, limit: Int = PULL_LIMIT, epoch: String? = null): PullAnswer
 
+    /** `GET /server-info` (public): its `datasetEpoch` tells a data set reset before anything is pushed. */
+    suspend fun serverInfo(): ServerInfo = ServerInfo()
+
     /** True when the server has the photo [sha256]. */
     suspend fun hasImage(sha256: String): Boolean
 
@@ -128,6 +132,8 @@ class KtorSyncApi(private val client: ServerClient) : SyncApi {
             parameter("limit", limit)
         }.body()
     }
+
+    override suspend fun serverInfo(): ServerInfo = apiCall { http.get("server-info").body() }
 
     override suspend fun hasImage(sha256: String): Boolean = apiCall {
         val response = http.head("images/$sha256") { expectSuccess = false }

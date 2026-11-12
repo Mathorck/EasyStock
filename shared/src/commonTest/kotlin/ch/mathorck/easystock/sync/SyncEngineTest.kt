@@ -719,6 +719,51 @@ class SyncEngineTest {
     }
 
     @Test
+    fun aNewEpochInServerInfoIsSeenBeforeAnythingIsPushed() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        val epochs = epochStore("e1")
+        val engine = engine(store, epochs) { request ->
+            when (request.path) {
+                "server-info" -> ok("""{"datasetEpoch":"e2"}""")
+                "sync/pull" -> ok("""{"rows":{},"next":30,"hasMore":false,"datasetEpoch":"e2"}""")
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        // Never pushed: the unsent change was counted and dropped by the reset
+        assertTrue(seen.none { it.path == "sync/push" })
+        assertEquals(listOf("since=0&limit=500"), seen.filter { it.path == "sync/pull" }.map { it.query })
+        assertEquals(DatasetResetNotice(lostChanges = 1), engine.resetNotice.value)
+        assertEquals("e2", epochs.load())
+    }
+
+    @Test
+    fun theSameEpochInServerInfoChangesNothing() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val engine = engine(store, epochStore("e1")) { request ->
+            if (request.path == "server-info") ok("""{"datasetEpoch":"e1"}""") else defaults(request)
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(0, store.wipes)
+        assertNull(engine.resetNotice.value)
+    }
+
+    @Test
+    fun aServerInfoWithoutAnEpochOrAnErrorIsLeftToTheSyncCalls() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val engine = engine(store, epochStore("e1")) { request ->
+            if (request.path == "server-info") ok("""{"serverName":"x"}""") else defaults(request)
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(0, store.wipes)
+        // Error answer: same
+        val other = engine(FakeSyncStore(state(since = 7)), epochStore("e1")) { request -> defaults(request) }
+        assertEquals(SyncResult.DONE, other.sync())
+    }
+
+    @Test
     fun theEpochOfAFullPullIsKeptAndSentAfterwards() = runTest {
         val store = FakeSyncStore(state(since = 0))
         val epochs = epochStore("stale")

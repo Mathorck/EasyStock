@@ -303,7 +303,8 @@ Open points (sync engine)
 * Done: `dataset-reset` (the server replaced its whole data set, server plan §1.2 #21). The engine
   (`sync/DatasetReset.kt`) keeps the server's `datasetEpoch` and sends it as `X-EasyStock-Dataset-Epoch` with push
   and pull. On a 409 `dataset-reset` (any call of the cycle), or a pull answer with another `datasetEpoch` than the
-  one kept, it counts the unsent changes, erases every synced row, the outbox, the pending push, the rejected
+  one kept, or a `GET /server-info` (asked at the start of each cycle with a known epoch, before the push) with
+  another `datasetEpoch` than the one kept, it counts the unsent changes, erases every synced row, the outbox, the pending push, the rejected
   changes, alerts, users, photo hashes and photo files (`BackupDao.wipeServerData`, built from the wipe of a reset),
   sets `since` to 0 and pulls everything again in the same cycle. `sync_state` and the tokens stay: the user stays
   connected. A dialog says the server data was replaced, and how many unsent changes were lost. At most one reset

@@ -158,6 +158,8 @@ class SyncEngine(
                 val role = refreshAccount(state, remote.account)
                 // The epoch is only sent for data pulled with it: a full pull starts a data set
                 val epoch = if (state.since > 0) epochs.load() else null
+                // Before anything is pushed: a reset is seen here, not only by the 409 of the push
+                if (epoch != null) checkServerEpoch(remote.sync, epoch)
                 if (Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)) push(remote.sync, epoch)
                 pull(remote.sync, state.since, epoch)
             } catch (e: Exception) {
@@ -192,6 +194,20 @@ class SyncEngine(
         } finally {
             _status.update { it.copy(running = false, fullPullRows = null) }
         }
+    }
+
+    /**
+     * Compares the epoch of `GET /server-info` with the one this phone holds: another one means the
+     * server replaced its data set ([DatasetEpochChanged], handled like the 409 `dataset-reset`). A server
+     * that doesn't answer or sends no epoch is left to the sync calls, which carry the header too.
+     */
+    private suspend fun checkServerEpoch(api: SyncApi, held: String) {
+        val answered = try {
+            api.serverInfo().datasetEpoch
+        } catch (e: ApiException) {
+            return
+        }
+        if (answered.isNotBlank() && answered != held) throw DatasetEpochChanged()
     }
 
     /** `GET /me`: the role may have changed since the last cycle (an Admin changed it). */

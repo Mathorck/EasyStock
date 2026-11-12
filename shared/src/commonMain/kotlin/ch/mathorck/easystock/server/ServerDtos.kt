@@ -4,9 +4,9 @@ import ch.mathorck.easystock.auth.Role
 import kotlinx.serialization.Serializable
 
 // JSON bodies of the server API (base path /api/v1, camelCase names, ISO 8601 UTC times as strings).
-// PROVISIONAL: derived from 03-server-spec.md and the decisions of 04-server-implementation-plan.md,
-// not from server code (the server only implements /server-info yet). Every response field the app can
-// live without has a default, so a newer server with more or fewer fields is still readable.
+// Same shapes as the server's Models (server/src/EasyStock.Server/Models, server/openapi/v1.json).
+// Every response field the app can live without has a default, so a newer server with more or fewer
+// fields is still readable.
 
 /** `GET /server-info` (public, no token, no version header needed). */
 @Serializable
@@ -19,6 +19,8 @@ data class ServerInfo(
     val setupDone: Boolean = false,
     val hasData: Boolean = false,
     val guestSignupEnabled: Boolean = false,
+    /** The server's data set (changes when an Admin replaces the data): see [ch.mathorck.easystock.sync.DatasetEpochStore]. */
+    val datasetEpoch: String = "",
 )
 
 /** User part of a token answer. */
