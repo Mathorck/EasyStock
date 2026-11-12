@@ -140,3 +140,36 @@ tasks.withType<Test>().configureEach {
         .withPropertyName("sharedTestCases")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
+
+// End-to-end tests (package ch.mathorck.easystock.e2e, run by server/e2e/run.sh of the server repository,
+// see its docs/05-e2e-tests.md) run the real sync code with Room on the host JVM. The Android SQLite driver
+// loads its native library from these properties: take the desktop build of the same driver version (not on
+// the classpath, only its native files).
+val sqliteDesktopNatives: Configuration by configurations.creating { isTransitive = false }
+dependencies { sqliteDesktopNatives("androidx.sqlite:sqlite-bundled-jvm:${libs.versions.sqlite.get()}") }
+val sqliteNativeDir = layout.buildDirectory.dir("sqlite-natives")
+val extractSqliteNatives by tasks.registering(Sync::class) {
+    // Resolved when the task is configured: a lambda here would hold the script (configuration cache)
+    from(zipTree(sqliteDesktopNatives.singleFile)) { include("natives/**") }
+    into(sqliteNativeDir)
+}
+
+tasks.withType<Test>().named { it == "testAndroidHostTest" }.configureEach {
+    dependsOn(extractSqliteNatives)
+    val os = System.getProperty("os.name").lowercase()
+    val arm = System.getProperty("os.arch").let { it == "aarch64" || it == "arm64" }
+    val (folder, library) = when {
+        os.contains("mac") -> "osx_arm64" to "libsqliteJni.dylib"
+        os.contains("windows") -> "windows_x64" to "sqliteJni.dll"
+        else -> (if (arm) "linux_arm64" else "linux_x64") to "libsqliteJni.so"
+    }
+    systemProperty("androidx.sqlite.driver.bundled.path", sqliteNativeDir.get().dir("natives/$folder").asFile.absolutePath)
+    systemProperty("androidx.sqlite.driver.bundled.name", library)
+    // The live server of the E2E tests: -Peasystock.e2e.url=http://127.0.0.1:port -Peasystock.e2e.setupToken=...
+    // Without a URL they are skipped.
+    listOf("easystock.e2e.url", "easystock.e2e.setupToken").forEach { key ->
+        val value = providers.gradleProperty(key).orNull
+        inputs.property(key, value ?: "")
+        if (value != null) systemProperty(key, value)
+    }
+}
