@@ -1,6 +1,6 @@
 package ch.mathorck.easystock.push
 
-import ch.mathorck.easystock.sync.syncEngine
+import ch.mathorck.easystock.sync.enqueuePushSync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,12 +14,12 @@ import org.unifiedpush.android.connector.data.PushMessage
 private val pushScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 /**
- * Receives the UnifiedPush events from the distributor. A message only starts a sync: its content is
+ * Receives the UnifiedPush events from the distributor. A message only starts a sync (an expedited WorkManager job, so it ends even if the process is stopped): its content is
  * ignored (the server sends "sync"), and the engine does nothing in standalone mode.
  */
 class EasyStockPushService : PushService() {
     override fun onMessage(message: PushMessage, instance: String) {
-        syncEngine(applicationContext).requestSync()
+        enqueuePushSync(applicationContext)
     }
 
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
