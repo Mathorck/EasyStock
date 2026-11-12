@@ -281,8 +281,8 @@ Open points (sync engine)
   from `GET /me`, triggers (foreground, 3 s after the last local change, pull to refresh on the Stock page, the full
   pull right after joining or a promotion), the sync row and the rejected changes screen on the Account screen, and
   the Settings badge for unseen rejected changes.
-* Not done yet: the 15-minute WorkManager job and UnifiedPush. The low-stock alert notifications are done (see
-  "Open points (low-stock alerts)").
+* Done: the 15-minute WorkManager job (`sync/BackgroundSync*.kt`, WorkManager 2.12.0): unique periodic work, network required, KEEP, exponential backoff. Scheduled while `sync_state` exists (join and app start), cancelled when it disappears (logout, leave, revoked session, reset); the worker also cancels itself when the cycle says NOT_CONNECTED. Runs `syncEngine(context).sync()`, so never two cycles at once. A network failure retries with backoff. Assumes nothing new of the server.
+* Not done yet: UnifiedPush. The low-stock alert notifications are done (see "Open points (low-stock alerts)").
 * Not done yet: `dataset-reset` (the server replaced its whole data set). The app has no handling for it.
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
   `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
@@ -297,10 +297,13 @@ Open points (sync engine)
 * A pulled row whose parent is still missing after the last page fails the cycle (error SERVER); the cursor does not
   move, the next cycle tries again. Pages are kept in memory until their parents arrive.
 * The 426 pause lasts until the app restarts or joins another server. The Account screen shows "update the app".
-* A replaced photo leaves its old file on the phone until the next reset (no orphan cleanup yet).
+* Done: a replaced photo is deleted after each successful sync cycle (`SyncStore.removeOrphanPhotos`): the `image_hash`
+  rows no article row references (soft-deleted rows count as references), minus the hashes in the pending batch, lose
+  their file and their row. Local replacements already delete the file in the view models (standalone too).
+  Not done: a sweep of unknown files in `images/` (kept out on purpose: files staged by an open form look orphaned).
 * A pulled article and location with the same NFC tag (both from the server) are not resolved: the server's unique
   rule must prevent it.
-* Pull to refresh needs a scrollable list: it does not start on the empty Stock page.
+* Done: pull to refresh also works on the empty Stock page (the empty state scrolls). It only exists when connected.
 * Backup import while connected: Replace is refused (in the UI and in `BackupDao.replaceAll`). Merge is allowed for
   Admin and Editor only: merged rows reach the outbox through the triggers and are pushed like local changes, so the
   server applies its own conflict rules to them. Viewer and Guest can't merge.

@@ -169,6 +169,16 @@ abstract class SyncDao {
         if (syncState() != null) insertImageHash(hash)
     }
 
+    @Query("SELECT * FROM image_hash")
+    abstract suspend fun allImageHashes(): List<ImageHash>
+
+    /** Every photo path an article row holds, soft-deleted rows included. */
+    @Query("SELECT image_path FROM article WHERE image_path IS NOT NULL")
+    abstract suspend fun referencedImagePaths(): List<String>
+
+    @Query("DELETE FROM image_hash WHERE image_path = :path")
+    abstract suspend fun deleteImageHash(path: String)
+
     /** Photos of the articles still shown (not deleted), with their hash. The store keeps those without a file. */
     @Query(
         """SELECT h.* FROM image_hash h JOIN article a ON a.image_path = h.image_path

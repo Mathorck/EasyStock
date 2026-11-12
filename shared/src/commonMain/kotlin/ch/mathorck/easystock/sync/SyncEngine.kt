@@ -130,6 +130,13 @@ class SyncEngine(
             pull(remote.sync, state.since)
             notifyAlerts()
             _status.update { it.copy(error = null) }
+            // A failed cleanup is not a failed sync: the next cycle tries again
+            try {
+                store.removeOrphanPhotos()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
             startDownloads(remote.sync)
             SyncResult.DONE
         } catch (e: CancellationException) {
