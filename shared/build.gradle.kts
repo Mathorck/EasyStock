@@ -58,6 +58,8 @@ kotlin {
             implementation(libs.zxing.core)
             // Server mode: HTTP engine
             implementation(libs.ktor.client.okhttp)
+            // Server mode: optional UnifiedPush wake-up
+            implementation(libs.unifiedpush.connector)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

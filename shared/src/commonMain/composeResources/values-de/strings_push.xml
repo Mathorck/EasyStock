@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Einstellungen › Server: optionales Wecken mit UnifiedPush -->
+    <string name="push_title">Sofortige Synchronisierung</string>
+    <string name="push_no_distributor">Keine Push-App (UnifiedPush) installiert. Die App synchronisiert im Hintergrund etwa alle 15 Minuten.</string>
+    <string name="push_off">Aus. Verwenden Sie eine Push-App (UnifiedPush), damit der Server die App weckt, wenn sich die Daten ändern. Ohne sie synchronisiert die App im Hintergrund etwa alle 15 Minuten.</string>
+    <string name="push_on_waiting">Mit %1$s. Wird eingerichtet…</string>
+    <string name="push_on_active">Mit %1$s. Der Server weckt die App, wenn sich die Daten ändern.</string>
+    <string name="push_on_failed">%1$s hat die Registrierung abgelehnt. Die App synchronisiert im Hintergrund etwa alle 15 Minuten.</string>
+    <string name="push_pick_title">Push-App wählen</string>
+    <string name="push_pick_message">Der Server sendet über diese App ein kurzes Signal, wenn sich die Daten ändern. Keine Lagerdaten gehen über sie.</string>
+    <string name="push_cancel">Abbrechen</string>
+</resources>

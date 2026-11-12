@@ -76,6 +76,8 @@ class AccountViewModel(
     private val onPromoted: suspend (TokenAnswer) -> Unit,
     /** The reset of all data, which also clears the session. */
     private val wipe: suspend () -> Unit,
+    /** Runs first in a logout, while the session works: the server forgets the push address. Best effort. */
+    private val beforeLogout: suspend () -> Unit = {},
 ) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state: StateFlow<AccountUiState> = _state.asStateFlow()
@@ -143,6 +145,13 @@ class AccountViewModel(
         _state.update { it.copy(logout = LogoutStep.Working) }
         viewModelScope.launch {
             ServerSessionEvents.leaving = true
+            try {
+                beforeLogout()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The logout goes on: the server drops the address with the session
+            }
             val told = try {
                 api.logout()
                 true

@@ -23,6 +23,7 @@ import ch.mathorck.easystock.auth.LocalPermissions
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import ch.mathorck.easystock.push.PushHost
 import ch.mathorck.easystock.sync.SyncHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +73,7 @@ private fun MainContent() {
     ServerSessionWatcher(onWiped = { page = Page.Stock })
     val connected = LocalPermissions.current.connected
     SyncHost(connected)
+    PushHost(connected)
     val db = rememberAppDatabase()
     val unseenFlow = remember(db, connected) {
         if (connected) db.syncDao().observeUnseenRejectedCount() else flowOf(0)

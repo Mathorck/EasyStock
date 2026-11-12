@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paramètres › Serveur : réveil UnifiedPush optionnel -->
+    <string name="push_title">Synchronisation immédiate</string>
+    <string name="push_no_distributor">Aucune app de notifications push (UnifiedPush) n’est installée. L’app se synchronise en arrière-plan environ toutes les 15 minutes.</string>
+    <string name="push_off">Désactivée. Utilisez une app de notifications push (UnifiedPush) pour que le serveur réveille l’app quand les données changent. Sans elle, l’app se synchronise en arrière-plan environ toutes les 15 minutes.</string>
+    <string name="push_on_waiting">Avec %1$s. Configuration…</string>
+    <string name="push_on_active">Avec %1$s. Le serveur réveille l’app quand les données changent.</string>
+    <string name="push_on_failed">%1$s a refusé l’inscription. L’app se synchronise en arrière-plan environ toutes les 15 minutes.</string>
+    <string name="push_pick_title">Choisir une app de notifications push</string>
+    <string name="push_pick_message">Le serveur enverra un court signal par cette app quand les données changent. Aucune donnée de stock ne passe par elle.</string>
+    <string name="push_cancel">Annuler</string>
+</resources>

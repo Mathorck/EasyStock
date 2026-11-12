@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Server: optional UnifiedPush wake-up -->
+    <string name="push_title">Instant sync</string>
+    <string name="push_no_distributor">No push app (UnifiedPush) is installed. The app syncs in the background about every 15 minutes.</string>
+    <string name="push_off">Off. Use a push app (UnifiedPush) so the server wakes the app when the data changes. Without it, the app syncs in the background about every 15 minutes.</string>
+    <string name="push_on_waiting">With %1$s. Setting up…</string>
+    <string name="push_on_active">With %1$s. The server wakes the app when the data changes.</string>
+    <string name="push_on_failed">%1$s refused the registration. The app syncs in the background about every 15 minutes.</string>
+    <string name="push_pick_title">Choose a push app</string>
+    <string name="push_pick_message">The server will send a short signal through this app when the data changes. No stock data goes through it.</string>
+    <string name="push_cancel">Cancel</string>
+</resources>

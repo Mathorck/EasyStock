@@ -18,4 +18,15 @@
     <!-- Short buzz when a tag is read -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <application>
+        <!-- Server mode, optional: a UnifiedPush message from the distributor app starts a sync -->
+        <service
+            android:name="ch.mathorck.easystock.push.EasyStockPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+    </application>
+
 </manifest>
