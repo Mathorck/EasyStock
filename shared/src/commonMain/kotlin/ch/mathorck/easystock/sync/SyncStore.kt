@@ -62,7 +62,7 @@ interface SyncStore {
 
     /**
      * The server replaced its data set: deletes every synced row, the outbox, the pending push, the
-     * rejected changes, alerts, users and photos, and sets `since` to 0, in one transaction (the photo
+     * rejected changes, alerts, the other users and photos, and sets `since` to 0, in one transaction (the photo
      * files after it). `sync_state` and the session stay. False when `sync_state` is gone.
      */
     suspend fun wipeServerData(): Boolean

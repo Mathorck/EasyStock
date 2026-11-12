@@ -88,6 +88,7 @@ class DatasetResetDaoTest {
         assertEquals(0, state.since)
         assertFalse(state.applying)
         assertEquals("editor", state.role)
+        assertEquals("Ann", db.sessionDao().observeDisplayName("u1").first())
         assertTrue(dao.outbox(100).isEmpty())
         assertNull(dao.pendingPush())
         assertNull(dao.hashOf("images/00000000-0000-0000-0000-000000000001.jpg"))

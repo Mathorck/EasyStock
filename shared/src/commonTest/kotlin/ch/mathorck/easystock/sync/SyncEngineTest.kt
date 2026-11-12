@@ -112,7 +112,7 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
         rows.values.forEach { it.clear() }
         outbox.clear()
         pending = null
-        users.clear()
+        users.keys.retainAll(setOf(current.userId))
         rejected.clear()
         images.clear()
         missing.clear()
@@ -478,6 +478,8 @@ class SyncEngineTest {
         assertEquals(1, store.wipes)
         assertEquals(setOf("c9"), store.rows.getValue(SyncTable.CATEGORY).keys)
         assertNull(store.users["u9"])
+        // The own name (Account screen) stays
+        assertEquals("Ann", store.users["u1"])
         assertEquals(20, store.state!!.since)
         assertEquals("e2", epochs.load())
         assertEquals(DatasetResetNotice(lostChanges = 0), engine.resetNotice.value)

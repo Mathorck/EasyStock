@@ -301,6 +301,11 @@ Open points (sync engine)
   `sync_state.dataset_epoch` column (next DB version) would save it in the same transaction as `since`.
 * Not done: offering a backup export of the unsent changes before the wipe (the plan says wipe and pull from 0; the
   changes may point at rows the new data set doesn't have). They are only counted in the dialog.
+* The own `server_user` row (Account screen name) is kept by the reset wipe; the other users come back with the pull.
+* The reset notice is kept in memory only: after a reset in a background cycle, if the process dies before the app
+  is opened, the new data shows without the dialog. To decide: persist it.
+* A phone connected before this feature has `since > 0` and no epoch: it takes the first epoch the server sends,
+  so a replace done before the app update is not detected (server mode is not released yet).
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
   `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
 * A "changed" answer's `row` is read as partial (only the changed fields), and laid over the sent row. A full row
