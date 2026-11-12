@@ -302,7 +302,7 @@ Open points (sync engine)
 * A replaced photo leaves its old file on the phone until the next reset (no orphan cleanup yet).
 * A pulled article and location with the same NFC tag (both from the server) are not resolved: the server's unique
   rule must prevent it.
-* Pull to refresh needs a scrollable list: it does not start on the empty Stock page.
+* Done: pull to refresh also works on the empty Stock page (the empty state scrolls). It only exists when connected.
 * Backup import while connected: Replace is refused (in the UI and in `BackupDao.replaceAll`). Merge is allowed for
   Admin and Editor only: merged rows reach the outbox through the triggers and are pushed like local changes, so the
   server applies its own conflict rules to them. Viewer and Guest can't merge.
