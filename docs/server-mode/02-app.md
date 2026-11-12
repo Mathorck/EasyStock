@@ -284,7 +284,27 @@ Open points (sync engine)
 * Done: the 15-minute WorkManager job (`sync/BackgroundSync*.kt`, WorkManager 2.12.0): unique periodic work, network required, KEEP, exponential backoff. Scheduled while `sync_state` exists (join and app start), cancelled when it disappears (logout, leave, revoked session, reset); the worker also cancels itself when the cycle says NOT_CONNECTED. Runs `syncEngine(context).sync()`, so never two cycles at once. A network failure retries with backoff. Assumes nothing new of the server.
 * Done: UnifiedPush (see "Open points (push)") and the low-stock alert notifications (see "Open points
   (low-stock alerts)").
-* Not done yet: `dataset-reset` (the server replaced its whole data set). The app has no handling for it.
+* Done: `dataset-reset` (the server replaced its whole data set, server plan §1.2 #21). The engine
+  (`sync/DatasetReset.kt`) keeps the server's `datasetEpoch` and sends it as `X-EasyStock-Dataset-Epoch` with push
+  and pull. On a 409 `dataset-reset` (any call of the cycle), or a pull answer with another `datasetEpoch` than the
+  one kept, it counts the unsent changes, erases every synced row, the outbox, the pending push, the rejected
+  changes, alerts, users, photo hashes and photo files (`BackupDao.wipeServerData`, built from the wipe of a reset),
+  sets `since` to 0 and pulls everything again in the same cycle. `sync_state` and the tokens stay: the user stays
+  connected. A dialog says the server data was replaced, and how many unsent changes were lost. At most one reset
+  per cycle: a second one fails the cycle (SERVER).
+* Assumed about the server: the epoch is `datasetEpoch` in each pull answer; a request without the header is not
+  checked (a pull from 0, after joining or a reset, sends none and takes the answer's epoch); the header is checked
+  on `/sync/push` and `/sync/pull` at least. Without `datasetEpoch` in the answers, nothing is detected.
+* The epoch is kept outside the database (`sync_dataset` preferences file) because this change adds no schema
+  version. It is written before the first page of a full pull, read only when `since > 0`. To decide: a
+  `sync_state.dataset_epoch` column (next DB version) would save it in the same transaction as `since`.
+* Not done: offering a backup export of the unsent changes before the wipe (the plan says wipe and pull from 0; the
+  changes may point at rows the new data set doesn't have). They are only counted in the dialog.
+* The own `server_user` row (Account screen name) is kept by the reset wipe; the other users come back with the pull.
+* The reset notice is kept in memory only: after a reset in a background cycle, if the process dies before the app
+  is opened, the new data shows without the dialog. To decide: persist it.
+* A phone connected before this feature has `since > 0` and no epoch: it takes the first epoch the server sends,
+  so a replace done before the app update is not detected (server mode is not released yet).
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
   `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
 * A "changed" answer's `row` is read as partial (only the changed fields), and laid over the sent row. A full row
@@ -330,6 +350,9 @@ Open points (low-stock alerts)
 * One notification per article (tag = article id): a new alert for an article replaces its notification, with the
   current stock. More than 3 articles in one sync: one grouped notification that replaces the previous grouped one.
 * Tap: the article on the Stock page, or the Stock page filtered on "low stock" for the grouped one.
+* A `dataset-reset` (the server replaced its data set) removes every alert notification right after the wipe
+  (`SyncEngine` `onDatasetReset`); the pull from 0 that follows then shows the current alerts like the full pull
+  after joining.
 * Leaving the server (logout, revoked session, reset) removes every alert notification. The "Low stock" channel is
   created as soon as the app runs connected, so it can be turned off before the first alert.
 * Below Android 13, a sync started by the background job has no activity, so AppCompat's in-app language may not

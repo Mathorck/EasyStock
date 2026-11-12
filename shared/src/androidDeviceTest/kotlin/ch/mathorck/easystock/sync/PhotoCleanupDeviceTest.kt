@@ -33,6 +33,7 @@ class PhotoCleanupDeviceTest {
                 override suspend fun delete(path: String) {
                     files.remove(path)
                 }
+                override suspend fun deleteAll() = files.clear()
             },
         )
     }

@@ -105,6 +105,22 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
         return true
     }
 
+    var wipes = 0
+
+    override suspend fun wipeServerData(): Boolean {
+        val current = state ?: return false
+        rows.values.forEach { it.clear() }
+        outbox.clear()
+        pending = null
+        users.keys.retainAll(setOf(current.userId))
+        rejected.clear()
+        images.clear()
+        missing.clear()
+        state = current.copy(since = 0)
+        wipes++
+        return true
+    }
+
     override suspend fun missingImages() = missing.toList()
     override suspend fun saveImage(image: ImageHash, jpeg: ByteArray) {
         saved[image.sha256] = jpeg
@@ -119,7 +135,7 @@ class SyncEngineTest {
     private var revokedCalls = 0
     private var batchIds = 0
 
-    private data class Seen(val method: HttpMethod, val path: String, val query: String, val auth: String?, val app: String?, val schema: String?, val body: String)
+    private data class Seen(val method: HttpMethod, val path: String, val query: String, val auth: String?, val app: String?, val schema: String?, val body: String, val epoch: String? = null)
 
     private val seen = mutableListOf<Seen>()
 
@@ -137,6 +153,7 @@ class SyncEngineTest {
             request.headers[ClientVersions.APP_HEADER],
             request.headers[ClientVersions.SCHEMA_HEADER],
             body,
+            request.headers[DATASET_EPOCH_HEADER],
         ).also { seen += it }
     }
 
@@ -146,7 +163,13 @@ class SyncEngineTest {
         override fun now(): Instant = Instant.fromEpochMilliseconds(1_000)
     }
 
-    private fun TestScope.engine(store: SyncStore, handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData): SyncEngine {
+    private fun TestScope.engine(
+        store: SyncStore,
+        epochs: DatasetEpochStore = InMemoryDatasetEpochStore(),
+        afterPull: suspend () -> Unit = {},
+        onDatasetReset: () -> Unit = {},
+        handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData,
+    ): SyncEngine {
         session.accessToken = "access-1"
         val engine = MockEngine { request -> handler(record(request)) }
         val client = createServerClient(
@@ -157,7 +180,8 @@ class SyncEngineTest {
             onSessionRevoked = { revokedCalls++ },
         )
         val remote = SyncRemote(KtorSyncApi(client), KtorAccountApi(client))
-        return SyncEngine(store, { remote }, backgroundScope, clock, newBatchId = { "batch-${++batchIds}" })
+        return SyncEngine(store, { remote }, backgroundScope, clock, newBatchId = { "batch-${++batchIds}" },
+            afterPull = afterPull, onDatasetReset = onDatasetReset, epochs = epochs)
     }
 
     private fun MockRequestHandleScope.ok(body: String) = respond(body, HttpStatusCode.OK, json)
@@ -426,5 +450,150 @@ class SyncEngineTest {
         assertContentEquals(good, store.saved[goodSha])
         assertNull(store.saved[badSha])
         assertEquals(1, store.saved.size)
+    }
+
+    // dataset-reset: the server replaced its whole data set
+
+    private fun MockRequestHandleScope.datasetReset() =
+        respond("""{"type":"dataset-reset","status":409}""", HttpStatusCode.Conflict, headersOf(HttpHeaders.ContentType, "application/problem+json"))
+
+    private suspend fun epochStore(epoch: String?) = InMemoryDatasetEpochStore().also { it.save(epoch) }
+
+    @Test
+    fun aDatasetResetOnPullWipesThePhoneAndPullsEverythingAgain() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Old"), queue = false)
+        store.users["u9"] = "Old user"
+        val epochs = epochStore("e1")
+        val engine = engine(store, epochs) { request ->
+            when {
+                request.path != "sync/pull" -> defaults(request)
+                request.epoch == "e1" -> datasetReset()
+                else -> ok("""{"rows":{"category":[{"id":"c9","name":"New"}]},"next":20,"hasMore":false,"datasetEpoch":"e2"}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        val pulls = seen.filter { it.path == "sync/pull" }
+        assertEquals(listOf("since=7&limit=500", "since=0&limit=500"), pulls.map { it.query })
+        // The full pull starts a new data set: no epoch sent
+        assertEquals(listOf("e1", null), pulls.map { it.epoch })
+        assertEquals(1, store.wipes)
+        assertEquals(setOf("c9"), store.rows.getValue(SyncTable.CATEGORY).keys)
+        assertNull(store.users["u9"])
+        // The own name (Account screen) stays
+        assertEquals("Ann", store.users["u1"])
+        assertEquals(20, store.state!!.since)
+        assertEquals("e2", epochs.load())
+        assertEquals(DatasetResetNotice(lostChanges = 0), engine.resetNotice.value)
+        assertNull(engine.status.value.error)
+        // Still connected: same session, no revoke
+        assertEquals(0, revokedCalls)
+        assertEquals("access-1", session.accessToken)
+        assertNotNull(store.state)
+
+        engine.resetNoticeShown()
+        assertNull(engine.resetNotice.value)
+    }
+
+    @Test
+    fun aDatasetResetRemovesTheAlertNotificationsBeforeThePullFromZero() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val events = mutableListOf<String>()
+        val engine = engine(
+            store,
+            epochStore("e1"),
+            afterPull = { events += "alerts" },
+            onDatasetReset = { events += "reset after ${store.wipes} wipe" },
+        ) { request ->
+            when {
+                request.path != "sync/pull" -> defaults(request)
+                request.epoch == "e1" -> datasetReset()
+                else -> {
+                    events += "pull"
+                    ok("""{"rows":{},"next":20,"hasMore":false,"datasetEpoch":"e2"}""")
+                }
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        // Cleared once, after the wipe; the alerts of the new data set are checked once, after its pull
+        assertEquals(listOf("reset after 1 wipe", "pull", "alerts"), events)
+    }
+
+    @Test
+    fun aDatasetResetOnPushCountsTheLostChanges() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        store.put(SyncTable.ARTICLE, row("a1", "categoryId" to "c1", "imageSha256" to null))
+        val engine = engine(store, epochStore("e1")) { request ->
+            when (request.path) {
+                "sync/push" -> datasetReset()
+                "sync/pull" -> ok("""{"rows":{},"next":30,"hasMore":false,"datasetEpoch":"e2"}""")
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        assertEquals("e1", seen.single { it.path == "sync/push" }.epoch)
+        assertEquals(listOf("since=0&limit=500"), seen.filter { it.path == "sync/pull" }.map { it.query })
+        assertEquals(DatasetResetNotice(lostChanges = 2), engine.resetNotice.value)
+        assertTrue(store.outbox.isEmpty())
+        assertNull(store.pending)
+        assertTrue(store.rows.values.all { it.isEmpty() })
+        assertEquals(30, store.state!!.since)
+    }
+
+    @Test
+    fun theEpochOfAFullPullIsKeptAndSentAfterwards() = runTest {
+        val store = FakeSyncStore(state(since = 0))
+        val epochs = epochStore("stale")
+        val engine = engine(store, epochs) { request ->
+            if (request.path == "sync/pull") ok("""{"rows":{},"next":7,"hasMore":false,"datasetEpoch":"e1"}""") else defaults(request)
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals("e1", epochs.load())
+
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(listOf(null, "e1"), seen.filter { it.path == "sync/pull" }.map { it.epoch })
+        assertEquals("e1", seen.single { it.path == "sync/push" }.epoch)
+        assertEquals(0, store.wipes)
+        assertNull(engine.resetNotice.value)
+    }
+
+    @Test
+    fun aPullAnswerWithAnotherEpochStartsOver() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Old"), queue = false)
+        val epochs = epochStore("e1")
+        val engine = engine(store, epochs) { request ->
+            when {
+                request.path != "sync/pull" -> defaults(request)
+                // A server that doesn't check the header
+                request.query.startsWith("since=7") -> ok("""{"rows":{"category":[{"id":"c5","name":"Partial"}]},"next":9,"hasMore":false,"datasetEpoch":"e2"}""")
+                else -> ok("""{"rows":{"category":[{"id":"c9","name":"New"}]},"next":40,"hasMore":false,"datasetEpoch":"e2"}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(1, store.wipes)
+        assertEquals(setOf("c9"), store.rows.getValue(SyncTable.CATEGORY).keys)
+        assertEquals(40, store.state!!.since)
+        assertEquals("e2", epochs.load())
+        assertNotNull(engine.resetNotice.value)
+    }
+
+    @Test
+    fun aSecondDatasetResetInOneCycleFailsWithoutWipingAgain() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val engine = engine(store, epochStore("e1")) { request ->
+            if (request.path == "sync/pull") datasetReset() else defaults(request)
+        }
+        assertEquals(SyncResult.FAILED, engine.sync())
+        assertEquals(1, store.wipes)
+        assertEquals(SyncError.SERVER, engine.status.value.error)
+        assertEquals(0, store.state!!.since)
+        assertEquals(false, engine.status.value.running)
+        assertNull(engine.status.value.fullPullRows)
     }
 }

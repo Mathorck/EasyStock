@@ -138,6 +138,34 @@ abstract class BackupDao {
         wipeAll()
     }
 
+    @Query("UPDATE sync_state SET since = 0, applying = 0") protected abstract suspend fun resetSince()
+
+    /** The other users: the own row (Account screen name) stays while connected. */
+    @Query("DELETE FROM server_user WHERE user_id NOT IN (SELECT user_id FROM sync_state)")
+    protected abstract suspend fun deleteOtherServerUsers()
+
+    /**
+     * The server replaced its whole data set (`dataset-reset`): [wipeAll] plus the server data of the
+     * server mode tables (outbox, pending push, rejected changes, alerts, photo hashes, the other users), and
+     * `sync_state.since` back to 0 for a full pull. `sync_state` is kept: the session stays connected.
+     * Hard-deleting synced rows (movements included) is allowed here: they are copies of a server data
+     * set that no longer exists, the full pull writes the new one. False when not connected (nothing done).
+     */
+    @Transaction
+    open suspend fun wipeServerData(): Boolean {
+        if (!isConnected()) return false
+        wipeAll()
+        deleteOtherServerUsers()
+        deleteLowStockAlerts()
+        deleteRejectedChanges()
+        deleteImageHashes()
+        deletePendingPush()
+        // Last: nothing written above may queue a change
+        deleteOutbox()
+        resetSince()
+        return true
+    }
+
     /**
      * Wipes every synced table and writes [data]. `item.location_id` is recomputed from the movements.
      * Refused while connected to a server: it would hard-delete synced rows (the screen offers only Merge then).
