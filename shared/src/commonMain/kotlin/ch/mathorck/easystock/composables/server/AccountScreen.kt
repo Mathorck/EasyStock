@@ -21,6 +21,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +44,13 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.auth.rememberSessionStore
 import ch.mathorck.easystock.auth.storedRoleOf
+import ch.mathorck.easystock.alerts.alertsOn
+import ch.mathorck.easystock.alerts.canChooseAlerts
+import ch.mathorck.easystock.alerts.rememberNotificationPermission
+import easystock.shared.generated.resources.alerts_switch_off
+import easystock.shared.generated.resources.alerts_switch_offline
+import easystock.shared.generated.resources.alerts_switch_on
+import easystock.shared.generated.resources.alerts_switch_title
 import ch.mathorck.easystock.composables.server.admin.label
 import ch.mathorck.easystock.composables.server.admin.serverTime
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
@@ -142,6 +150,7 @@ internal class AccountActions(
     val submitPromotion: () -> Unit = {},
     val dismissError: () -> Unit = {},
     val openAdministration: () -> Unit = {},
+    val setAlerts: (Boolean) -> Unit = {},
 )
 
 /**
@@ -162,6 +171,7 @@ fun AccountScreen(
     val client = rememberServerClient(syncState) ?: return
     val engine = rememberSyncEngine()
     val push = rememberPushRegistrar()
+    val notificationPermission = rememberNotificationPermission()
     var showRejected by rememberSaveable { mutableStateOf(false) }
     val loggedOut by rememberUpdatedState(onLoggedOut)
     // One view model per client: a new connection (after a logout) gets a fresh one
@@ -236,6 +246,12 @@ fun AccountScreen(
             submitPromotion = vm::submitPromotion,
             dismissError = vm::dismissError,
             openAdministration = onOpenAdministration,
+            setAlerts = { on ->
+                vm.setAlerts(on) {
+                    // Turned on: the notifications need the system permission (Android 13+)
+                    if (on && notificationPermission?.canRequest == true) notificationPermission.request()
+                }
+            },
         ),
         pushRow = { PushRow(ServerConnection.of(syncState).serverUrl) },
     )
@@ -279,6 +295,15 @@ internal fun AccountContent(
             if (role == Role.GUEST && !shortCode.isNullOrBlank()) ShortCodeCard(shortCode)
             SyncRow(lastSyncAt, syncStatus, actions.syncNow)
             pushRow()
+            if (canChooseAlerts(role)) {
+                AlertsRow(
+                    checked = alertsOn(role, me?.alertsEnabled),
+                    // Unknown value (no answer from the server): offline
+                    enabled = me != null && state.meError == null && !state.alertsBusy,
+                    offline = me == null || state.meError != null,
+                    onChange = actions.setAlerts,
+                )
+            }
             if (rejected > 0) {
                 ListItem(
                     headlineContent = { Text(stringResource(Res.string.rejected_title)) },
@@ -321,6 +346,27 @@ internal fun AccountContent(
             confirmButton = { TextButton(onClick = actions.dismissError) { Text(stringResource(Res.string.server_ok)) } },
         )
     }
+}
+
+/** The low-stock alerts switch (`PATCH /me`): disabled with a hint while the server can't be reached. */
+@Composable
+private fun AlertsRow(checked: Boolean, enabled: Boolean, offline: Boolean, onChange: (Boolean) -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(Res.string.alerts_switch_title)) },
+        supportingContent = {
+            Text(
+                stringResource(
+                    when {
+                        offline -> Res.string.alerts_switch_offline
+                        checked -> Res.string.alerts_switch_on
+                        else -> Res.string.alerts_switch_off
+                    },
+                ),
+            )
+        },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange, enabled = enabled) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+    )
 }
 
 /** Last sync, the running sync (with the full pull progress) or why the last one failed, and "Sync now". */

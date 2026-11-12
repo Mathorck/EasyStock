@@ -228,6 +228,25 @@ class AuthApiTest {
     }
 
     @Test
+    fun alertsPreferenceIsPatchedOnMe() = runTest {
+        session.accessToken = "acc"
+        val api = account { respond("", HttpStatusCode.NoContent) }
+        api.setAlertsEnabled(true)
+        api.setAlertsEnabled(false)
+        assertTrue(seen.all { it.method == HttpMethod.Patch && it.path == "/api/v1/me" })
+        assertTrue(seen.all { it.headers[HttpHeaders.Authorization] == "Bearer acc" })
+        assertEquals(listOf("true", "false"), seen.map { body(it).getValue("alertsEnabled").jsonPrimitive.content })
+        assertEquals(setOf("alertsEnabled"), body(seen[0]).keys)
+    }
+
+    @Test
+    fun alertsPreferenceRefusedIsAnError() = runTest {
+        session.accessToken = "acc"
+        val e = assertFailsWith<ApiException> { account { problem(HttpStatusCode.Forbidden, "forbidden") }.setAlertsEnabled(true) }
+        assertEquals(ApiError.FORBIDDEN, e.error)
+    }
+
+    @Test
     fun expiredPromotion() = runTest {
         session.accessToken = "acc"
         val e = assertFailsWith<ApiException> {

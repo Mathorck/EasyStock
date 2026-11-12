@@ -13,4 +13,9 @@
     <string name="alerts_permission_message">EasyStock can notify you when an article reaches its alert level on the server. You can change this later in the Android settings.</string>
     <string name="alerts_permission_allow">Allow</string>
     <string name="alerts_permission_later">Not now</string>
+    <!-- Alerts switch on the Account screen -->
+    <string name="alerts_switch_title">Low-stock alerts</string>
+    <string name="alerts_switch_on">You are notified when an article reaches its alert level.</string>
+    <string name="alerts_switch_off">You are not notified of low stock.</string>
+    <string name="alerts_switch_offline">Connect to the server to change this.</string>
 </resources>
