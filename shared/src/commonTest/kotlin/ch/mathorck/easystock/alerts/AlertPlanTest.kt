@@ -166,6 +166,7 @@ class AlertNotifierTest {
     private class FakeNotifications : AlertNotifications {
         val posted = mutableListOf<String>()
         val cancelled = mutableListOf<String>()
+        override suspend fun createChannel() = Unit
         override suspend fun shown() = emptyList<ShownAlert>()
         override suspend fun show(notice: AlertNotice) {
             posted += notice.articleId

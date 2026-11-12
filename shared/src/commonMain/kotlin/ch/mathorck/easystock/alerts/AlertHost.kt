@@ -33,7 +33,7 @@ fun AlertHost(askPermission: Boolean, onAsked: () -> Unit, onOpen: () -> Unit) {
     LaunchedEffect(db, notifications) {
         if (notifications == null) return@LaunchedEffect
         db.sessionDao().observeRole().map { it != null }.distinctUntilChanged().collect { connected ->
-            if (!connected) notifications.cancelAll()
+            if (connected) notifications.createChannel() else notifications.cancelAll()
         }
     }
     val target by AlertNavigation.target.collectAsStateWithLifecycle()

@@ -329,7 +329,10 @@ Open points (low-stock alerts)
 * One notification per article (tag = article id): a new alert for an article replaces its notification, with the
   current stock. More than 3 articles in one sync: one grouped notification that replaces the previous grouped one.
 * Tap: the article on the Stock page, or the Stock page filtered on "low stock" for the grouped one.
-* Leaving the server (logout, revoked session, reset) removes every alert notification.
+* Leaving the server (logout, revoked session, reset) removes every alert notification. The "Low stock" channel is
+  created as soon as the app runs connected, so it can be turned off before the first alert.
+* Below Android 13, a sync started by the background job has no activity, so AppCompat's in-app language may not
+  apply: such a notification (and the channel name) can use the system language.
 * Guests and roles unknown to the app get none (`Action.RECEIVE_ALERTS`). Viewers: the app shows what the server
   sends; the server filters the Viewers who did not turn alerts on (server plan, decision 9). The account screen toggle
   (`PATCH /me` `alertsEnabled`) is not built yet.

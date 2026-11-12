@@ -26,6 +26,9 @@ interface AlertStore {
 
 /** The phone's notifications (Android: the "Low stock" channel). Fails silently without the permission. */
 interface AlertNotifications {
+    /** Creates the "Low stock" channel, so the user can turn it off before the first alert. */
+    suspend fun createChannel()
+
     /** The low-stock notifications still shown. */
     suspend fun shown(): List<ShownAlert>
 

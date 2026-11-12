@@ -43,6 +43,8 @@ internal class AndroidAlertNotifications(context: Context) : AlertNotifications 
     private val app = context.applicationContext
     private val manager = NotificationManagerCompat.from(app)
 
+    override suspend fun createChannel() = ensureChannel()
+
     override suspend fun shown(): List<ShownAlert> {
         val system = app.getSystemService(NotificationManager::class.java) ?: return emptyList()
         return runCatching { system.activeNotifications.toList() }.getOrDefault(emptyList())
