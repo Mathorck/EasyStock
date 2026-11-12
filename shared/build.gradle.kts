@@ -58,6 +58,8 @@ kotlin {
             implementation(libs.zxing.core)
             // Server mode: HTTP engine
             implementation(libs.ktor.client.okhttp)
+            // Server mode: the 15-minute background sync
+            implementation(libs.androidx.work.runtime)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -91,6 +93,7 @@ kotlin {
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
             implementation(libs.androidx.room.testing)
+            implementation(libs.androidx.work.testing)
         }
     }
 }

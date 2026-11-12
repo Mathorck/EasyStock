@@ -72,6 +72,12 @@ interface SyncStore {
 
     /** Stores a downloaded photo, unless the phone left the server meanwhile. */
     suspend fun saveImage(image: ImageHash, jpeg: ByteArray)
+
+    /**
+     * Deletes the photo files no article references any more (a pull replaced the photo), and their
+     * `image_hash` rows. Keeps a photo the batch waiting to be sent still needs.
+     */
+    suspend fun removeOrphanPhotos() {}
 }
 
 /**

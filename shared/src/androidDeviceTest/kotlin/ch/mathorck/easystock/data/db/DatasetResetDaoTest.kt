@@ -41,6 +41,9 @@ class DatasetResetDaoTest {
         override suspend fun write(path: String, bytes: ByteArray) {
             stored[path] = bytes
         }
+        override suspend fun delete(path: String) {
+            stored.remove(path)
+        }
         override suspend fun deleteAll() = stored.clear()
     }
 

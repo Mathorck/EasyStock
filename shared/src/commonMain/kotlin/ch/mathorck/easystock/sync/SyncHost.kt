@@ -21,6 +21,7 @@ val OUTBOX_DEBOUNCE = 3.seconds
 @OptIn(FlowPreview::class)
 @Composable
 fun SyncHost(connected: Boolean) {
+    BackgroundSyncHost(connected)
     if (!connected) return
     val engine = rememberSyncEngine() ?: return
     val db = rememberAppDatabase()
