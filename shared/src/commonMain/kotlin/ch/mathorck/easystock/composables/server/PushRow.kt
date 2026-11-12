@@ -86,7 +86,11 @@ internal fun PushRowContent(state: PushUiState, onEnable: (PushDistributor) -> U
                 },
             )
         },
-        trailingContent = toggle?.let { { Switch(checked = on, onCheckedChange = { toggle() }) } },
+        trailingContent = if (toggle != null) {
+            { Switch(checked = on, onCheckedChange = { toggle() }) }
+        } else {
+            null
+        },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         modifier = if (toggle != null) Modifier.clickable(onClick = toggle) else Modifier,
     )
