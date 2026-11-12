@@ -71,6 +71,10 @@
     <string name="admin_device_revoke_message">The device is disconnected at its next sync.</string>
     <string name="admin_reset_qr_title">New password for %1$s</string>
     <string name="admin_reset_qr_subtitle">Scan with this person’s phone. The code works once.</string>
+    <string name="admin_user_rename">Rename</string>
+    <string name="admin_rename_title">Rename user</string>
+    <string name="admin_rename_save">Save</string>
+    <string name="admin_msg_renamed">Name changed</string>
     <string name="admin_msg_role_changed">Role changed</string>
     <string name="admin_msg_disabled">Account disabled</string>
     <string name="admin_msg_enabled">Account enabled</string>

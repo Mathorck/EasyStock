@@ -78,6 +78,19 @@ import ch.mathorck.easystock.viewmodels.server.AccountUiState
 import ch.mathorck.easystock.viewmodels.server.AccountViewModel
 import ch.mathorck.easystock.viewmodels.server.FormField
 import ch.mathorck.easystock.viewmodels.server.LogoutStep
+import ch.mathorck.easystock.viewmodels.server.NameForm
+import ch.mathorck.easystock.viewmodels.server.PasswordForm
+import androidx.compose.ui.text.input.KeyboardType
+import easystock.shared.generated.resources.server_field_current_password
+import easystock.shared.generated.resources.server_field_display_name
+import easystock.shared.generated.resources.server_field_display_name_rule
+import easystock.shared.generated.resources.server_field_new_password
+import easystock.shared.generated.resources.server_name_title
+import easystock.shared.generated.resources.server_password_change
+import easystock.shared.generated.resources.server_password_changed_message
+import easystock.shared.generated.resources.server_password_changed_title
+import easystock.shared.generated.resources.server_password_wrong
+import easystock.shared.generated.resources.server_save
 import ch.mathorck.easystock.viewmodels.server.PromotionForm
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_chevron_right
@@ -151,6 +164,16 @@ internal class AccountActions(
     val dismissError: () -> Unit = {},
     val openAdministration: () -> Unit = {},
     val setAlerts: (Boolean) -> Unit = {},
+    val openName: () -> Unit = {},
+    val closeName: () -> Unit = {},
+    val nameChanged: (String) -> Unit = {},
+    val submitName: () -> Unit = {},
+    val openPassword: () -> Unit = {},
+    val closePassword: () -> Unit = {},
+    val currentPasswordChanged: (String) -> Unit = {},
+    val newPasswordChanged: (String) -> Unit = {},
+    val submitPassword: () -> Unit = {},
+    val dismissPasswordChanged: () -> Unit = {},
 )
 
 /**
@@ -245,6 +268,16 @@ fun AccountScreen(
             promotionPasswordChanged = vm::promotionPasswordChanged,
             submitPromotion = vm::submitPromotion,
             dismissError = vm::dismissError,
+            openName = vm::openName,
+            closeName = vm::closeName,
+            nameChanged = vm::nameChanged,
+            submitName = vm::submitName,
+            openPassword = vm::openPassword,
+            closePassword = vm::closePassword,
+            currentPasswordChanged = vm::currentPasswordChanged,
+            newPasswordChanged = vm::newPasswordChanged,
+            submitPassword = vm::submitPassword,
+            dismissPasswordChanged = vm::dismissPasswordChanged,
             openAdministration = onOpenAdministration,
             setAlerts = { on ->
                 vm.setAlerts(on) {
@@ -289,7 +322,11 @@ internal fun AccountContent(
             InfoRow(stringResource(Res.string.server_account_address), connection.host()) {
                 ConnectionSecurity(connection, Modifier.padding(top = 4.dp))
             }
-            InfoRow(stringResource(Res.string.server_account_name), me?.displayName?.takeIf { it.isNotBlank() } ?: storedName ?: "")
+            InfoRow(
+                stringResource(Res.string.server_account_name),
+                me?.displayName?.takeIf { it.isNotBlank() } ?: storedName ?: "",
+                onClick = actions.openName,
+            )
             InfoRow(stringResource(Res.string.server_account_role), role?.let { stringResource(it.label()) } ?: "")
             val shortCode = me?.shortCode
             if (role == Role.GUEST && !shortCode.isNullOrBlank()) ShortCodeCard(shortCode)
@@ -302,6 +339,15 @@ internal fun AccountContent(
                     enabled = me != null && state.meError == null && !state.alertsBusy,
                     offline = me == null || state.meError != null,
                     onChange = actions.setAlerts,
+                )
+            }
+            // Guests have no password
+            if (role != null && role != Role.GUEST) {
+                ListItem(
+                    headlineContent = { Text(stringResource(Res.string.server_password_change)) },
+                    trailingContent = { Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null) },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                    modifier = Modifier.clickable(onClick = actions.openPassword),
                 )
             }
             if (rejected > 0) {
@@ -338,6 +384,16 @@ internal fun AccountContent(
 
     LogoutDialogs(state.logout, actions)
     state.promotion?.let { PromotionDialog(it, actions) }
+    state.nameForm?.let { NameDialog(it, actions) }
+    state.passwordForm?.let { PasswordDialog(it, actions) }
+    if (state.passwordChanged) {
+        AlertDialog(
+            onDismissRequest = actions.dismissPasswordChanged,
+            title = { Text(stringResource(Res.string.server_password_changed_title)) },
+            text = { Text(stringResource(Res.string.server_password_changed_message)) },
+            confirmButton = { TextButton(onClick = actions.dismissPasswordChanged) { Text(stringResource(Res.string.server_ok)) } },
+        )
+    }
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = actions.dismissError,
@@ -414,12 +470,82 @@ private fun SyncRow(lastSyncAt: Long?, status: SyncStatus, onSyncNow: () -> Unit
 }
 
 @Composable
-private fun InfoRow(label: String, value: String, extra: @Composable () -> Unit = {}) {
+private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null, extra: @Composable () -> Unit = {}) {
     ListItem(
         overlineContent = { Text(label) },
         headlineContent = { Text(value) },
         supportingContent = { extra() },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
+    )
+}
+
+@Composable
+private fun NameDialog(form: NameForm, actions: AccountActions) {
+    AlertDialog(
+        onDismissRequest = actions.closeName,
+        properties = DialogProperties(dismissOnBackPress = !form.busy, dismissOnClickOutside = false),
+        title = { Text(stringResource(Res.string.server_name_title)) },
+        text = {
+            FormTextField(
+                value = form.text,
+                onValueChange = actions.nameChanged,
+                label = stringResource(Res.string.server_field_display_name),
+                rule = stringResource(Res.string.server_field_display_name_rule),
+                invalid = form.invalid,
+                enabled = !form.busy,
+                keyboardType = KeyboardType.Text,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = actions.submitName, enabled = !form.busy) {
+                if (form.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Text(stringResource(Res.string.server_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.closeName, enabled = !form.busy) { Text(stringResource(Res.string.server_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun PasswordDialog(form: PasswordForm, actions: AccountActions) {
+    AlertDialog(
+        onDismissRequest = actions.closePassword,
+        properties = DialogProperties(dismissOnBackPress = !form.busy, dismissOnClickOutside = false),
+        title = { Text(stringResource(Res.string.server_password_change)) },
+        text = {
+            Column {
+                PasswordField(
+                    value = form.current,
+                    onValueChange = actions.currentPasswordChanged,
+                    label = stringResource(Res.string.server_field_current_password),
+                    rule = if (form.wrongCurrent) stringResource(Res.string.server_password_wrong) else null,
+                    invalid = form.wrongCurrent || form.currentEmpty,
+                    enabled = !form.busy,
+                    onDone = {},
+                )
+                PasswordField(
+                    value = form.new,
+                    onValueChange = actions.newPasswordChanged,
+                    label = stringResource(Res.string.server_field_new_password),
+                    rule = stringResource(Res.string.server_field_password_rule),
+                    invalid = FormField.PASSWORD in form.invalidFields,
+                    enabled = !form.busy,
+                    onDone = actions.submitPassword,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = actions.submitPassword, enabled = !form.busy) {
+                if (form.busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Text(stringResource(Res.string.server_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.closePassword, enabled = !form.busy) { Text(stringResource(Res.string.server_cancel)) }
+        },
     )
 }
 

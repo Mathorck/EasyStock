@@ -3,6 +3,7 @@ package ch.mathorck.easystock.viewmodels.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.mathorck.easystock.auth.Role
+import ch.mathorck.easystock.server.AccountRules
 import ch.mathorck.easystock.server.AdminApi
 import ch.mathorck.easystock.server.AdminUser
 import ch.mathorck.easystock.server.QrGrant
@@ -42,7 +43,7 @@ data class PromoteForm(
 }
 
 /** What happened last, shown once. */
-enum class UserMessage { ROLE_CHANGED, DISABLED, ENABLED, DELETED, PROMOTION_PENDING, PROMOTION_CANCELLED, DEVICE_REVOKED }
+enum class UserMessage { ROLE_CHANGED, DISABLED, ENABLED, DELETED, PROMOTION_PENDING, PROMOTION_CANCELLED, DEVICE_REVOKED, RENAMED }
 
 data class AdminUsersState(
     val users: Loaded<List<AdminUser>> = Loaded(),
@@ -79,6 +80,13 @@ class AdminUsersViewModel(private val api: AdminApi) : ViewModel() {
 
     fun setDisabled(userId: String, disabled: Boolean) =
         act(if (disabled) UserMessage.DISABLED else UserMessage.ENABLED) { api.setDisabled(userId, disabled) }
+
+    /** Only a valid name (1 to 50 characters, trimmed) is sent. */
+    fun rename(userId: String, displayName: String) {
+        val name = displayName.trim()
+        if (!AccountRules.isValidDisplayName(name)) return
+        act(UserMessage.RENAMED) { api.rename(userId, name) }
+    }
 
     fun delete(userId: String) = act(UserMessage.DELETED) { api.deleteUser(userId) }
 

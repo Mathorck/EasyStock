@@ -228,6 +228,58 @@ class AuthApiTest {
     }
 
     @Test
+    fun displayNameIsPatchedOnMeAndTheAnswerRead() = runTest {
+        session.accessToken = "acc"
+        val me = account { ok("""{"id":"u1","displayName":"Ann","role":"member","kind":"full","shortCode":"K7-4QX","alertsEnabled":null}""") }
+            .setDisplayName("Ann")
+        assertEquals("Ann", me.displayName)
+        assertEquals(HttpMethod.Patch, seen.single().method)
+        assertEquals("/api/v1/me", seen.single().path)
+        assertEquals("""{"displayName":"Ann"}""", seen.single().body)
+        assertEquals("Bearer acc", seen.single().headers[HttpHeaders.Authorization])
+    }
+
+    @Test
+    fun passwordIsPostedWithBothFields() = runTest {
+        session.accessToken = "acc"
+        account { respond("", HttpStatusCode.NoContent) }.changePassword("old", "new password 1")
+        assertEquals(HttpMethod.Post, seen.single().method)
+        assertEquals("/api/v1/me/password", seen.single().path)
+        assertEquals("""{"currentPassword":"old","newPassword":"new password 1"}""", seen.single().body)
+        assertEquals("Bearer acc", seen.single().headers[HttpHeaders.Authorization])
+        assertEquals(0, revokedCalls)
+    }
+
+    @Test
+    fun aWrongCurrentPasswordIsA400InvalidCredentialsNotARevokedSession() = runTest {
+        session.accessToken = "acc"
+        val e = assertFailsWith<ApiException> {
+            account { respond("""{"type":"invalid-credentials","status":400}""", HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json")) }
+                .changePassword("bad", "new password 1")
+        }
+        assertEquals(ApiError.INVALID, e.error)
+        assertEquals("invalid-credentials", e.problemType)
+        assertEquals(ConnectError.WRONG_CREDENTIALS, connectErrorOf(e))
+        assertEquals(0, revokedCalls)
+    }
+
+    @Test
+    fun aWeakPasswordIs400ValidationFailedAndAGuestIs403() = runTest {
+        session.accessToken = "acc"
+        val json = headersOf(HttpHeaders.ContentType, "application/json")
+        val weak = assertFailsWith<ApiException> {
+            account { respond("""{"type":"validation-failed","status":400,"errors":{"password":["too short"]}}""", HttpStatusCode.BadRequest, json) }
+                .changePassword("old", "short")
+        }
+        assertEquals(ConnectError.INVALID, connectErrorOf(weak))
+        val guest = assertFailsWith<ApiException> {
+            account { respond("""{"type":"not-allowed","status":403}""", HttpStatusCode.Forbidden, json) }.changePassword("a", "b")
+        }
+        assertEquals(ApiError.FORBIDDEN, guest.error)
+        assertEquals(ProblemTypes.NOT_ALLOWED, guest.problemType)
+    }
+
+    @Test
     fun alertsPreferenceIsPatchedOnMe() = runTest {
         session.accessToken = "acc"
         val api = account { respond("", HttpStatusCode.NoContent) }

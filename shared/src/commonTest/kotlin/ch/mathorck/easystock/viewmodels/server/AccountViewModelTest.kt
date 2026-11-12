@@ -45,6 +45,22 @@ private class FakeAccountApi : AccountApi {
         alertsError?.let { throw it }
     }
 
+    var nameError: Exception? = null
+    var passwordError: Exception? = null
+    val names = mutableListOf<String>()
+    val passwords = mutableListOf<Pair<String, String>>()
+
+    override suspend fun setDisplayName(name: String): MeAnswer {
+        names += name
+        nameError?.let { throw it }
+        return me.copy(displayName = name)
+    }
+
+    override suspend fun changePassword(currentPassword: String, newPassword: String) {
+        passwords += currentPassword to newPassword
+        passwordError?.let { throw it }
+    }
+
     override suspend fun logout() {
         logouts++
         logoutError?.let { throw it }
@@ -294,5 +310,105 @@ class AccountViewModelTest {
         assertEquals(ConnectError.CODE_EXPIRED, vm.state.value.error)
         assertNull(vm.state.value.promotion)
         assertTrue(promotedWith.isEmpty())
+    }
+
+    @Test
+    fun theNewNameReplacesTheAccountAndIsStored() {
+        val vm = vm()
+        vm.refresh()
+        stored.clear()
+        vm.openName()
+        assertEquals("Visitor", vm.state.value.nameForm?.text)
+        vm.nameChanged("  Ann  ")
+        vm.submitName()
+        assertEquals(listOf("Ann"), api.names)
+        assertEquals("Ann", vm.state.value.me?.displayName)
+        assertEquals("Ann", stored.single().displayName)
+        assertNull(vm.state.value.nameForm)
+    }
+
+    @Test
+    fun anInvalidNameIsNotSent() {
+        val vm = vm()
+        vm.refresh()
+        vm.openName()
+        vm.nameChanged("   ")
+        vm.submitName()
+        assertTrue(api.names.isEmpty())
+        assertTrue(vm.state.value.nameForm!!.invalid)
+        vm.nameChanged("x".repeat(51))
+        vm.submitName()
+        assertTrue(api.names.isEmpty())
+    }
+
+    @Test
+    fun aFailedNameKeepsTheFormAndShowsTheError() {
+        api.nameError = ApiException(ApiError.NETWORK)
+        val vm = vm()
+        vm.refresh()
+        vm.openName()
+        vm.nameChanged("Ann")
+        vm.submitName()
+        assertEquals(ConnectError.NETWORK, vm.state.value.error)
+        assertNotNull(vm.state.value.nameForm)
+        assertFalse(vm.state.value.nameForm!!.busy)
+        assertEquals("Visitor", vm.state.value.me?.displayName)
+    }
+
+    @Test
+    fun thePasswordIsChangedAndTheUserIsTold() {
+        val vm = vm()
+        vm.openPassword()
+        vm.currentPasswordChanged("old password")
+        vm.newPasswordChanged("new password 1")
+        vm.submitPassword()
+        assertEquals(listOf("old password" to "new password 1"), api.passwords)
+        assertNull(vm.state.value.passwordForm)
+        assertTrue(vm.state.value.passwordChanged)
+        assertEquals(0, wipes)
+        vm.dismissPasswordChanged()
+        assertFalse(vm.state.value.passwordChanged)
+    }
+
+    @Test
+    fun aTooShortNewPasswordOrEmptyCurrentIsNotSent() {
+        val vm = vm()
+        vm.openPassword()
+        vm.newPasswordChanged("short")
+        vm.submitPassword()
+        assertTrue(api.passwords.isEmpty())
+        val form = vm.state.value.passwordForm!!
+        assertTrue(form.currentEmpty)
+        assertEquals(setOf(FormField.PASSWORD), form.invalidFields)
+    }
+
+    @Test
+    fun aWrongCurrentPasswordIsAFieldErrorNotADialog() {
+        api.passwordError = ApiException(ApiError.INVALID, 400, "invalid-credentials")
+        val vm = vm()
+        vm.openPassword()
+        vm.currentPasswordChanged("nope")
+        vm.newPasswordChanged("new password 1")
+        vm.submitPassword()
+        val form = vm.state.value.passwordForm!!
+        assertTrue(form.wrongCurrent)
+        assertFalse(form.busy)
+        assertNull(vm.state.value.error)
+        assertFalse(vm.state.value.passwordChanged)
+        vm.currentPasswordChanged("again")
+        assertFalse(vm.state.value.passwordForm!!.wrongCurrent)
+    }
+
+    @Test
+    fun aRefusedNewPasswordKeepsTheFormAndShowsTheError() {
+        api.passwordError = ApiException(ApiError.INVALID, 400, "validation-failed")
+        val vm = vm()
+        vm.openPassword()
+        vm.currentPasswordChanged("old password")
+        vm.newPasswordChanged("new password 1")
+        vm.submitPassword()
+        assertEquals(ConnectError.INVALID, vm.state.value.error)
+        assertNotNull(vm.state.value.passwordForm)
+        assertFalse(vm.state.value.passwordChanged)
     }
 }

@@ -69,6 +69,10 @@
     <string name="admin_device_revoke_message">L’appareil est déconnecté à sa prochaine synchro.</string>
     <string name="admin_reset_qr_title">Nouveau mot de passe pour %1$s</string>
     <string name="admin_reset_qr_subtitle">À scanner avec le téléphone de cette personne. Le code ne fonctionne qu’une fois.</string>
+    <string name="admin_user_rename">Renommer</string>
+    <string name="admin_rename_title">Renommer l’utilisateur</string>
+    <string name="admin_rename_save">Enregistrer</string>
+    <string name="admin_msg_renamed">Nom modifié</string>
     <string name="admin_msg_role_changed">Rôle modifié</string>
     <string name="admin_msg_disabled">Compte désactivé</string>
     <string name="admin_msg_enabled">Compte activé</string>

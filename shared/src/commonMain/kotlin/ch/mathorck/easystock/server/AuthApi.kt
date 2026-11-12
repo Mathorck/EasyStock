@@ -56,6 +56,15 @@ interface AccountApi {
     /** `PATCH /me` `{"alertsEnabled": enabled}`: the alert preference (Guests cannot). */
     suspend fun setAlertsEnabled(enabled: Boolean)
 
+    /** `PATCH /me` `{"displayName": name}`: answers the updated account. */
+    suspend fun setDisplayName(name: String): MeAnswer
+
+    /**
+     * `POST /me/password` (full accounts only). The server ends every other session of the user and keeps
+     * this one, so the tokens of this phone stay valid.
+     */
+    suspend fun changePassword(currentPassword: String, newPassword: String)
+
     /** Revokes this session on the server; a Guest account is deleted. */
     suspend fun logout()
 
@@ -75,6 +84,13 @@ class KtorAccountApi(private val client: ServerClient) : AccountApi {
 
     override suspend fun setAlertsEnabled(enabled: Boolean) {
         apiCall { http.patch("me") { json(UpdateAlertsRequest(enabled)) } }
+    }
+
+    override suspend fun setDisplayName(name: String): MeAnswer =
+        apiCall { http.patch("me") { json(UpdateDisplayNameRequest(name)) }.body() }
+
+    override suspend fun changePassword(currentPassword: String, newPassword: String) {
+        apiCall { http.post("me/password") { json(ChangePasswordRequest(currentPassword, newPassword)) } }
     }
 
     override suspend fun logout() {

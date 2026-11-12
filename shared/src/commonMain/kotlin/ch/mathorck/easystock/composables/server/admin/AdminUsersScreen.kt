@@ -52,6 +52,7 @@ import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.reset.matchesConfirmation
+import ch.mathorck.easystock.server.AccountRules
 import ch.mathorck.easystock.server.AdminApi
 import ch.mathorck.easystock.server.AdminDevice
 import ch.mathorck.easystock.server.AdminUser
@@ -89,6 +90,12 @@ import easystock.shared.generated.resources.admin_promote_expected
 import easystock.shared.generated.resources.admin_promote_message
 import easystock.shared.generated.resources.admin_promote_role
 import easystock.shared.generated.resources.admin_promote_title
+import easystock.shared.generated.resources.admin_msg_renamed
+import easystock.shared.generated.resources.admin_rename_save
+import easystock.shared.generated.resources.admin_rename_title
+import easystock.shared.generated.resources.admin_user_rename
+import easystock.shared.generated.resources.server_field_display_name
+import easystock.shared.generated.resources.server_field_display_name_rule
 import easystock.shared.generated.resources.admin_reset_qr_subtitle
 import easystock.shared.generated.resources.admin_reset_qr_title
 import easystock.shared.generated.resources.admin_user_cancel_promotion
@@ -144,6 +151,7 @@ internal fun AdminUsersScreen(api: AdminApi, connection: ServerConnection, onBac
                 busy = state.busy,
                 onBack = { openUser = null },
                 onChangeRole = { viewModel.changeRole(user.id, it) },
+                onRename = { viewModel.rename(user.id, it) },
                 onSetDisabled = { viewModel.setDisabled(user.id, it) },
                 onDelete = { viewModel.delete(user.id) },
                 onResetPassword = { viewModel.resetPassword(user.id) },
@@ -180,6 +188,7 @@ internal fun AdminUsersScreen(api: AdminApi, connection: ServerConnection, onBac
 
 private fun UserMessage.text() = when (this) {
     UserMessage.ROLE_CHANGED -> Res.string.admin_msg_role_changed
+    UserMessage.RENAMED -> Res.string.admin_msg_renamed
     UserMessage.DISABLED -> Res.string.admin_msg_disabled
     UserMessage.ENABLED -> Res.string.admin_msg_enabled
     UserMessage.DELETED -> Res.string.admin_msg_deleted
@@ -243,6 +252,7 @@ internal fun UserDetail(
     busy: Boolean,
     onBack: () -> Unit,
     onChangeRole: (Role) -> Unit,
+    onRename: (String) -> Unit,
     onSetDisabled: (Boolean) -> Unit,
     onDelete: () -> Unit,
     onResetPassword: () -> Unit,
@@ -251,6 +261,7 @@ internal fun UserDetail(
     onCancelPromotion: () -> Unit,
 ) {
     var chooseRole by rememberSaveable { mutableStateOf(false) }
+    var rename by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var revoke by rememberSaveable { mutableStateOf<String?>(null) }
     val name = user.displayName.ifBlank { stringResource(Res.string.admin_user_unnamed) }
@@ -298,6 +309,7 @@ internal fun UserDetail(
                     OutlinedButton(onClick = { chooseRole = true }, enabled = !busy) { Text(stringResource(Res.string.admin_user_change_role)) }
                     OutlinedButton(onClick = onResetPassword, enabled = !busy) { Text(stringResource(Res.string.admin_user_reset_password)) }
                 }
+                OutlinedButton(onClick = { rename = true }, enabled = !busy) { Text(stringResource(Res.string.admin_user_rename)) }
                 OutlinedButton(onClick = { onSetDisabled(!user.disabled) }, enabled = !busy) {
                     Text(stringResource(if (user.disabled) Res.string.admin_user_enable else Res.string.admin_user_disable))
                 }
@@ -329,6 +341,16 @@ internal fun UserDetail(
                 if (it != user.appRole) onChangeRole(it)
             },
             onDismiss = { chooseRole = false },
+        )
+    }
+    if (rename) {
+        RenameUserDialog(
+            current = user.displayName,
+            onConfirm = {
+                rename = false
+                if (it != user.displayName) onRename(it)
+            },
+            onDismiss = { rename = false },
         )
     }
     if (confirmDelete) {
@@ -399,6 +421,33 @@ private fun RoleChoice(roles: List<Role>, selected: Role?, onSelected: (Role) ->
             )
         }
     }
+}
+
+/** The display name of a user: 1 to 50 characters, like the server checks. */
+@Composable
+private fun RenameUserDialog(current: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var typed by rememberSaveable { mutableStateOf(current) }
+    val valid = AccountRules.isValidDisplayName(typed)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.admin_rename_title)) },
+        text = {
+            OutlinedTextField(
+                value = typed,
+                onValueChange = { typed = it },
+                label = { Text(stringResource(Res.string.server_field_display_name)) },
+                supportingText = { Text(stringResource(Res.string.server_field_display_name_rule)) },
+                isError = !valid,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(typed.trim()) }, enabled = valid) { Text(stringResource(Res.string.admin_rename_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.admin_cancel)) } },
+    )
 }
 
 /** Deleting an account can't be undone: the Admin types its name. */
@@ -527,7 +576,7 @@ private fun UserDetailPreview() {
     EasyStockTheme {
         UserDetail(
             previewUsers[0].copy(devices = listOf(AdminDevice("d1", deviceName = "Pixel 10", lastUsedAt = "2026-11-10T08:00:00Z"))),
-            busy = false, onBack = {}, onChangeRole = {}, onSetDisabled = {}, onDelete = {}, onResetPassword = {},
+            busy = false, onBack = {}, onChangeRole = {}, onRename = {}, onSetDisabled = {}, onDelete = {}, onResetPassword = {},
             onRevokeDevice = {}, onStartPromotion = {}, onCancelPromotion = {},
         )
     }

@@ -103,6 +103,14 @@
     <string name="server_promotion_open">Terminer</string>
     <string name="server_promotion_title">Créer votre compte</string>
 
+    <string name="server_name_title">Modifier le nom affiché</string>
+    <string name="server_password_change">Changer le mot de passe</string>
+    <string name="server_field_current_password">Mot de passe actuel</string>
+    <string name="server_password_wrong">Le mot de passe actuel est incorrect.</string>
+    <string name="server_password_changed_title">Mot de passe modifié</string>
+    <string name="server_password_changed_message">Votre mot de passe a été modifié. Vos autres appareils ont été déconnectés et doivent se reconnecter avec le nouveau mot de passe.</string>
+    <string name="server_save">Enregistrer</string>
+
     <string name="server_logout">Se déconnecter</string>
     <string name="server_logout_title">Se déconnecter ?</string>
     <string name="server_logout_message">Ce téléphone quitte le serveur : toutes les données et photos de ce téléphone sont effacées. Elles restent sur le serveur.</string>

@@ -69,6 +69,10 @@
     <string name="admin_device_revoke_message">Das Gerät wird bei seiner nächsten Synchronisierung getrennt.</string>
     <string name="admin_reset_qr_title">Neues Passwort für %1$s</string>
     <string name="admin_reset_qr_subtitle">Mit dem Telefon dieser Person scannen. Der Code funktioniert einmal.</string>
+    <string name="admin_user_rename">Umbenennen</string>
+    <string name="admin_rename_title">Benutzer umbenennen</string>
+    <string name="admin_rename_save">Speichern</string>
+    <string name="admin_msg_renamed">Name geändert</string>
     <string name="admin_msg_role_changed">Rolle geändert</string>
     <string name="admin_msg_disabled">Konto deaktiviert</string>
     <string name="admin_msg_enabled">Konto aktiviert</string>

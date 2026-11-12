@@ -263,6 +263,25 @@ class AdminApiTest {
     }
 
     @Test
+    fun renameUserSendsOnlyTheDisplayName() = runTest {
+        login()
+        val user = api { ok("""{"id":"u 1","displayName":"Anna","username":"ana","role":"member","kind":"full"}""") }.rename("u 1", "Anna")
+        val request = seen.single()
+        assertEquals(HttpMethod.Patch, request.method)
+        assertEquals("/api/v1/admin/users/u%201", request.path)
+        assertEquals("""{"displayName":"Anna"}""", request.body)
+        assertEquals("Anna", user.displayName)
+    }
+
+    @Test
+    fun renameWithAnInvalidNameIsA400() = runTest {
+        login()
+        val api = api { respond("""{"type":"validation-failed","status":400}""", HttpStatusCode.BadRequest, json) }
+        val e = assertFailsWith<ApiException> { api.rename("u1", "") }
+        assertEquals(ApiError.INVALID, e.error)
+    }
+
+    @Test
     fun disableUser() = runTest {
         login()
         api { ok("""{"id":"u1","displayName":"Ana","username":"ana","role":"member","kind":"full","shortCode":"","createdAt":"2026-11-01T08:00:00+00:00","lastSeenAt":null,"disabled":true,"devices":[],"pendingPromotion":null}""") }.setDisabled("u1", true).also { assertTrue(it.disabled) }

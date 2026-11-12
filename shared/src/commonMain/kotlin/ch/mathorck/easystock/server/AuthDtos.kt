@@ -73,6 +73,16 @@ data class MeAnswer(
 @Serializable
 data class UpdateAlertsRequest(val alertsEnabled: Boolean)
 
+/** `PATCH /me` with the display name only. */
+@Serializable
+data class UpdateDisplayNameRequest(val displayName: String)
+
+/** `POST /me/password`: answered 204. Wrong [currentPassword] is 400 `invalid-credentials`. */
+@Serializable
+data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
+    override fun toString(): String = "ChangePasswordRequest"
+}
+
 /** Rules of the account fields (03-server-spec.md, "Accounts"), checked before sending. */
 object AccountRules {
     const val PASSWORD_MIN = 10

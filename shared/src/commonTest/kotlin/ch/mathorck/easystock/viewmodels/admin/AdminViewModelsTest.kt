@@ -143,6 +143,34 @@ class AdminUsersViewModelTest {
     }
 
     @Test
+    fun renameSendsTheTrimmedNameAndReloads() {
+        vm.refresh()
+        val reads = api.userReads
+        vm.rename("a", "  Anna  ")
+        assertEquals("a" to "Anna", api.renamed)
+        assertEquals(UserMessage.RENAMED, vm.state.value.message)
+        assertEquals(reads + 1, api.userReads)
+    }
+
+    @Test
+    fun renameWithAnInvalidNameSendsNothing() {
+        vm.refresh()
+        vm.rename("a", "   ")
+        vm.rename("a", "x".repeat(51))
+        assertNull(api.renamed)
+        assertNull(vm.state.value.message)
+    }
+
+    @Test
+    fun aFailedRenameShowsTheProblem() {
+        vm.refresh()
+        api.fail = ApiException(ApiError.INVALID, 400, "validation-failed")
+        vm.rename("a", "Anna")
+        assertEquals(ApiError.INVALID, vm.state.value.failure?.error)
+        assertNull(vm.state.value.message)
+    }
+
+    @Test
     fun aFailedActionKeepsTheListAndShowsTheProblem() {
         vm.refresh()
         api.fail = ApiException(ApiError.CONFLICT, 409, ProblemTypes.LAST_ADMIN)
@@ -261,6 +289,7 @@ private class FakeAdminApi : AdminApi {
     var fail: Exception? = null
     var userReads = 0
     var promoted: Triple<String, Role, String>? = null
+    var renamed: Pair<String, String>? = null
     var imported: ServerImportMode? = null
     var settings = AdminSettings()
 
@@ -284,6 +313,11 @@ private class FakeAdminApi : AdminApi {
     }
     override suspend fun setDisabled(userId: String, disabled: Boolean): AdminUser {
         check()
+        return users.first { it.id == userId }
+    }
+    override suspend fun rename(userId: String, displayName: String): AdminUser {
+        check()
+        renamed = userId to displayName
         return users.first { it.id == userId }
     }
     override suspend fun deleteUser(userId: String) = check() ?: Unit

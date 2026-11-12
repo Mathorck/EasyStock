@@ -30,6 +30,9 @@ interface AdminApi {
 
     suspend fun setDisabled(userId: String, disabled: Boolean): AdminUser
 
+    /** `PATCH /admin/users/{id}` with only `displayName` (1 to 50 characters). */
+    suspend fun rename(userId: String, displayName: String): AdminUser
+
     suspend fun deleteUser(userId: String)
 
     /** Single-use reset token for the `reset` QR code (valid 24 hours). */
@@ -88,6 +91,9 @@ class KtorAdminApi(private val client: ServerClient) : AdminApi {
 
     override suspend fun setDisabled(userId: String, disabled: Boolean): AdminUser =
         patchUser(userId, UpdateUserRequest(disabled = disabled))
+
+    override suspend fun rename(userId: String, displayName: String): AdminUser =
+        patchUser(userId, UpdateUserRequest(displayName = displayName))
 
     private suspend fun patchUser(userId: String, request: UpdateUserRequest): AdminUser = apiCall {
         http.patch("admin/users/${userId.path()}") { json(request) }.body()

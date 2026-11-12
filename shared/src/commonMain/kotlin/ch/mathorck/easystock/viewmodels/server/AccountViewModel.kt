@@ -49,6 +49,22 @@ data class PromotionForm(
     override fun toString(): String = "PromotionForm(username=$username, busy=$busy)"
 }
 
+/** The display name dialog. */
+data class NameForm(val text: String, val invalid: Boolean = false, val busy: Boolean = false)
+
+/** The change password dialog. [wrongCurrent]: the server refused the current password. */
+data class PasswordForm(
+    val current: String = "",
+    val new: String = "",
+    /** Only [FormField.PASSWORD] (the new one). */
+    val invalidFields: Set<FormField> = emptySet(),
+    val currentEmpty: Boolean = false,
+    val wrongCurrent: Boolean = false,
+    val busy: Boolean = false,
+) {
+    override fun toString(): String = "PasswordForm(busy=$busy)"
+}
+
 data class AccountUiState(
     /** From `GET /me`, null until it answered. */
     val me: MeAnswer? = null,
@@ -58,6 +74,10 @@ data class AccountUiState(
     val alertsBusy: Boolean = false,
     val logout: LogoutStep? = null,
     val promotion: PromotionForm? = null,
+    val nameForm: NameForm? = null,
+    val passwordForm: PasswordForm? = null,
+    /** The password was changed: a dialog tells that the other devices must log in again. */
+    val passwordChanged: Boolean = false,
     /** Shown once in a dialog. */
     val error: ConnectError? = null,
 )
@@ -85,6 +105,8 @@ class AccountViewModel(
     val state: StateFlow<AccountUiState> = _state.asStateFlow()
 
     fun dismissError() = _state.update { it.copy(error = null) }
+
+    fun dismissPasswordChanged() = _state.update { it.copy(passwordChanged = false) }
 
     fun refresh() {
         viewModelScope.launch {
@@ -125,6 +147,89 @@ class AccountViewModel(
             } catch (e: Exception) {
                 val error = (e as? ApiException)?.let(::connectErrorOf) ?: ConnectError.NETWORK
                 _state.update { it.copy(me = it.me?.copy(alertsEnabled = me.alertsEnabled), alertsBusy = false, error = error) }
+            }
+        }
+    }
+
+    // ---------- Display name ----------
+
+    fun openName() = _state.update { it.copy(nameForm = NameForm(it.me?.displayName.orEmpty())) }
+
+    fun closeName() = _state.update { if (it.nameForm?.busy == true) it else it.copy(nameForm = null) }
+
+    fun nameChanged(text: String) = _state.update { it.copy(nameForm = it.nameForm?.copy(text = text, invalid = false)) }
+
+    /** `PATCH /me`: the answer replaces the account shown and is stored like a `GET /me`. */
+    fun submitName() {
+        val form = _state.value.nameForm ?: return
+        if (form.busy) return
+        val name = form.text.trim()
+        if (!AccountRules.isValidDisplayName(name)) {
+            _state.update { it.copy(nameForm = form.copy(invalid = true)) }
+            return
+        }
+        _state.update { it.copy(nameForm = form.copy(busy = true)) }
+        viewModelScope.launch {
+            try {
+                val me = api.setDisplayName(name)
+                _state.update { it.copy(me = me, meError = null, nameForm = null) }
+                runCatching { onMe(me) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val error = (e as? ApiException)?.let(::connectErrorOf) ?: ConnectError.NETWORK
+                _state.update { it.copy(nameForm = form.copy(busy = false), error = error) }
+            }
+        }
+    }
+
+    // ---------- Password ----------
+
+    fun openPassword() = _state.update { it.copy(passwordForm = PasswordForm()) }
+
+    fun closePassword() = _state.update { if (it.passwordForm?.busy == true) it else it.copy(passwordForm = null) }
+
+    fun currentPasswordChanged(text: String) = _state.update {
+        it.copy(
+            passwordForm = it.passwordForm?.copy(
+                current = text,
+                wrongCurrent = false,
+                currentEmpty = false,
+            ),
+        )
+    }
+
+    fun newPasswordChanged(text: String) = _state.update {
+        it.copy(passwordForm = it.passwordForm?.copy(new = text, invalidFields = it.passwordForm.invalidFields - FormField.PASSWORD))
+    }
+
+    /**
+     * `POST /me/password`. A wrong current password stays in the form as a field error; other failures show
+     * the error dialog and keep the form. The other sessions end on the server, this one stays valid.
+     */
+    fun submitPassword() {
+        val form = _state.value.passwordForm ?: return
+        if (form.busy) return
+        val currentEmpty = form.current.isEmpty()
+        val invalid = if (AccountRules.isValidPassword(form.new)) emptySet() else setOf(FormField.PASSWORD)
+        if (currentEmpty || invalid.isNotEmpty()) {
+            _state.update { it.copy(passwordForm = form.copy(invalidFields = invalid, currentEmpty = currentEmpty)) }
+            return
+        }
+        _state.update { it.copy(passwordForm = form.copy(busy = true)) }
+        viewModelScope.launch {
+            try {
+                api.changePassword(form.current, form.new)
+                _state.update { it.copy(passwordForm = null, passwordChanged = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val error = (e as? ApiException)?.let(::connectErrorOf) ?: ConnectError.NETWORK
+                if (error == ConnectError.WRONG_CREDENTIALS) {
+                    _state.update { it.copy(passwordForm = form.copy(busy = false, wrongCurrent = true)) }
+                } else {
+                    _state.update { it.copy(passwordForm = form.copy(busy = false), error = error) }
+                }
             }
         }
     }

@@ -103,6 +103,14 @@
     <string name="server_promotion_open">Abschließen</string>
     <string name="server_promotion_title">Konto erstellen</string>
 
+    <string name="server_name_title">Anzeigenamen ändern</string>
+    <string name="server_password_change">Passwort ändern</string>
+    <string name="server_field_current_password">Aktuelles Passwort</string>
+    <string name="server_password_wrong">Das aktuelle Passwort ist falsch.</string>
+    <string name="server_password_changed_title">Passwort geändert</string>
+    <string name="server_password_changed_message">Ihr Passwort wurde geändert. Ihre anderen Geräte wurden abgemeldet und müssen sich mit dem neuen Passwort wieder anmelden.</string>
+    <string name="server_save">Speichern</string>
+
     <string name="server_logout">Abmelden</string>
     <string name="server_logout_title">Abmelden?</string>
     <string name="server_logout_message">Dieses Telefon verlässt den Server: Alle Daten und Fotos auf diesem Telefon werden gelöscht. Auf dem Server bleiben sie erhalten.</string>

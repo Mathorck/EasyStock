@@ -103,6 +103,14 @@
     <string name="server_promotion_open">Finish</string>
     <string name="server_promotion_title">Create your account</string>
 
+    <string name="server_name_title">Change display name</string>
+    <string name="server_password_change">Change password</string>
+    <string name="server_field_current_password">Current password</string>
+    <string name="server_password_wrong">The current password is wrong.</string>
+    <string name="server_password_changed_title">Password changed</string>
+    <string name="server_password_changed_message">Your password was changed. Your other devices were logged out and must log in again with the new password.</string>
+    <string name="server_save">Save</string>
+
     <string name="server_logout">Log out</string>
     <string name="server_logout_title">Log out?</string>
     <string name="server_logout_message">This phone leaves the server: all the data and photos on this phone are erased. They stay on the server.</string>
