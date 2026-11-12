@@ -1,4 +1,4 @@
-package ch.mathorck.easystock.composables.settings
+package ch.mathorck.easystock.composables.attributes
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,10 +52,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import ch.mathorck.easystock.composables.attributes.CATEGORY_TEMPLATE_KEY
-import ch.mathorck.easystock.composables.attributes.MAX_NAME_TEMPLATE_LENGTH
-import ch.mathorck.easystock.composables.attributes.NameTemplateError
-import ch.mathorck.easystock.composables.attributes.insertPlaceholder
+import ch.mathorck.easystock.composables.settings.SettingsSubpage
+import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition

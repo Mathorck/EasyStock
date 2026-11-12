@@ -1,4 +1,4 @@
-package ch.mathorck.easystock.composables.settings
+package ch.mathorck.easystock.composables.attributes
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,8 +37,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import ch.mathorck.easystock.composables.attributes.MeasureFamily
-import ch.mathorck.easystock.composables.attributes.MeasureUnits
+import ch.mathorck.easystock.composables.settings.SettingsSubpage
+import ch.mathorck.easystock.composables.settings.EmptyListHint
+import ch.mathorck.easystock.composables.settings.ConfirmDeleteDialog
+import ch.mathorck.easystock.composables.settings.message
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition

@@ -68,7 +68,7 @@ import kotlinx.coroutines.delay
 import kotlin.time.ComparableTimeMark
 import kotlin.time.Duration.Companion.seconds
 import ch.mathorck.easystock.currentAppLanguage
-import ch.mathorck.easystock.composables.settings.AttributesScreen
+import ch.mathorck.easystock.composables.attributes.AttributesScreen
 import ch.mathorck.easystock.composables.settings.BackupScreen
 import ch.mathorck.easystock.composables.settings.CategoriesScreen
 import ch.mathorck.easystock.composables.settings.LocationsScreen

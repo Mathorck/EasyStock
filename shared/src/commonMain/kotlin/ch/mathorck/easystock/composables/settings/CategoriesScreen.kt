@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import ch.mathorck.easystock.composables.attributes.CategoryAttributesScreen
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.theme.EasyStockTheme
