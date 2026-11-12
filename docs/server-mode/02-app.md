@@ -298,7 +298,10 @@ Open points (sync engine)
 * A pulled row whose parent is still missing after the last page fails the cycle (error SERVER); the cursor does not
   move, the next cycle tries again. Pages are kept in memory until their parents arrive.
 * The 426 pause lasts until the app restarts or joins another server. The Account screen shows "update the app".
-* A replaced photo leaves its old file on the phone until the next reset (no orphan cleanup yet).
+* Done: a replaced photo is deleted after each successful sync cycle (`SyncStore.removeOrphanPhotos`): the `image_hash`
+  rows no article row references (soft-deleted rows count as references), minus the hashes in the pending batch, lose
+  their file and their row. Local replacements already delete the file in the view models (standalone too).
+  Not done: a sweep of unknown files in `images/` (kept out on purpose: files staged by an open form look orphaned).
 * A pulled article and location with the same NFC tag (both from the server) are not resolved: the server's unique
   rule must prevent it.
 * Pull to refresh needs a scrollable list: it does not start on the empty Stock page.

@@ -24,6 +24,10 @@ internal class AndroidSyncImageFiles(private val filesDir: File) : SyncImageFile
 
     override suspend fun exists(path: String): Boolean = withContext(Dispatchers.IO) { fileOf(path)?.isFile == true }
 
+    override suspend fun delete(path: String) {
+        withContext(Dispatchers.IO) { fileOf(path)?.let { runCatching { it.delete() } } }
+    }
+
     override suspend fun write(path: String, bytes: ByteArray) = withContext(Dispatchers.IO) {
         val target = fileOf(path) ?: return@withContext
         target.parentFile?.mkdirs()

@@ -17,6 +17,9 @@ interface SyncImageFiles {
 
     /** Writes the whole file or nothing (temporary file, then rename). */
     suspend fun write(path: String, bytes: ByteArray)
+
+    /** Deletes the file. Does nothing for an invalid path or a missing file. */
+    suspend fun delete(path: String)
 }
 
 /** [SyncStore] on the Room database (data/db/SyncDao) and the photo files. */
@@ -65,5 +68,15 @@ class RoomSyncStore(db: AppDatabase, private val files: SyncImageFiles) : SyncSt
         // Left the server meanwhile, or the article got another photo: nothing to store
         if (dao.syncState() == null || dao.hashOf(image.imagePath) != image.sha256) return
         if (isValidImagePath(image.imagePath)) files.write(image.imagePath, jpeg)
+    }
+
+    override suspend fun removeOrphanPhotos() {
+        if (dao.syncState() == null) return
+        val orphans = orphanedPhotos(dao.allImageHashes(), dao.referencedImagePaths().toSet(), dao.pendingPush()?.body)
+        for (photo in orphans) {
+            // File first: if this stops in between, the row stays and the next cycle finishes
+            files.delete(photo.imagePath)
+            dao.deleteImageHash(photo.imagePath)
+        }
     }
 }
