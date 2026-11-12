@@ -30,12 +30,19 @@ private class FakeAccountApi : AccountApi {
     var logoutError: Exception? = null
     var promotionError: Exception? = null
     var logouts = 0
+    var alertsError: Exception? = null
+    val alertCalls = mutableListOf<Boolean>()
     val promotions = mutableListOf<CompletePromotionRequest>()
     val promoted = TokenAnswer("a2", "r2", user = SessionUser("u1", "Ann", "member", "human"))
 
     override suspend fun me(): MeAnswer {
         meError?.let { throw it }
         return me
+    }
+
+    override suspend fun setAlertsEnabled(enabled: Boolean) {
+        alertCalls += enabled
+        alertsError?.let { throw it }
     }
 
     override suspend fun logout() {
@@ -97,6 +104,43 @@ class AccountViewModelTest {
         vm.refresh()
         assertEquals(api.me, vm.state.value.me)
         assertEquals(listOf(api.me), stored)
+    }
+
+    @Test
+    fun alertsSwitchIsSentAndKept() {
+        api.me = MeAnswer("u1", "Vera", "viewer", "full", alertsEnabled = null)
+        val vm = vm()
+        vm.refresh()
+        var saved = 0
+        vm.setAlerts(true) { saved++ }
+        assertEquals(listOf(true), api.alertCalls)
+        assertEquals(true, vm.state.value.me?.alertsEnabled)
+        assertFalse(vm.state.value.alertsBusy)
+        assertEquals(1, saved)
+        assertNull(vm.state.value.error)
+    }
+
+    @Test
+    fun alertsSwitchRollsBackOnFailure() {
+        api.me = MeAnswer("u1", "Vera", "viewer", "full", alertsEnabled = false)
+        val vm = vm()
+        vm.refresh()
+        api.alertsError = ApiException(ApiError.NETWORK)
+        var saved = 0
+        vm.setAlerts(true) { saved++ }
+        assertEquals(false, vm.state.value.me?.alertsEnabled)
+        assertEquals(ConnectError.NETWORK, vm.state.value.error)
+        assertFalse(vm.state.value.alertsBusy)
+        assertEquals(0, saved)
+    }
+
+    @Test
+    fun alertsSwitchNeedsTheAccount() {
+        api.meError = ApiException(ApiError.NETWORK)
+        val vm = vm()
+        vm.refresh()
+        vm.setAlerts(true)
+        assertTrue(api.alertCalls.isEmpty())
     }
 
     @Test

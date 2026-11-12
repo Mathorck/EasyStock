@@ -368,12 +368,19 @@ Open points (low-stock alerts)
   created as soon as the app runs connected, so it can be turned off before the first alert.
 * Below Android 13, a sync started by the background job has no activity, so AppCompat's in-app language may not
   apply: such a notification (and the channel name) can use the system language.
-* Guests and roles unknown to the app get none (`Action.RECEIVE_ALERTS`). Viewers: the app shows what the server
-  sends; the server filters the Viewers who did not turn alerts on (server plan, decision 9). The account screen toggle
-  (`PATCH /me` `alertsEnabled`) is not built yet.
-* Permission (Android 13+): a short explanation, then the system dialog, once after each join, for roles that get
-  alerts (not Guests). "Not now" or a denial changes nothing else: alerts are still marked as seen, so turning
-  notifications on later does not show old ones. A Guest promoted later is not asked (Android settings only).
+* Guests and roles unknown to the app get none (`Action.RECEIVE_ALERTS`). Viewers: the server filters those who did
+  not turn alerts on (server plan, decision 9).
+* Done: the alerts switch on the Account screen (`AlertsRow`, `AccountViewModel.setAlerts`, `AccountApi.setAlertsEnabled`):
+  `PATCH /me` with `{"alertsEnabled": true|false}`. Shown to every role but Guest (server plan: Guests change their
+  display name only; Admins and Editors can turn their default-on alerts off). Value: `GET /me` `alertsEnabled`, null =
+  role default (on for Admin/Editor, off for Viewer). Optimistic change, rollback plus the error dialog on failure;
+  disabled with a hint while `GET /me` has not answered (offline). Turning it on asks the system notification permission
+  after the server accepted. Assumed: the PATCH answer body is ignored (any 2xx), the field name is `alertsEnabled`.
+* Done: permission (Android 13+): a short explanation, then the system dialog, once after each join for roles that
+  get alerts, and once when a Guest is promoted to one (`alerts/AlertPermissionRule.kt`: the pref `was_guest` is set
+  while the stored role is Guest, so a promotion pulled by the background job is noticed at the next app start).
+  "Not now" or a denial changes nothing else: alerts are still marked as seen. A Viewer promoted from Guest is asked
+  too, even if they have not turned alerts on yet.
 
 Open points (push)
 
