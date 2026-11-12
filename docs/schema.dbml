@@ -125,7 +125,7 @@ Table item [headercolor: #2e7d32, note: 'Individual unit, only for articles with
   }
 }
 
-Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or deleted. Stock = SUM(quantity).'] {
+Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or deleted. Stock = SUM(quantity). One exception: sync (push answer, pull) may update only created_by and device_id of a movement already on the phone, never any other column.'] {
   id uuid [pk]
   article_id uuid [not null, ref: > article.id]
   item_id uuid [ref: > item.id, note: 'Set when tracking = serial']

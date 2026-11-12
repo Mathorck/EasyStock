@@ -159,6 +159,51 @@ class SyncDaoTest {
         assertEquals(false, dao.syncState()!!.applying)
     }
 
+    private fun withAuthor(row: JsonObject, by: String?, device: String?) = JsonObject(
+        row + mapOf("createdBy" to JsonPrimitive(by), "deviceId" to JsonPrimitive(device)),
+    )
+
+    /** The one exception to append-only: a pull updates only the author fields of a movement it has. */
+    @Test
+    fun aPullUpdatesOnlyTheAuthorOfAKnownMovement() = runBlocking {
+        val base = listOf(
+            SyncTable.LOCATION to toWire(SyncTable.LOCATION, location("l1")),
+            SyncTable.ARTICLE to toWire(SyncTable.ARTICLE, article("a1")),
+        )
+        val m = movement("m1", "a1", "l1", 1000)
+        dao.applyPull(pull(*base.toTypedArray(), SyncTable.STOCK_MOVEMENT to toWire(SyncTable.STOCK_MOVEMENT, m)), next = 1, fullPull = true, now = 1)
+        assertNull(db.backupDao().snapshot().movements.single().createdBy)
+
+        for (full in listOf(false, true)) {
+            val changed = toWire(SyncTable.STOCK_MOVEMENT, m.copy(quantityMilli = 9000, comment = "x"))
+            dao.applyPull(pull(SyncTable.STOCK_MOVEMENT to withAuthor(changed, "u1", "d1")), next = 2, fullPull = full, now = 2)
+            val kept = db.backupDao().snapshot().movements.single()
+            assertEquals(m.copy(createdBy = "u1", deviceId = "d1"), kept)
+            // Anonymized by the server: the authors are cleared
+            dao.applyPull(pull(SyncTable.STOCK_MOVEMENT to withAuthor(changed, null, null)), next = 3, fullPull = full, now = 3)
+            assertEquals(m, db.backupDao().snapshot().movements.single())
+        }
+        assertTrue(dao.outbox(100).isEmpty())
+    }
+
+    @Test
+    fun anAcceptedMovementAnswerSetsItsAuthor() = runBlocking {
+        dao.applyPull(
+            pull(
+                SyncTable.LOCATION to toWire(SyncTable.LOCATION, location("l1")),
+                SyncTable.ARTICLE to toWire(SyncTable.ARTICLE, article("a1")),
+                SyncTable.STOCK_MOVEMENT to toWire(SyncTable.STOCK_MOVEMENT, movement("m1", "a1", "l1", 1000)),
+            ),
+            next = 1, fullPull = true, now = 1,
+        )
+        val sent = PushRequest("b1", mapOf("stock_movement" to listOf(dao.wireRow(SyncTable.STOCK_MOVEMENT, "m1")!!)))
+        val stored = withAuthor(toWire(SyncTable.STOCK_MOVEMENT, movement("m1", "a1", "l1", 5000)), "u1", "d1")
+        val decisions = dao.applyPush(sent, PushAnswer(listOf(PushResult("stock_movement", "m1", PushStatus.ACCEPTED, row = stored))), now = 50)
+        assertTrue(decisions.single() is PushDecision.MovementAuthor)
+        assertEquals(movement("m1", "a1", "l1", 1000).copy(createdBy = "u1", deviceId = "d1"), db.backupDao().snapshot().movements.single())
+        assertTrue(dao.outbox(100).isEmpty())
+    }
+
     @Test
     fun replaceIsRefusedWhileConnected() = runBlocking<Unit> {
         assertTrue(db.backupDao().isConnected())

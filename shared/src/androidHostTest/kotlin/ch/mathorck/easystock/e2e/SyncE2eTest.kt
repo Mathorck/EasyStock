@@ -41,7 +41,8 @@ class SyncE2eTest {
                 b.syncOk()
                 assertSameData(a.snapshot(), b.snapshot())
                 assertEquals(6, b.db.stockActionDao().stockAt(screws.id, shelf.id) / 1000)
-                // The other phone sees who recorded the movements
+                // Both phones see who recorded the movements, the author's own phone included
+                assertEquals(setOf<String?>(fixture.alice.user.id), a.snapshot().movements.filter { it.articleId == screws.id }.map { it.createdBy }.toSet())
                 val authors = b.snapshot().movements.filter { it.articleId == screws.id }.map { it.createdBy }.toSet()
                 assertEquals(setOf<String?>(fixture.alice.user.id), authors)
 

@@ -40,6 +40,12 @@ sealed interface PushDecision {
     /** The row was changed again after it was read: keep the outbox entry, write nothing. The newer change goes in the next push. */
     data object Keep : PushDecision
 
+    /**
+     * An accepted movement came back with its stored [row]: set only its author fields (`created_by`,
+     * `device_id`, chosen by the server) on the local movement, then delete the outbox entry.
+     */
+    data class MovementAuthor(val row: JsonObject) : PushDecision
+
     /** The row no longer exists locally: forget the outbox entry. */
     data object Gone : PushDecision
 }
@@ -56,7 +62,7 @@ fun decidePush(result: PushResult, sentWithSeq: JsonObject?, current: JsonObject
     if (sent == null || current != sent) return PushDecision.Keep
     val row = result.row
     return when (result.status) {
-        PushStatus.ACCEPTED -> PushDecision.Done
+        PushStatus.ACCEPTED -> if (!row.isNullOrEmpty() && result.table == SyncTable.STOCK_MOVEMENT.tableName) PushDecision.MovementAuthor(row) else PushDecision.Done
         PushStatus.CHANGED -> when {
             result.conflict == ConflictCodes.CATEGORY_ATTRIBUTE_SKIPPED -> PushDecision.DropLocal
             result.conflict == ConflictCodes.ATTRIBUTE_MERGED && row?.rowId != null && row.rowId != result.id ->
@@ -94,7 +100,7 @@ fun seqUpdates(result: PushResult, decision: PushDecision): Map<String, Long?> {
             decision.row.rowId?.let { put(it, result.serverSeq) }
         }
         PushDecision.DropLocal, PushDecision.Gone -> mapOf(result.id to null)
-        is PushDecision.MovementKept -> emptyMap()
+        is PushDecision.MovementKept, is PushDecision.MovementAuthor -> emptyMap()
     }
 }
 

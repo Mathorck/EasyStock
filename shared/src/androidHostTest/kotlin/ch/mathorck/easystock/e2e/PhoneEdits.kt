@@ -56,12 +56,10 @@ private fun movement(articleId: String, locationId: String, milli: Long, reason:
 
 /**
  * The synced rows of a phone, comparable with another phone's: the photo file name is chosen by each
- * phone, so only its presence is kept. The author of a movement is left out: the phone that recorded it
- * never receives it (the push answers "accepted" and a pull never changes a movement already there).
+ * phone, so only its presence is kept. Everything else must match, the author of a movement too.
  */
 fun BackupData.comparable(): BackupData = copy(
     articles = articles.map { it.copy(imagePath = it.imagePath?.let { "photo" }) },
-    movements = movements.map { it.copy(createdBy = null, deviceId = null) },
 )
 
 /** Same synced rows on both phones; the message lists only the rows that differ. */

@@ -18,7 +18,7 @@ Read `README.md` first: purpose, scope, setup, data model.
 - UUID primary keys generated on the device.
 - Timestamps set by the app, always UTC.
 - Soft delete with `deleted_at`. Never hard-delete synced rows.
-- `stock_movement` is append-only: never update or delete. Stock = `SUM(quantity)`. A transfer = two rows.
+- `stock_movement` is append-only: never update or delete. One exception: sync may update only `created_by` and `device_id` of a movement the phone already has (`SyncDao.updateMovementAuthor`), never quantity or any other column. Stock = `SUM(quantity)`. A transfer = two rows.
 - `item.location_id` is a cache. The movements are the source of truth.
 - Enum-like columns are `varchar` validated in the app (SQLite has no enums).
 - `attribute_definition.key` is immutable once created.

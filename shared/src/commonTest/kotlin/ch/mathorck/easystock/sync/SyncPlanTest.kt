@@ -39,6 +39,17 @@ class SyncPlanTest {
     }
 
     @Test
+    fun anAcceptedMovementWithItsStoredRowSetsTheAuthor() {
+        val movement = row("m1", "createdBy" to "u1", "deviceId" to "d1")
+        val local = row("m1")
+        val answer = PushResult("stock_movement", "m1", PushStatus.ACCEPTED, row = movement)
+        assertEquals(PushDecision.MovementAuthor(movement), decidePush(answer, local, local))
+        // Another table's row, or no row: nothing to write
+        assertEquals(PushDecision.Done, decidePush(answer.copy(table = "article"), local, local))
+        assertEquals(PushDecision.Done, decidePush(answer.copy(row = null), local, local))
+    }
+
+    @Test
     fun changedWritesTheServerFieldsOverTheSentRow() {
         val decision = decidePush(result(PushStatus.CHANGED, buildJsonObject { put("sku", "BLT (2)") }), sent, sent)
         assertEquals(PushDecision.Write(row("r1", "name" to "Bolt", "sku" to "BLT (2)")), decision)

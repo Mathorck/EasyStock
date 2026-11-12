@@ -62,8 +62,8 @@ interface SyncStore {
     /**
      * Writes the [buffer] rows (and their `serverSeq`), users and alerts, recomputes `item.location_id` of the touched units,
      * and saves [next] as `sync_state.since` and [now] as the last sync, in one transaction.
-     * [fullPull]: the pull started from 0 (after joining or a promotion), movements may then be
-     * updated. False when `sync_state` is gone (nothing written).
+     * [fullPull]: the pull started from 0 (after joining or a promotion). A movement already on the
+     * phone only gets its author fields updated, in both cases. False when `sync_state` is gone (nothing written).
      */
     suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean
 

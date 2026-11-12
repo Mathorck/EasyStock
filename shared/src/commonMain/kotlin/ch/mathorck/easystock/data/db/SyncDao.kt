@@ -281,9 +281,16 @@ abstract class SyncDao {
     @Upsert protected abstract suspend fun upsertReview(row: StockReview)
     @Upsert protected abstract suspend fun upsertReviewLine(row: StockReviewLine)
 
-    /** Append-only: a movement already on the phone is never changed. */
+    /** Append-only: a movement already on the phone is never changed (its author fields: see [updateMovementAuthor]). */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertMovement(row: StockMovement)
+
+    /**
+     * The only update of a movement: its author fields, set (or cleared by the retention job) by the
+     * server. Never quantity or any other column.
+     */
+    @Query("UPDATE stock_movement SET created_by = :createdBy, device_id = :deviceId WHERE id = :id")
+    abstract suspend fun updateMovementAuthor(id: String, createdBy: String?, deviceId: String?)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insertAlerts(alerts: List<LowStockAlert>)
@@ -352,6 +359,10 @@ abstract class SyncDao {
                     )
                 }
                 PushDecision.Done, PushDecision.Gone -> deleteOutbox(table.tableName, result.id)
+                is PushDecision.MovementAuthor -> {
+                    applying { updateMovementAuthor(result.id, decision.row.column("created_by"), decision.row.column("device_id")) }
+                    deleteOutbox(table.tableName, result.id)
+                }
                 is PushDecision.Write -> {
                     applying { writeServerRow(table, decision.row, updateMovements = true, now = now) }
                     deleteOutbox(table.tableName, result.id)
@@ -404,8 +415,8 @@ abstract class SyncDao {
      * Writes the [buffer] (rows in table order, then users and alerts), recomputes the location of
      * the touched units, and saves [next] as the pull cursor, in one transaction. A row waiting in
      * the outbox is skipped: the local change wins until it is pushed, and the push answer brings the
-     * server's version. [fullPull]: movements already on the phone are updated (re-pull after a
-     * promotion), otherwise they are never touched. False when the phone left the server.
+     * server's version. A movement already on the phone only gets its author fields updated
+     * (`created_by`, `device_id`), whether the pull is full or not. False when the phone left the server.
      */
     @Transaction
     open suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean {
@@ -415,7 +426,7 @@ abstract class SyncDao {
             val waiting = outboxIds(table.tableName).toSet()
             val rows = buffer.rows(table).filter { it.rowId !in waiting }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
             rows.forEach { row ->
-                applying { writeServerRow(table, row, updateMovements = fullPull, now = now) }
+                applying { writeServerRow(table, row, updateMovements = false, now = now) }
                 // The version this phone now holds: the base of its next edit of the row
                 row.serverSeq?.let { setSeq(table, row.rowId!!, it) }
                 // A local row renamed to make room for an earlier row of this pull: this row is the server's
@@ -512,7 +523,12 @@ abstract class SyncDao {
             }
             SyncTable.STOCK_MOVEMENT -> {
                 val row = fromWire<StockMovement>(table, wire)
-                if (updateMovements) upsertMovement(row) else insertMovement(row)
+                if (updateMovements) {
+                    upsertMovement(row)
+                } else {
+                    insertMovement(row)
+                    updateMovementAuthor(row.id, row.createdBy, row.deviceId)
+                }
             }
             SyncTable.STOCK_REVIEW -> upsertReview(fromWire(table, wire))
             SyncTable.STOCK_REVIEW_LINE -> upsertReviewLine(fromWire(table, wire))
