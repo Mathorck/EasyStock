@@ -317,10 +317,21 @@ Open points (sync engine)
   works too.
 * A new row the server rejects without a server version stays on this phone only (never synced, still in the
   rejected list). The user decides: delete it, or change it so it is sent again.
-* `MOVEMENT_KEPT`: the server must send its kept movement back in `row`. The app then overwrites the local movement
-  with the same id: the only case where the app changes a movement (an exception to the append-only rule, to
-  confirm: the local one was never accepted, so it is not a synced row). Without `row`, the phone keeps its own
-  version, out of sync until the next full pull.
+* Done: `MOVEMENT_KEPT` lets the user choose (`sync/MovementKept.kt`, `composables/server/MovementKeptRow.kt`). The
+  server must send its kept movement back in `row` (status `changed`, table `stock_movement`). The app writes the
+  server's movement over the local one with the same id, so the stock matches the server: the only case where the
+  app changes a movement (the local one was never accepted, so it is not a synced row). The phone's version is kept
+  in a `rejected_change` row, its wire row stored in `reason` as `movement-kept:<json>` (no schema change). The entry
+  stays in "Changes not accepted" until the user picks:
+  * "Use the server's version": the entry is removed, nothing else changes.
+  * "Keep mine": the phone's quantity, article, location, reason and comment are added as a new movement (new id,
+    `occurred_at` and `created_at` = now), pushed at the next sync. The server's movement stays (append-only).
+    Offered only to roles with stock actions (Admin, Editor), and only when the rules of a stock action allow it
+    now: not for a serial unit (the unit could be in two places) nor one half of a transfer, not when the article
+    is deleted, an entry to a deleted location, or a removal larger than the stock now. To decide: offer it for
+    units and transfers too.
+  Without `row`, the phone keeps its own version, out of sync until the next full pull. The shared merge test case
+  `docs/test-cases/merge/movement-is-never-changed.json` is unchanged (it tests the server merge, not this choice).
 * A pulled row whose parent is still missing after the last page fails the cycle (error SERVER); the cursor does not
   move, the next cycle tries again. Pages are kept in memory until their parents arrive.
 * The 426 pause lasts until the app restarts or joins another server. The Account screen shows "update the app".

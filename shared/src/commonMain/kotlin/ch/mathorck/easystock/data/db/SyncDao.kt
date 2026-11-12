@@ -27,6 +27,9 @@ import ch.mathorck.easystock.data.model.StockReview
 import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.data.model.SyncState
 import ch.mathorck.easystock.images.newImagePath
+import ch.mathorck.easystock.sync.KeepMineBlock
+import ch.mathorck.easystock.sync.MovementKept
+import ch.mathorck.easystock.sync.MovementKeptDetails
 import ch.mathorck.easystock.sync.PullBuffer
 import ch.mathorck.easystock.sync.PushAnswer
 import ch.mathorck.easystock.sync.PushDecision
@@ -34,7 +37,10 @@ import ch.mathorck.easystock.sync.PushRequest
 import ch.mathorck.easystock.sync.PushStatus
 import ch.mathorck.easystock.sync.SyncTable
 import ch.mathorck.easystock.sync.decidePush
+import ch.mathorck.easystock.sync.column
 import ch.mathorck.easystock.sync.fromWire
+import ch.mathorck.easystock.sync.keepMineBlock
+import ch.mathorck.easystock.sync.keepMineMovement
 import ch.mathorck.easystock.sync.imageSha256
 import ch.mathorck.easystock.sync.rowId
 import ch.mathorck.easystock.sync.suffixedValue
@@ -318,6 +324,23 @@ abstract class SyncDao {
                     hardDeleteLink(result.id)
                     deleteOutbox(table.tableName, result.id)
                 }
+                is PushDecision.MovementKept -> {
+                    applying {
+                        writeServerRow(table, decision.server, updateMovements = true, now = now)
+                        listOfNotNull(decision.server.column("item_id"), decision.phone.column("item_id")).distinct()
+                            .takeIf { it.isNotEmpty() }?.let { recomputeItemLocations(it) }
+                    }
+                    deleteOutbox(table.tableName, result.id)
+                    insertRejectedChange(
+                        RejectedChange(
+                            id = Uuid.random().toString(),
+                            tableName = table.tableName,
+                            rowId = result.id,
+                            reason = MovementKept.reasonOf(decision.phone),
+                            rejectedAt = now,
+                        ),
+                    )
+                }
             }
             if (result.status == PushStatus.REJECTED && decision != PushDecision.Keep) {
                 insertRejectedChange(
@@ -485,6 +508,66 @@ abstract class SyncDao {
         }
         hardDeleteAttribute(localId)
         deleteOutbox(SyncTable.ATTRIBUTE_DEFINITION.tableName, localId)
+    }
+
+    // ---------- Movement kept by the server (sync/MovementKept) ----------
+
+    @Query("SELECT * FROM rejected_change WHERE id = :id")
+    protected abstract suspend fun rejectedChange(id: String): RejectedChange?
+
+    @Query("SELECT COUNT(*) > 0 FROM article WHERE id = :id AND deleted_at IS NULL")
+    protected abstract suspend fun isArticleActive(id: String): Boolean
+
+    @Query("SELECT COUNT(*) > 0 FROM location WHERE id = :id AND deleted_at IS NULL")
+    protected abstract suspend fun isLocationActive(id: String): Boolean
+
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM stock_movement WHERE article_id = :articleId AND location_id = :locationId")
+    protected abstract suspend fun stockAt(articleId: String, locationId: String): Long
+
+    @Insert
+    protected abstract suspend fun insertLocalMovement(row: StockMovement)
+
+    /** Both versions of a `movement-kept` change, and why "Keep mine" is not offered. Null for another change. */
+    @Transaction
+    open suspend fun movementKeptDetails(changeId: String, canStockAction: Boolean): MovementKeptDetails? {
+        val change = rejectedChange(changeId) ?: return null
+        val phone = MovementKept.phoneMovementOf(change.reason) ?: return null
+        val block = keepMineBlock(
+            phone,
+            canStockAction,
+            articleActive = isArticleActive(phone.articleId),
+            locationActive = isLocationActive(phone.locationId),
+            stockAtLocation = stockAt(phone.articleId, phone.locationId),
+        )
+        return MovementKeptDetails(phone, movement(change.rowId), block)
+    }
+
+    /**
+     * "Use the server's version": the local movement already is the server's (written with the
+     * answer), so only the choice is forgotten. False when the phone left the server.
+     */
+    @Transaction
+    open suspend fun useServerMovement(changeId: String): Boolean {
+        if (syncState() == null) return false
+        dismissRejectedChange(changeId)
+        return true
+    }
+
+    /**
+     * "Keep mine": adds the phone's movement again as a new movement [newId] dated [now], with
+     * `applying` off so it is pushed, and forgets the choice. The server's movement stays: movements
+     * are append-only. Returns null when done, otherwise why not (nothing written then).
+     */
+    @Transaction
+    open suspend fun keepMyMovement(changeId: String, newId: String, canStockAction: Boolean, now: Long): KeepMineBlock? {
+        if (syncState() == null) return KeepMineBlock.INVALID
+        val details = movementKeptDetails(changeId, canStockAction) ?: return KeepMineBlock.INVALID
+        details.keepMineBlock?.let { return it }
+        val movement = keepMineMovement(details.phone, newId, now)
+        insertLocalMovement(movement)
+        movement.itemId?.let { applying { recomputeItemLocations(listOf(it)) } }
+        dismissRejectedChange(changeId)
+        return null
     }
 
     companion object {

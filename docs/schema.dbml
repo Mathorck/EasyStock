@@ -240,7 +240,7 @@ Table rejected_change [headercolor: #455a64, note: 'App only. A local change the
   id uuid [pk]
   table_name varchar(40) [not null]
   row_id uuid [not null]
-  reason varchar(30) [not null, note: 'Reason code given by the server (forbidden | conflict | invalid ...)']
+  reason text [not null, note: 'Reason code given by the server (not-allowed | conflict | invalid ...). For a movement the server kept (MOVEMENT_KEPT): `movement-kept:` followed by the movement of the phone as a wire row (JSON), until the user chooses. Always TEXT in SQLite: no DB version change']
   rejected_at timestamp [not null]
   seen_at timestamp [note: 'When the user saw it in the list. Null = counted in the Settings badge']
 }

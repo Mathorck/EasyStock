@@ -88,6 +88,10 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
             when (decision) {
                 is PushDecision.Write -> rows.getValue(table)[result.id] = decision.row
                 PushDecision.DropLocal -> rows.getValue(table).remove(result.id)
+                is PushDecision.MovementKept -> {
+                    rows.getValue(table)[result.id] = decision.server
+                    rejected += result
+                }
                 else -> Unit
             }
             if (decision != PushDecision.Keep) outbox.removeAll { it.tableName == result.table && it.rowId == result.id }

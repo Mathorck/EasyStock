@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Réglages › Serveur › Modifications non acceptées : le serveur a gardé son mouvement (MOVEMENT_KEPT) -->
+    <string name="movement_kept_reason">Le serveur avait déjà ce mouvement avec d’autres valeurs et a gardé le sien. Votre stock affiche la version du serveur jusqu’à votre choix.</string>
+    <string name="movement_kept_server">Serveur : %1$s · %2$s</string>
+    <string name="movement_kept_phone">Ce téléphone : %1$s · %2$s</string>
+    <string name="movement_kept_use_server">Utiliser la version du serveur</string>
+    <string name="movement_kept_keep_mine">Garder la mienne</string>
+    <string name="movement_kept_keep_mine_hint">Garder la mienne ajoute à nouveau votre quantité dans un nouveau mouvement, daté de maintenant.</string>
+    <string name="movement_kept_blocked_serial">Garder la mienne n’est pas possible pour le mouvement d’une unité.</string>
+    <string name="movement_kept_blocked_transfer">Garder la mienne n’est pas possible pour une moitié de transfert.</string>
+    <string name="movement_kept_blocked_article_gone">Garder la mienne n’est pas possible : l’article a été supprimé.</string>
+    <string name="movement_kept_blocked_location_gone">Garder la mienne n’est pas possible : l’emplacement a été supprimé.</string>
+    <string name="movement_kept_blocked_not_enough_stock">Garder la mienne n’est pas possible : le stock à cet emplacement est insuffisant.</string>
+    <string name="movement_kept_blocked_invalid">Garder la mienne n’est pas possible pour ce mouvement.</string>
+</resources>
