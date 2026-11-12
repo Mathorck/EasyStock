@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Server › Changes not accepted: someone else changed the row first (conflict, first change wins) -->
+    <string name="row_conflict_reason">Someone else changed this on another phone before your change arrived. This phone now shows their version until you choose.</string>
+    <string name="row_conflict_keep_theirs">Keep theirs</string>
+    <string name="row_conflict_keep_mine">Keep mine</string>
+    <string name="row_conflict_keep_mine_hint">Keep mine sends your version again and replaces theirs.</string>
+    <string name="row_conflict_blocked_gone">Keep mine is not possible: this no longer exists on this phone.</string>
+    <string name="row_conflict_blocked_taken">Keep mine is not possible: a name, SKU, tag or serial number of your version is now used by something else.</string>
+    <string name="row_conflict_blocked_invalid">Keep mine is not possible for this change.</string>
+</resources>

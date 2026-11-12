@@ -41,7 +41,9 @@ enum class PushStatus {
 
 /**
  * The answer for one pushed row. [row]: the fields the server changed ([PushStatus.CHANGED]) or its
- * current version ([PushStatus.REJECTED], empty or absent when it has none).
+ * current version ([PushStatus.REJECTED], empty or absent when it has none). [serverSeq]: the row's
+ * `server_seq` on the server after this push (the server row's for a rejected row), null when the server
+ * has no such row: the next `baseSeq` of this row.
  */
 @Serializable
 data class PushResult(
@@ -51,7 +53,11 @@ data class PushResult(
     val conflict: String? = null,
     val reason: String? = null,
     val row: JsonObject? = null,
+    val serverSeq: Long? = null,
 )
+
+/** Reason of a stale edit (first change wins): `row` is the whole server row, `serverSeq` its seq. */
+const val CONFLICT_REASON = "conflict"
 
 @Serializable
 data class PushAnswer(val results: List<PushResult> = emptyList())

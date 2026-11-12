@@ -51,6 +51,12 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
     val missing = mutableListOf<ImageHash>()
     val saved = mutableMapOf<String, ByteArray>()
     var pullApplies = 0
+    val seqs = mutableMapOf<Pair<SyncTable, String>, Long>()
+
+    private fun setSeq(table: SyncTable, id: String, seq: Long?) {
+        if (!table.hasServerSeq) return
+        if (seq == null) seqs.remove(table to id) else seqs[table to id] = seq
+    }
 
     fun put(table: SyncTable, row: JsonObject, queue: Boolean = true) {
         rows.getValue(table)[row.rowId!!] = row
@@ -77,6 +83,7 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
         outbox.sortedBy { e -> SyncTable.of(e.tableName)!!.ordinal }.take(limit)
     override suspend fun wireRow(table: SyncTable, id: String, hashNewImages: Boolean) = rows.getValue(table)[id]
     override suspend fun imageBytes(sha256: String) = images[sha256]
+    override suspend fun serverSeq(table: SyncTable, id: String) = if (table.hasServerSeq) seqs[table to id] else null
 
     override suspend fun applyPush(sent: PushRequest, answer: PushAnswer, now: Long): List<PushDecision> {
         pending = null
@@ -92,8 +99,10 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
                     rows.getValue(table)[result.id] = decision.server
                     rejected += result
                 }
+                is PushDecision.Conflict -> rows.getValue(table)[result.id] = decision.server
                 else -> Unit
             }
+            seqUpdates(result, decision).forEach { (id, seq) -> setSeq(table, id, seq) }
             if (decision != PushDecision.Keep) outbox.removeAll { it.tableName == result.table && it.rowId == result.id }
             decision
         }
@@ -103,7 +112,13 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
 
     override suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean {
         val current = state ?: return false
-        SyncTable.entries.forEach { table -> buffer.rows(table).forEach { rows.getValue(table)[it.rowId!!] = it } }
+        SyncTable.entries.forEach { table ->
+            buffer.rows(table).forEach { row ->
+                // The real store reads the row through the entity: serverSeq is not a column
+                rows.getValue(table)[row.rowId!!] = JsonObject(row - WireFields.SERVER_SEQ)
+                row.serverSeq?.let { setSeq(table, row.rowId!!, it) }
+            }
+        }
         buffer.users.values.forEach { users[it.id] = it.displayName }
         state = current.copy(since = next, lastSyncAt = now)
         pullApplies++
@@ -121,6 +136,7 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
         rejected.clear()
         images.clear()
         missing.clear()
+        seqs.clear()
         state = current.copy(since = 0)
         wipes++
         return true
@@ -295,6 +311,91 @@ class SyncEngineTest {
         assertEquals(JsonPrimitive("New"), articles["a3"]!!["name"])
         assertEquals(listOf("a2", "a3"), store.rejected.map { it.id })
         assertTrue(store.outbox.isEmpty())
+    }
+
+    @Test
+    fun aPullStoresEachRowsServerSeqButNotForMovements() = runTest {
+        val store = FakeSyncStore(state(since = 0))
+        val page = """{"rows":{
+            "category":[{"id":"c1","name":"Bolts","serverSeq":11}],
+            "stock_movement":[{"id":"m1","articleId":"a1","serverSeq":12}]
+        },"next":12,"hasMore":false}"""
+        val engine = engine(store) { request -> if (request.path == "sync/pull") ok(page) else defaults(request) }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(11L, store.serverSeq(SyncTable.CATEGORY, "c1"))
+        assertNull(store.serverSeq(SyncTable.STOCK_MOVEMENT, "m1"))
+        assertNull(store.rows.getValue(SyncTable.CATEGORY)["c1"]!![WireFields.SERVER_SEQ])
+    }
+
+    @Test
+    fun editsAndDeletesSendBaseSeqNewRowsAndMovementsDont() = runTest {
+        val store = FakeSyncStore(state())
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts (edited)"))
+        store.put(SyncTable.CATEGORY, row("c2", "name" to "New"))
+        store.put(SyncTable.ARTICLE, row("a1", "sku" to "BLT", "deletedAt" to 900, "imageSha256" to null))
+        store.put(SyncTable.STOCK_MOVEMENT, row("m1", "articleId" to "a1"))
+        store.seqs[SyncTable.CATEGORY to "c1"] = 5
+        store.seqs[SyncTable.ARTICLE to "a1"] = 6
+        store.seqs[SyncTable.STOCK_MOVEMENT to "m1"] = 7
+        // Two triggers fired for c1: it is still sent once
+        store.outbox += OutboxEntry(SyncTable.CATEGORY.tableName, "c1", 2)
+        val engine = engine(store) { defaults(it) }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        val sent = decodePush(seen.single { it.path == "sync/push" }.body).rows
+        assertEquals(listOf("c1", "c2"), sent.getValue("category").map { it.rowId })
+        val c1 = sent.getValue("category")[0]
+        assertEquals(JsonPrimitive(5L), c1[WireFields.BASE_SEQ])
+        assertTrue(WireFields.BASE_SEQ !in sent.getValue("category")[1])
+        assertEquals(JsonPrimitive(6L), sent.getValue("article").single()[WireFields.BASE_SEQ])
+        assertTrue(WireFields.BASE_SEQ !in sent.getValue("stock_movement").single())
+    }
+
+    @Test
+    fun thePushResultsServerSeqBecomesTheStoredSeq() = runTest {
+        val store = FakeSyncStore(state())
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        store.put(SyncTable.CATEGORY, row("c2", "name" to "Nuts"))
+        store.put(SyncTable.CATEGORY, row("c3", "name" to "Old"))
+        store.seqs[SyncTable.CATEGORY to "c1"] = 5
+        store.seqs[SyncTable.CATEGORY to "c3"] = 6
+        val answer = """{"results":[
+            {"table":"category","id":"c1","status":"accepted","serverSeq":40},
+            {"table":"category","id":"c2","status":"changed","row":{"name":"Nuts (2)"},"serverSeq":41},
+            {"table":"category","id":"c3","status":"rejected","reason":"not-allowed","row":{"id":"c3","name":"Server"},"serverSeq":30}
+        ]}"""
+        val engine = engine(store) { defaults(it, answer) }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(40L, store.serverSeq(SyncTable.CATEGORY, "c1"))
+        assertEquals(41L, store.serverSeq(SyncTable.CATEGORY, "c2"))
+        assertEquals(30L, store.serverSeq(SyncTable.CATEGORY, "c3"))
+    }
+
+    @Test
+    fun aConflictKeepsTheirsAndKeepMineIsSentOnTheirSeq() = runTest {
+        val store = FakeSyncStore(state())
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Mine"))
+        store.seqs[SyncTable.CATEGORY to "c1"] = 5
+        var answer = """{"results":[
+            {"table":"category","id":"c1","status":"rejected","reason":"conflict","row":{"id":"c1","name":"Theirs"},"serverSeq":9}
+        ]}"""
+        val engine = engine(store) { defaults(it, answer) }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        // Keep theirs (the default): the server row and its seq
+        assertEquals(JsonPrimitive("Theirs"), store.rows.getValue(SyncTable.CATEGORY)["c1"]!!["name"])
+        assertEquals(9L, store.serverSeq(SyncTable.CATEGORY, "c1"))
+        assertEquals(listOf("c1"), store.rejected.map { it.id })
+        assertTrue(store.outbox.isEmpty())
+
+        // Keep mine (SyncDao.keepMyRow): the phone's row again, sent on the server's seq
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Mine"))
+        answer = """{"results":[{"table":"category","id":"c1","status":"accepted","serverSeq":10}]}"""
+        assertEquals(SyncResult.DONE, engine.sync())
+        val again = decodePush(seen.filter { it.path == "sync/push" }.last().body).rows.getValue("category").single()
+        assertEquals(JsonPrimitive(9L), again[WireFields.BASE_SEQ])
+        assertEquals(JsonPrimitive("Mine"), again["name"])
+        assertEquals(10L, store.serverSeq(SyncTable.CATEGORY, "c1"))
     }
 
     @Test

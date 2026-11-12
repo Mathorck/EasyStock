@@ -29,8 +29,23 @@ val MIGRATION_8_9: Migration = object : Migration(8, 9) {
     }
 }
 
+/**
+ * v10 to v11: the app-only table `server_seq` (first change wins: the `baseSeq` of each pushed edit).
+ * Manual because it also changes data: a connected phone has no seq for the rows it already holds,
+ * so `sync_state.since` goes back to 0 and the next cycle pulls everything again, which stores the seq
+ * of every row. Standalone phones have no `sync_state` row: nothing changes for them.
+ */
+val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `server_seq` (`table_name` TEXT NOT NULL, `row_id` TEXT NOT NULL, `seq` INTEGER NOT NULL, PRIMARY KEY(`table_name`, `row_id`))",
+        )
+        connection.execSQL("UPDATE sync_state SET since = 0")
+    }
+}
+
 /** Manual migrations, added to every database builder (app and tests). */
-val MANUAL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_8_9)
+val MANUAL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_8_9, MIGRATION_10_11)
 
 /** Creates the outbox triggers on a fresh install, and on every open (a no-op when they exist). */
 object OutboxTriggersCallback : RoomDatabase.Callback() {

@@ -115,12 +115,22 @@ Sync engine
 * One `SyncEngine` class in `commonMain` runs one cycle at a time, protected by a mutex.
 * A cycle is: refresh the token if needed, push, pull, apply, then check for new alerts.
 * Push reads up to 500 outbox rows, loads each row's current content, and sends them with a random batch ID.
+  Each row is sent at most once per batch (two outbox entries for one row give one wire row).
+* First change wins: each edit or soft delete carries `"baseSeq": <seq>` (a JSON integer), the server seq of the
+  server version this phone last saw, kept in the app-only table `server_seq` (v11). A new row (no seq known) and
+  every movement are sent without `baseSeq`. The seq comes from the pull (`serverSeq` of each row) and from each
+  push result's `serverSeq` (accepted, changed, or the server's version written after a rejection).
 * Rows are sent in dependency order: categories and attributes, then locations, articles, items, movements, reviews.
 * For each row the server accepts, the app deletes it from the outbox.
 * For each row the server changed (for example a renamed SKU), the app writes the server's version with `applying` on.
 * For each row the server rejected, the app writes the server's version if there is one, and adds a `rejected_change` row.
+* A rejected row with reason `conflict` (another phone changed it first) keeps theirs by default: the app writes the
+  server's row and its `serverSeq`, and keeps the phone's version in the `rejected_change` row
+  (`conflict:{"seq":S,"row":<phone wire row>}`, `sync/RowConflict.kt`) until the user chooses.
 * If the push fails on the network, the outbox stays as it is and the next cycle sends the same batch ID again.
 * Pull asks for rows since `sync_state.since`, writes them with `applying` on, and saves the new `since` value in the same transaction.
+  Each written row's `serverSeq` is stored in `server_seq`. A row still waiting in the outbox is not overwritten and
+  keeps its old seq, so its push is checked against the version the user edited.
 * Pull continues page by page while the server says more rows are waiting.
 * After applying rows, the app recomputes the `item.location_id` cache for the items whose movements changed.
 * Movements received from the server are inserted, never updated, except during the full re-pull after a promotion.
@@ -187,6 +197,12 @@ Rejected changes screen
 * Each entry shows what was changed, when, and the reason in plain words (no right, conflict, invalid value).
 * A badge on the Settings tab shows the number of entries not yet seen.
 * Entries can be dismissed one by one.
+* A `conflict` entry (first change wins, `composables/server/RowConflictRow.kt`) offers "Keep theirs" (the entry is
+  removed; the server's version is already on the phone) and "Keep mine": the phone's version is written again as a
+  local change (`updatedAt` = now), queued, and pushed with `baseSeq` = the seq of the conflict answer, so it wins
+  unless the row changed again meanwhile (then a new conflict). "Keep mine" is offered only to roles that push
+  (`Action.PUSH_CHANGES`: Admin, Editor), while the row is still on the phone, and while no other row holds one of its unique
+  values (category name, attribute key, link pair, SKU, NFC tag, serial number).
 
 Account screen
 
@@ -311,8 +327,15 @@ Open points (sync engine)
   "Reset all data" in app info deletes them.
 * A phone connected before this feature has `since > 0` and no epoch: it takes the first epoch the server sends,
   so a replace done before the app update is not detected (server mode is not released yet).
-* The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
-  `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
+* The rejected reason codes are: `not-allowed`, `invalid`, `missing-reference`, `review-open`, `conflict`; an
+  unknown code is shown as is.
+* Done: first change wins (`baseSeq`). Migration choice: `Migration(10, 11)` creates `server_seq` empty and sets
+  `sync_state.since = 0`, so a connected phone pulls everything once at its next sync and gets every seq (no seq is
+  guessed). Standalone installs have no `sync_state` row and are unchanged. Trade-off: a row edited before the update
+  and not sent yet is pushed first (push comes before pull) without `baseSeq`; if the server version differs it
+  comes back as one `conflict`, solved with "Keep mine" (server mode is not released yet).
+* The pulled rows of an outbox row keep the old seq on purpose: taking the new seq would let the phone's next push
+  overwrite another phone's change without a conflict.
 * A "changed" answer's `row` is read as partial (only the changed fields), and laid over the sent row. A full row
   works too.
 * A new row the server rejects without a server version stays on this phone only (never synced, still in the

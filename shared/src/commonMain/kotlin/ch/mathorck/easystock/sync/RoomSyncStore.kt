@@ -53,6 +53,9 @@ class RoomSyncStore(private val db: AppDatabase, private val files: SyncImageFil
         return dao.wireRow(table, id)
     }
 
+    override suspend fun serverSeq(table: SyncTable, id: String): Long? =
+        if (table.hasServerSeq) dao.serverSeq(table.tableName, id) else null
+
     override suspend fun imageBytes(sha256: String): ByteArray? =
         dao.pathsOf(sha256).firstNotNullOfOrNull { path -> if (isValidImagePath(path)) files.read(path) else null }
 

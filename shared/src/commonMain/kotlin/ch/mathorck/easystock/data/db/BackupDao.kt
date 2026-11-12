@@ -76,6 +76,7 @@ abstract class BackupDao {
     @Query("DELETE FROM rejected_change") protected abstract suspend fun deleteRejectedChanges()
     @Query("DELETE FROM image_hash") protected abstract suspend fun deleteImageHashes()
     @Query("DELETE FROM pending_push") protected abstract suspend fun deletePendingPush()
+    @Query("DELETE FROM server_seq") protected abstract suspend fun deleteServerSeqs()
     @Query("UPDATE sync_state SET applying = :applying") protected abstract suspend fun setApplying(applying: Boolean)
     @Query("SELECT EXISTS(SELECT 1 FROM sync_state)") abstract suspend fun isConnected(): Boolean
 
@@ -123,7 +124,7 @@ abstract class BackupDao {
 
     /**
      * [wipeAll] plus the server mode tables (`sync_state`, `outbox`, `server_user`, `low_stock_alert`,
-     * `rejected_change`, `image_hash`, `pending_push`): the phone is as after a fresh install. For the reset of all data.
+     * `rejected_change`, `image_hash`, `pending_push`, `server_seq`): the phone is as after a fresh install. For the reset of all data.
      */
     @Transaction
     open suspend fun wipeEverything() {
@@ -135,6 +136,7 @@ abstract class BackupDao {
         deleteRejectedChanges()
         deleteImageHashes()
         deletePendingPush()
+        deleteServerSeqs()
         wipeAll()
     }
 
@@ -160,6 +162,7 @@ abstract class BackupDao {
         deleteRejectedChanges()
         deleteImageHashes()
         deletePendingPush()
+        deleteServerSeqs()
         // Last: nothing written above may queue a change
         deleteOutbox()
         resetSince()

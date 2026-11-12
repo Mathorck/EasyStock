@@ -40,12 +40,19 @@ interface SyncStore {
      */
     suspend fun wireRow(table: SyncTable, id: String, hashNewImages: Boolean): JsonObject?
 
+    /**
+     * The `server_seq` of the server version of the row this phone holds or edited, sent as `baseSeq`
+     * (first change wins). Null when the server never had the row, and for movements.
+     */
+    suspend fun serverSeq(table: SyncTable, id: String): Long?
+
     /** The content of a photo with this hash, null when no such file is on the phone. */
     suspend fun imageBytes(sha256: String): ByteArray?
 
     /**
      * Writes the server's [answer] to the push [sent]: deletes, writes and rejected changes as
-     * [decidePush] says, then forgets the pending push, in one transaction. Returns the decisions.
+     * [decidePush] says, the `server_seq` of each row as [seqUpdates] says, then forgets the pending
+     * push, in one transaction. Returns the decisions.
      */
     suspend fun applyPush(sent: PushRequest, answer: PushAnswer, now: Long): List<PushDecision>
 
@@ -53,7 +60,7 @@ interface SyncStore {
     suspend fun existingIds(table: SyncTable, ids: Set<String>): Set<String>
 
     /**
-     * Writes the [buffer] rows, users and alerts, recomputes `item.location_id` of the touched units,
+     * Writes the [buffer] rows (and their `serverSeq`), users and alerts, recomputes `item.location_id` of the touched units,
      * and saves [next] as `sync_state.since` and [now] as the last sync, in one transaction.
      * [fullPull]: the pull started from 0 (after joining or a promotion), movements may then be
      * updated. False when `sync_state` is gone (nothing written).

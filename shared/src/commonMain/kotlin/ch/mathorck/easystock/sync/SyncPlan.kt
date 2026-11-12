@@ -29,6 +29,14 @@ sealed interface PushDecision {
      */
     data class MovementKept(val server: JsonObject, val phone: JsonObject) : PushDecision
 
+    /**
+     * A stale edit (reason `conflict`, first change wins): another phone changed the row first. Write
+     * [server] (keep theirs, the default) and record the phone's version [phone] with the server's [seq]
+     * in a `rejected_change`, until the user chooses (sync/RowConflict): "Keep mine" sends [phone] again
+     * with `baseSeq` = [seq].
+     */
+    data class Conflict(val server: JsonObject, val phone: JsonObject, val seq: Long) : PushDecision
+
     /** The row was changed again after it was read: keep the outbox entry, write nothing. The newer change goes in the next push. */
     data object Keep : PushDecision
 
@@ -41,8 +49,10 @@ sealed interface PushDecision {
  * read in the same transaction as the writes). A local change made after the row was read is never
  * overwritten: the outbox keeps the time of the first change only, so the content is compared.
  */
-fun decidePush(result: PushResult, sent: JsonObject?, current: JsonObject?): PushDecision {
+fun decidePush(result: PushResult, sentWithSeq: JsonObject?, current: JsonObject?): PushDecision {
     if (current == null) return PushDecision.Gone
+    // The `baseSeq` is not row content: [current] never has one
+    val sent = sentWithSeq?.withoutBaseSeq()
     if (sent == null || current != sent) return PushDecision.Keep
     val row = result.row
     return when (result.status) {
@@ -57,7 +67,34 @@ fun decidePush(result: PushResult, sent: JsonObject?, current: JsonObject?): Pus
             else -> PushDecision.Write(sent.overlay(row))
         }
         // The server's version when it has one; a new row it refused stays on this phone only
-        PushStatus.REJECTED -> if (row.isNullOrEmpty()) PushDecision.Done else PushDecision.Write(current.overlay(row))
+        PushStatus.REJECTED -> when {
+            row.isNullOrEmpty() -> PushDecision.Done
+            result.reason == CONFLICT_REASON && result.serverSeq != null && SyncTable.of(result.table)?.hasServerSeq == true ->
+                PushDecision.Conflict(current.overlay(row), sent, result.serverSeq)
+            else -> PushDecision.Write(current.overlay(row))
+        }
+    }
+}
+
+/**
+ * The `server_seq` values to store once [decision] was applied for [result]: row id to seq, null to
+ * forget it. Empty for the tables without a seq (movements). The seq of a result is the server row's,
+ * so it goes with the row the phone now holds (the server's id after `ATTRIBUTE_MERGED`).
+ */
+fun seqUpdates(result: PushResult, decision: PushDecision): Map<String, Long?> {
+    if (SyncTable.of(result.table)?.hasServerSeq != true) return emptyMap()
+    return when (decision) {
+        PushDecision.Done, is PushDecision.Write -> mapOf(result.id to result.serverSeq)
+        is PushDecision.Conflict -> mapOf(result.id to decision.seq)
+        // The server took the sent version: the newer local change is based on it. A rejected row is not
+        // (a stale edit then conflicts again at the next push)
+        PushDecision.Keep -> if (result.status != PushStatus.REJECTED && result.serverSeq != null) mapOf(result.id to result.serverSeq) else emptyMap()
+        is PushDecision.MergeAttribute -> buildMap {
+            put(decision.fromId, null)
+            decision.row.rowId?.let { put(it, result.serverSeq) }
+        }
+        PushDecision.DropLocal, PushDecision.Gone -> mapOf(result.id to null)
+        is PushDecision.MovementKept -> emptyMap()
     }
 }
 

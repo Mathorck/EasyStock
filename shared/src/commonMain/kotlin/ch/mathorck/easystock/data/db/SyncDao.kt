@@ -35,6 +35,8 @@ import ch.mathorck.easystock.sync.PushAnswer
 import ch.mathorck.easystock.sync.PushDecision
 import ch.mathorck.easystock.sync.PushRequest
 import ch.mathorck.easystock.sync.PushStatus
+import ch.mathorck.easystock.sync.RowConflict
+import ch.mathorck.easystock.sync.RowKeepMineBlock
 import ch.mathorck.easystock.sync.SyncTable
 import ch.mathorck.easystock.sync.decidePush
 import ch.mathorck.easystock.sync.column
@@ -42,7 +44,10 @@ import ch.mathorck.easystock.sync.fromWire
 import ch.mathorck.easystock.sync.keepMineBlock
 import ch.mathorck.easystock.sync.keepMineMovement
 import ch.mathorck.easystock.sync.imageSha256
+import ch.mathorck.easystock.sync.hasServerSeq
 import ch.mathorck.easystock.sync.rowId
+import ch.mathorck.easystock.sync.seqUpdates
+import ch.mathorck.easystock.sync.serverSeq
 import ch.mathorck.easystock.sync.suffixedValue
 import ch.mathorck.easystock.sync.toWire
 import kotlin.uuid.ExperimentalUuidApi
@@ -116,6 +121,27 @@ abstract class SyncDao {
 
     @Query("DELETE FROM outbox WHERE table_name = :table AND row_id = :id")
     protected abstract suspend fun deleteOutbox(table: String, id: String)
+
+    /** Queues a row as a local change, keeping the time of an earlier waiting change. */
+    @Query("INSERT OR IGNORE INTO outbox (table_name, row_id, changed_at) VALUES (:table, :id, :now)")
+    protected abstract suspend fun queueOutbox(table: String, id: String, now: Long)
+
+    // ---------- Server seq (first change wins) ----------
+
+    /** The `server_seq` of the server version of the row, null when the server never had it (or for a movement). */
+    @Query("SELECT seq FROM server_seq WHERE table_name = :table AND row_id = :id")
+    abstract suspend fun serverSeq(table: String, id: String): Long?
+
+    @Query("INSERT OR REPLACE INTO server_seq (table_name, row_id, seq) VALUES (:table, :id, :seq)")
+    protected abstract suspend fun saveSeq(table: String, id: String, seq: Long)
+
+    @Query("DELETE FROM server_seq WHERE table_name = :table AND row_id = :id")
+    protected abstract suspend fun deleteSeq(table: String, id: String)
+
+    private suspend fun setSeq(table: SyncTable, id: String, seq: Long?) {
+        if (!table.hasServerSeq) return
+        if (seq == null) deleteSeq(table.tableName, id) else saveSeq(table.tableName, id, seq)
+    }
 
     // ---------- Rejected changes ----------
 
@@ -311,6 +337,20 @@ abstract class SyncDao {
             val decision = decidePush(result, sentRow, wireRow(table, result.id))
             when (decision) {
                 PushDecision.Keep -> Unit
+                is PushDecision.Conflict -> {
+                    // Keep theirs until the user chooses: the server's row, with its seq (below)
+                    applying { writeServerRow(table, decision.server, updateMovements = true, now = now) }
+                    deleteOutbox(table.tableName, result.id)
+                    insertRejectedChange(
+                        RejectedChange(
+                            id = Uuid.random().toString(),
+                            tableName = table.tableName,
+                            rowId = result.id,
+                            reason = RowConflict.reasonOf(decision.phone, decision.seq),
+                            rejectedAt = now,
+                        ),
+                    )
+                }
                 PushDecision.Done, PushDecision.Gone -> deleteOutbox(table.tableName, result.id)
                 is PushDecision.Write -> {
                     applying { writeServerRow(table, decision.row, updateMovements = true, now = now) }
@@ -342,7 +382,8 @@ abstract class SyncDao {
                     )
                 }
             }
-            if (result.status == PushStatus.REJECTED && decision != PushDecision.Keep) {
+            seqUpdates(result, decision).forEach { (id, seq) -> setSeq(table, id, seq) }
+            if (result.status == PushStatus.REJECTED && decision != PushDecision.Keep && decision !is PushDecision.Conflict) {
                 insertRejectedChange(
                     RejectedChange(
                         id = Uuid.random().toString(),
@@ -375,6 +416,8 @@ abstract class SyncDao {
             val rows = buffer.rows(table).filter { it.rowId !in waiting }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
             rows.forEach { row ->
                 applying { writeServerRow(table, row, updateMovements = fullPull, now = now) }
+                // The version this phone now holds: the base of its next edit of the row
+                row.serverSeq?.let { setSeq(table, row.rowId!!, it) }
                 // A local row renamed to make room for an earlier row of this pull: this row is the server's
                 deleteOutbox(table.tableName, row.rowId!!)
                 when (table) {
@@ -440,6 +483,7 @@ abstract class SyncDao {
                 linkWithPair(row.categoryId, row.attributeId, row.id)?.let { other ->
                     hardDeleteLink(other)
                     deleteOutbox(table.tableName, other)
+                    deleteSeq(table.tableName, other)
                 }
                 upsertCategoryAttribute(row)
             }
@@ -502,12 +546,14 @@ abstract class SyncDao {
             if (linkWithPair(link.categoryId, server.id, link.id) != null) {
                 hardDeleteLink(link.id)
                 deleteOutbox(SyncTable.CATEGORY_ATTRIBUTE.tableName, link.id)
+                deleteSeq(SyncTable.CATEGORY_ATTRIBUTE.tableName, link.id)
             } else {
                 local { setLinkAttribute(link.id, server.id, now) }
             }
         }
         hardDeleteAttribute(localId)
         deleteOutbox(SyncTable.ATTRIBUTE_DEFINITION.tableName, localId)
+        deleteSeq(SyncTable.ATTRIBUTE_DEFINITION.tableName, localId)
     }
 
     // ---------- Movement kept by the server (sync/MovementKept) ----------
@@ -566,6 +612,74 @@ abstract class SyncDao {
         val movement = keepMineMovement(details.phone, newId, now)
         insertLocalMovement(movement)
         movement.itemId?.let { applying { recomputeItemLocations(listOf(it)) } }
+        dismissRejectedChange(changeId)
+        return null
+    }
+
+    // ---------- Row conflict: a stale edit the server rejected (sync/RowConflict) ----------
+
+    /** Why "Keep mine" is not offered for the `conflict:` change [changeId], null when it is ([RowKeepMineBlock.INVALID] for another change). */
+    @Transaction
+    open suspend fun rowKeepMineBlock(changeId: String, canPush: Boolean): RowKeepMineBlock? {
+        val change = rejectedChange(changeId) ?: return RowKeepMineBlock.INVALID
+        val payload = RowConflict.payloadOf(change.reason) ?: return RowKeepMineBlock.INVALID
+        val table = SyncTable.of(change.tableName)?.takeIf { it.hasServerSeq } ?: return RowKeepMineBlock.INVALID
+        return rowKeepMineBlock(table, change.rowId, payload.phone, canPush)
+    }
+
+    private suspend fun rowKeepMineBlock(table: SyncTable, id: String, phone: JsonObject, canPush: Boolean): RowKeepMineBlock? {
+        if (!canPush) return RowKeepMineBlock.ROLE
+        if (wireRow(table, id) == null) return RowKeepMineBlock.ROW_GONE
+        return try {
+            if (valueTaken(table, id, phone)) RowKeepMineBlock.VALUE_TAKEN else null
+        } catch (e: IllegalArgumentException) {
+            RowKeepMineBlock.INVALID
+        }
+    }
+
+    /** True when another local row holds a unique value of [wire] (never freed here: that would edit the other row). */
+    private suspend fun valueTaken(table: SyncTable, id: String, wire: JsonObject): Boolean = when (table) {
+        SyncTable.CATEGORY -> categoryWithName(fromWire<Category>(table, wire).name, id) != null
+        SyncTable.ATTRIBUTE_DEFINITION -> attributeWithKey(fromWire<AttributeDefinition>(table, wire).key, id) != null
+        SyncTable.CATEGORY_ATTRIBUTE -> fromWire<CategoryAttribute>(table, wire).let { linkWithPair(it.categoryId, it.attributeId, id) != null }
+        SyncTable.LOCATION -> fromWire<Location>(table, wire).barcode?.let { locationWithTag(it, id) != null || articleWithTag(it, id) != null } ?: false
+        SyncTable.ARTICLE -> fromWire<Article>(table, wire).let { row ->
+            row.sku?.let { articleWithSku(it, id) != null } == true ||
+                row.barcode?.let { articleWithTag(it, id) != null || locationWithTag(it, id) != null } == true
+        }
+        SyncTable.ITEM -> fromWire<Item>(table, wire).serialNumber?.let { itemWithSerial(it, id) != null } ?: false
+        else -> false
+    }
+
+    /**
+     * "Keep theirs": the local row already is the server's (written with the answer, with its seq), so
+     * only the choice is forgotten. False when the phone left the server.
+     */
+    @Transaction
+    open suspend fun keepTheirRow(changeId: String): Boolean {
+        if (syncState() == null) return false
+        dismissRejectedChange(changeId)
+        return true
+    }
+
+    /**
+     * "Keep mine": writes the phone's version again, changed [now], queues it in the outbox and sets its
+     * seq to the server's seq of the conflict answer, so the next push sends it with that `baseSeq`
+     * (03-server-spec.md "Push processing"). If the row changed on the server again since, that push
+     * conflicts again. Returns null when done, otherwise why not (nothing written then).
+     */
+    @Transaction
+    open suspend fun keepMyRow(changeId: String, canPush: Boolean, now: Long): RowKeepMineBlock? {
+        if (syncState() == null) return RowKeepMineBlock.INVALID
+        val change = rejectedChange(changeId) ?: return RowKeepMineBlock.INVALID
+        val payload = RowConflict.payloadOf(change.reason) ?: return RowKeepMineBlock.INVALID
+        val table = SyncTable.of(change.tableName)?.takeIf { it.hasServerSeq } ?: return RowKeepMineBlock.INVALID
+        rowKeepMineBlock(table, change.rowId, payload.phone, canPush)?.let { return it }
+        // Written like a server row (the photo by its hash), then queued by hand: the side writes of
+        // writeServerRow would turn `applying` back on before the row itself is written
+        applying { writeServerRow(table, RowConflict.keepMineRow(payload.phone, now), updateMovements = false, now = now) }
+        setSeq(table, change.rowId, payload.seq)
+        queueOutbox(table.tableName, change.rowId, now)
         dismissRejectedChange(changeId)
         return null
     }

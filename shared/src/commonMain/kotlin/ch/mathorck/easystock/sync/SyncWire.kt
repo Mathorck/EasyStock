@@ -105,6 +105,12 @@ object WireFields {
     const val IMAGE_PATH = "image_path"
     const val CREATED_BY = "created_by"
     const val DEVICE_ID = "device_id"
+
+    /** Pull only: the row's `server_seq` on the server. Never part of an entity. */
+    const val SERVER_SEQ = "serverSeq"
+
+    /** Push only: the `server_seq` of the server version an edit or soft delete is based on (first change wins). */
+    const val BASE_SEQ = "baseSeq"
 }
 
 /**
@@ -125,7 +131,8 @@ fun <T> toWire(table: SyncTable, row: T, imageSha256: String? = null): JsonObjec
 
 /**
  * A wire row as an entity. An article's `imageSha256` becomes [imagePath] (chosen by the caller,
- * see `SyncStore`). Unknown fields (`serverSeq`, newer columns) are ignored.
+ * see `SyncStore`). Unknown fields (`serverSeq`, `baseSeq`, newer columns) are ignored: the seq is
+ * stored apart (`server_seq` table, see [JsonObject.serverSeq]).
  */
 @Suppress("UNCHECKED_CAST")
 fun <T> fromWire(table: SyncTable, wire: JsonObject, imagePath: String? = null): T {
@@ -138,6 +145,19 @@ fun <T> fromWire(table: SyncTable, wire: JsonObject, imagePath: String? = null):
 
 /** The `id` of a wire row. */
 val JsonObject.rowId: String? get() = (this[WireFields.ID] as? JsonPrimitive)?.contentOrNull
+
+/** The `serverSeq` of a pulled wire row, null when absent or not a whole number. */
+val JsonObject.serverSeq: Long? get() = (this[WireFields.SERVER_SEQ] as? JsonPrimitive)?.takeUnless { it.isString }?.contentOrNull?.toLongOrNull()
+
+/** Whether the seq of [table] rows is kept and sent back: every synced table except the append-only movements. */
+val SyncTable.hasServerSeq: Boolean get() = this != SyncTable.STOCK_MOVEMENT
+
+/** [this] pushed as an edit of the server version [baseSeq]; unchanged when null (a row the server never had). */
+fun JsonObject.withBaseSeq(baseSeq: Long?): JsonObject =
+    if (baseSeq == null) this else JsonObject(this + (WireFields.BASE_SEQ to JsonPrimitive(baseSeq)))
+
+/** [this] without its `baseSeq`: the row content only, as `SyncStore.wireRow` gives it. */
+fun JsonObject.withoutBaseSeq(): JsonObject = if (WireFields.BASE_SEQ in this) JsonObject(this - WireFields.BASE_SEQ) else this
 
 /** The `imageSha256` of a wire article row. */
 val JsonObject.imageSha256: String? get() = (this[WireFields.IMAGE_SHA256] as? JsonPrimitive)?.contentOrNull

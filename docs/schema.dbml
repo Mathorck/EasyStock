@@ -240,7 +240,7 @@ Table rejected_change [headercolor: #455a64, note: 'App only. A local change the
   id uuid [pk]
   table_name varchar(40) [not null]
   row_id uuid [not null]
-  reason text [not null, note: 'Reason code given by the server (not-allowed | conflict | invalid ...). For a movement the server kept (MOVEMENT_KEPT): `movement-kept:` followed by the movement of the phone as a wire row (JSON), until the user chooses. Always TEXT in SQLite: no DB version change']
+  reason text [not null, note: 'Reason code given by the server (not-allowed | conflict | invalid ...). For a movement the server kept (MOVEMENT_KEPT): `movement-kept:` followed by the movement of the phone as a wire row (JSON), until the user chooses. For a stale edit (first change wins): `conflict:` followed by `{"seq": <server_seq of the server version>, "row": <the phone\'s wire row>}`, until the user chooses. Always TEXT in SQLite: no DB version change']
   rejected_at timestamp [not null]
   seen_at timestamp [note: 'When the user saw it in the list. Null = counted in the Settings badge']
 }
@@ -259,4 +259,14 @@ Table pending_push [headercolor: #455a64, note: 'App only (v10). The push batch 
   batch_id uuid [not null]
   body text [not null, note: 'The exact JSON request body sent']
   created_at timestamp [not null]
+}
+
+Table server_seq [headercolor: #455a64, note: 'App only (v11). The server_seq of the server version of each synced row this phone holds (every synced table except stock_movement, which never changes). Taken from the pull (`serverSeq` of each row) and from the push results; sent back as `baseSeq` when the row is edited or soft-deleted (first change wins). No row = a row the server never had: pushed without baseSeq'] {
+  table_name varchar(40) [not null]
+  row_id uuid [not null]
+  seq bigint [not null, note: 'server_seq of the server version this phone holds or edited']
+
+  indexes {
+    (table_name, row_id) [pk]
+  }
 }

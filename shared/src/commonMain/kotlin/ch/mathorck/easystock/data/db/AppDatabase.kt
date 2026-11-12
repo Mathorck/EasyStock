@@ -23,13 +23,14 @@ import ch.mathorck.easystock.data.model.LowStockAlert
 import ch.mathorck.easystock.data.model.RejectedChange
 import ch.mathorck.easystock.data.model.ImageHash
 import ch.mathorck.easystock.data.model.PendingPush
+import ch.mathorck.easystock.data.model.ServerSeq
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 const val DATABASE_NAME = "easystock.db"
 
 /** Current schema version. Also written in backups (see backup/BackupManifest). */
-const val DB_VERSION = 10
+const val DB_VERSION = 11
 
 @Database(
     entities = [
@@ -50,6 +51,7 @@ const val DB_VERSION = 10
         RejectedChange::class,
         ImageHash::class,
         PendingPush::class,
+        ServerSeq::class,
     ],
     version = DB_VERSION,
     autoMigrations = [
@@ -70,6 +72,7 @@ const val DB_VERSION = 10
         // 8 to 9 (server mode tables, movement author, outbox triggers): manual, see MIGRATION_8_9
         // image_hash, pending_push (sync engine, app only)
         AutoMigration(from = 9, to = 10),
+        // 10 to 11 (server_seq, then a full re-pull): manual, see MIGRATION_10_11
     ],
     exportSchema = true,
 )

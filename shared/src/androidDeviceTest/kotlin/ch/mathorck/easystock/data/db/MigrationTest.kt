@@ -25,6 +25,7 @@ import kotlin.test.assertTrue
  *   Room's [MigrationTestHelper]. The versions come from the exported schemas, not from a list.
  * - Version 8 to 9 adds the outbox triggers: checked after the migration and on a fresh database, with the
  *   outbox filled only when connected (a `sync_state` row) and not while `applying`.
+ * - Version 10 to 11 adds `server_seq` and pulls everything again (since = 0).
  * - A database file written with the version 2 schema is opened with the current [AppDatabase]: Room runs the
  *   migrations and checks the result against the current entities.
  */
@@ -193,6 +194,22 @@ class MigrationTest {
                 assertEquals(0, db.count(it), it)
             }
             assertOutboxOnlyWhenConnected(db)
+        }
+    }
+
+    @Test
+    fun version10To11PullsEverythingAgain() {
+        deleteHelperFiles()
+        helper.createDatabase(10).use { v10 ->
+            v10.execSQL("INSERT INTO sync_state (id, server_url, user_id, role, since) VALUES (1, 'https://nas.example', 'u1', 'editor', 42)")
+        }
+        helper.runMigrationsAndValidate(11, MANUAL_MIGRATIONS.toList()).use { db ->
+            // No seq known yet: a full pull fills server_seq
+            assertEquals(0, db.count("server_seq"))
+            db.prepare("SELECT since FROM sync_state").use {
+                assertTrue(it.step())
+                assertEquals(0, it.getLong(0))
+            }
         }
     }
 

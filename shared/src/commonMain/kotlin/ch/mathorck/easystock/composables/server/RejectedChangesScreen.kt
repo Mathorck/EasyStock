@@ -29,6 +29,7 @@ import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.RejectedChange
 import ch.mathorck.easystock.data.model.RejectedChangeRow
 import ch.mathorck.easystock.sync.MovementKept
+import ch.mathorck.easystock.sync.RowConflict
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.formatDateTime
 import easystock.shared.generated.resources.Res
@@ -96,6 +97,9 @@ internal fun RejectedChangesContent(rows: List<RejectedChangeRow>, onBack: () ->
                 // The server kept its own movement: the user chooses which version stays (MovementKeptRow)
                 if (MovementKept.codeOf(row.change.reason) == MovementKept.REASON) {
                     MovementKeptRow(row)
+                } else if (RowConflict.payloadOf(row.change.reason) != null) {
+                    // Someone else changed the row first: keep theirs or mine (RowConflictRow)
+                    RowConflictRow(row)
                 } else {
                     RejectedRow(row, onDismiss = { onDismiss(row.change.id) })
                 }
@@ -126,7 +130,7 @@ private fun RejectedRow(row: RejectedChangeRow, onDismiss: () -> Unit) {
     )
 }
 
-private fun tableLabel(table: String): StringResource? = when (table) {
+internal fun tableLabel(table: String): StringResource? = when (table) {
     "category" -> Res.string.rejected_table_category
     "attribute_definition" -> Res.string.rejected_table_attribute_definition
     "category_attribute" -> Res.string.rejected_table_category_attribute
@@ -140,13 +144,13 @@ private fun tableLabel(table: String): StringResource? = when (table) {
 }
 
 @Composable
-private fun reasonText(reason: String): String = when (reason) {
+private fun reasonText(reason: String): String = when (val code = RowConflict.codeOf(reason)) {
     "not-allowed" -> stringResource(Res.string.rejected_reason_not_allowed)
     "invalid" -> stringResource(Res.string.rejected_reason_invalid)
     "missing-reference" -> stringResource(Res.string.rejected_reason_missing_reference)
     "review-open" -> stringResource(Res.string.rejected_reason_review_open)
     "conflict" -> stringResource(Res.string.rejected_reason_conflict)
-    else -> stringResource(Res.string.rejected_reason_unknown, reason)
+    else -> stringResource(Res.string.rejected_reason_unknown, code)
 }
 
 @Preview(showBackground = true)

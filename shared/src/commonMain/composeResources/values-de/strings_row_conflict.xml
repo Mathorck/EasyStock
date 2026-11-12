@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Einstellungen › Server › Nicht übernommene Änderungen: jemand anderes hat die Zeile zuerst geändert (Konflikt, die erste Änderung gewinnt) -->
+    <string name="row_conflict_reason">Jemand anderes hat dies auf einem anderen Telefon geändert, bevor Ihre Änderung ankam. Dieses Telefon zeigt dessen Version, bis Sie wählen.</string>
+    <string name="row_conflict_keep_theirs">Deren behalten</string>
+    <string name="row_conflict_keep_mine">Meine behalten</string>
+    <string name="row_conflict_keep_mine_hint">Meine behalten sendet Ihre Version erneut und ersetzt deren.</string>
+    <string name="row_conflict_blocked_gone">Meine behalten ist nicht möglich: Dies existiert auf diesem Telefon nicht mehr.</string>
+    <string name="row_conflict_blocked_taken">Meine behalten ist nicht möglich: Ein Name, eine SKU, ein Tag oder eine Seriennummer Ihrer Version wird jetzt anderweitig verwendet.</string>
+    <string name="row_conflict_blocked_invalid">Meine behalten ist für diese Änderung nicht möglich.</string>
+</resources>

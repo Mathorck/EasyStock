@@ -67,6 +67,38 @@ class SyncPlanTest {
     }
 
     @Test
+    fun theSentBaseSeqIsNotALocalChange() {
+        assertEquals(PushDecision.Done, decidePush(result(PushStatus.ACCEPTED), sent.withBaseSeq(5), sent))
+    }
+
+    @Test
+    fun aConflictWritesTheServerRowAndKeepsThePhoneOne() {
+        val server = row("r1", "name" to "Theirs", "sku" to "BLT")
+        val conflict = PushResult("article", "r1", PushStatus.REJECTED, reason = CONFLICT_REASON, row = server, serverSeq = 9)
+        assertEquals(PushDecision.Conflict(server, sent, 9), decidePush(conflict, sent.withBaseSeq(5), sent))
+        assertEquals(mapOf("r1" to 9L), seqUpdates(conflict, PushDecision.Conflict(server, sent, 9)))
+        // No seq: the plain server version
+        assertEquals(PushDecision.Write(server), decidePush(conflict.copy(serverSeq = null), sent, sent))
+        // Movements have their own rule (MovementKept)
+        val movement = conflict.copy(table = "stock_movement")
+        assertTrue(decidePush(movement, sent, sent) !is PushDecision.Conflict)
+    }
+
+    @Test
+    fun theStoredSeqFollowsThePushResult() {
+        val accepted = result(PushStatus.ACCEPTED).copy(serverSeq = 40)
+        assertEquals(mapOf("r1" to 40L), seqUpdates(accepted, PushDecision.Done))
+        // Changed again meanwhile: still on the server's seq, the next push is on top of it
+        assertEquals(mapOf("r1" to 40L), seqUpdates(accepted, PushDecision.Keep))
+        // Refused and changed again: the stored seq stays what it was
+        assertEquals(emptyMap(), seqUpdates(result(PushStatus.REJECTED).copy(serverSeq = 40), PushDecision.Keep))
+        assertEquals(mapOf("r1" to null), seqUpdates(accepted, PushDecision.DropLocal))
+        val merged = PushDecision.MergeAttribute("r1", row("server-id"))
+        assertEquals(mapOf("r1" to null, "server-id" to 40L), seqUpdates(accepted, merged))
+        assertEquals(emptyMap(), seqUpdates(accepted.copy(table = "stock_movement"), PushDecision.Done))
+    }
+
+    @Test
     fun suffixedValueTakesTheFirstFreeOneWithinTheLength() {
         val taken = setOf("Bolt (2)", "Bolt (3)")
         assertEquals("Bolt (4)", suffixedValue("Bolt", 40) { it !in taken })

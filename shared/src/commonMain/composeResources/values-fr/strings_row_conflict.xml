@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Réglages › Serveur › Modifications non acceptées : quelqu’un d’autre a modifié la ligne avant (conflit, la première modification gagne) -->
+    <string name="row_conflict_reason">Quelqu’un d’autre a modifié ceci sur un autre téléphone avant que votre modification n’arrive. Ce téléphone affiche sa version jusqu’à votre choix.</string>
+    <string name="row_conflict_keep_theirs">Garder la leur</string>
+    <string name="row_conflict_keep_mine">Garder la mienne</string>
+    <string name="row_conflict_keep_mine_hint">Garder la mienne renvoie votre version et remplace la leur.</string>
+    <string name="row_conflict_blocked_gone">Impossible de garder la vôtre : cet élément n’existe plus sur ce téléphone.</string>
+    <string name="row_conflict_blocked_taken">Impossible de garder la vôtre : un nom, un SKU, un tag ou un numéro de série de votre version est maintenant utilisé ailleurs.</string>
+    <string name="row_conflict_blocked_invalid">Impossible de garder la vôtre pour cette modification.</string>
+</resources>
