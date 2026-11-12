@@ -87,6 +87,13 @@ class SyncEngine(
     private val onDatasetReset: () -> Unit = {},
     /** The data set this phone holds, sent with push and pull ([DatasetEpochStore]). */
     private val epochs: DatasetEpochStore = InMemoryDatasetEpochStore(),
+    /**
+     * Called before a dataset-reset wipe: writes a backup of the phone and returns its file name (null: none
+     * written). An exception is a failed backup: the reset goes on anyway.
+     */
+    private val backupBeforeReset: suspend () -> String? = { null },
+    /** Keeps the reset notice until the user dismisses it, also across a restart. */
+    private val resetNotices: ResetNoticeStore = InMemoryResetNoticeStore(),
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -98,6 +105,13 @@ class SyncEngine(
 
     fun resetNoticeShown() {
         _resetNotice.value = null
+        scope.launch { resetNotices.save(null) }
+    }
+
+    /** Shows the notice a previous process kept and the user did not dismiss yet. */
+    suspend fun restoreResetNotice() {
+        val kept = DatasetResetNotice.decode(resetNotices.load()) ?: return
+        _resetNotice.update { it ?: kept }
     }
 
     private var downloads: Job? = null
@@ -198,6 +212,16 @@ class SyncEngine(
         // A download would store a photo of the old data set
         downloads?.cancelAndJoin()
         val lost = store.outbox(Int.MAX_VALUE).size
+        // Everything on the phone is about to go: keep a copy first. A failure does not stop the reset
+        var backupFile: String? = null
+        var backupFailed = false
+        try {
+            backupFile = backupBeforeReset()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            backupFailed = true
+        }
         if (!store.wipeServerData()) throw LeftServer()
         // The alerts of the old data set are gone: the pull from 0 brings the current ones, as after a join
         try {
@@ -205,7 +229,15 @@ class SyncEngine(
         } catch (e: Exception) {
         }
         epochs.save(null)
-        _resetNotice.update { DatasetResetNotice((it?.lostChanges ?: 0) + lost) }
+        val notice = DatasetResetNotice((_resetNotice.value?.lostChanges ?: 0) + lost, backupFile ?: _resetNotice.value?.backupFile, backupFailed)
+        _resetNotice.value = notice
+        // On disk before the pull: the process may die before the user sees it
+        try {
+            resetNotices.save(notice.encode())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
         _status.update { it.copy(fullPullRows = 0) }
         pull(api, 0, null)
     }

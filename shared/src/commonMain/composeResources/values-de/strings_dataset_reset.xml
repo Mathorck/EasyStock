@@ -8,4 +8,7 @@
         <item quantity="other">%1$d Änderungen auf diesem Telefon waren noch nicht gesendet und sind verloren.</item>
     </plurals>
     <string name="dataset_reset_ok">OK</string>
+    <string name="dataset_reset_backup_saved">Eine Sicherung der Daten dieses Telefons vor dem Zurücksetzen wurde gespeichert. Sie können sie an sich selbst oder an eine andere App senden.</string>
+    <string name="dataset_reset_backup_share">Sicherung senden</string>
+    <string name="dataset_reset_backup_failed">Vor dem Zurücksetzen konnte keine Sicherung gespeichert werden.</string>
 </resources>

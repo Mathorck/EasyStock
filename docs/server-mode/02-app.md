@@ -298,11 +298,17 @@ Open points (sync engine)
 * The epoch is kept outside the database (`sync_dataset` preferences file) because this change adds no schema
   version. It is written before the first page of a full pull, read only when `since > 0`. To decide: a
   `sync_state.dataset_epoch` column (next DB version) would save it in the same transaction as `since`.
-* Not done: offering a backup export of the unsent changes before the wipe (the plan says wipe and pull from 0; the
-  changes may point at rows the new data set doesn't have). They are only counted in the dialog.
+* Done: before the wipe the engine writes an automatic backup of the whole phone (`backupBeforeReset`, the manual
+  backup export: same format, no password, photos included) to `filesDir/auto-backups/auto-<name>.easystock`, a kept
+  folder (not the cache backup folder). Always, not only with unsent changes. Only the newest 3 stay
+  (`AutoBackups.toDelete`). A failed backup does not stop the reset: the dialog says no backup could be saved. The
+  dialog offers "Send the backup" (share sheet through the FileProvider, `files-path auto-backups/`). The backup can
+  be imported with the normal backup import (Settings > Backup).
 * The own `server_user` row (Account screen name) is kept by the reset wipe; the other users come back with the pull.
-* The reset notice is kept in memory only: after a reset in a background cycle, if the process dies before the app
-  is opened, the new data shows without the dialog. To decide: persist it.
+* Done: the reset notice is kept in a small preferences file (`sync_reset_notice`, no schema change) until the user
+  dismisses it; the dialog restores it when the app opens (`SyncEngine.restoreResetNotice`).
+* The automatic backups hold the phone’s data (personal data included) outside the Settings > Backup flow;
+  "Reset all data" in app info deletes them.
 * A phone connected before this feature has `since > 0` and no epoch: it takes the first epoch the server sends,
   so a replace done before the app update is not detected (server mode is not released yet).
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,

@@ -19,7 +19,8 @@ import java.io.File
  * - `filesDir/images`: article photos, and the `images.incoming` / `images.old` folders a restore
  *   may have left behind;
  * - `cacheDir/camera`: a photo waiting for the crop screen;
- * - `cacheDir/backup`: exported or received backups, which hold the data being erased.
+ * - `cacheDir/backup`: exported or received backups, which hold the data being erased;
+ * - `filesDir/auto-backups`: the automatic backups written before a server reset.
  */
 suspend fun wipeAppFiles(filesDir: File, cacheDir: File) = withContext(Dispatchers.IO) {
     listOf(
@@ -28,6 +29,8 @@ suspend fun wipeAppFiles(filesDir: File, cacheDir: File) = withContext(Dispatche
         File(filesDir, "$IMAGE_DIR.old"),
         File(cacheDir, "camera"),
         File(cacheDir, "backup"),
+        // Automatic backups written before a server reset: they hold the data being erased
+        File(filesDir, "auto-backups"),
     ).forEach { it.deleteRecursively() }
 }
 

@@ -8,3 +8,6 @@ actual fun rememberSyncEngine(): SyncEngine? = null
 
 @Composable
 actual fun rememberBackgroundSyncScheduler(): BackgroundSyncScheduler? = null
+
+@Composable
+actual fun rememberAutoBackupSharer(): (String) -> Unit = {}

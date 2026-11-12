@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.alerts.AlertNotifier
 import ch.mathorck.easystock.alerts.alertNotifications
+import ch.mathorck.easystock.backup.backupService
 import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.data.db.asAlertStore
 import ch.mathorck.easystock.images.IMAGE_DIR
@@ -88,6 +89,8 @@ fun syncEngine(context: Context): SyncEngine = engine ?: synchronized(SyncEngine
             afterPull = AlertNotifier(appDatabase(app).alertDao().asAlertStore(), alertNotifications(app))::check,
             onDatasetReset = alertNotifications(app)::cancelAll,
             epochs = AndroidDatasetEpochStore(app),
+            backupBeforeReset = AndroidAutoBackups(autoBackupDir(app), backupService(app))::create,
+            resetNotices = AndroidResetNoticeStore(app),
         ).also { engine = it }
     }
 }

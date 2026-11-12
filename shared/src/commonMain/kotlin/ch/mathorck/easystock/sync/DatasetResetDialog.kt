@@ -6,10 +6,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.dataset_reset_backup_failed
+import easystock.shared.generated.resources.dataset_reset_backup_saved
+import easystock.shared.generated.resources.dataset_reset_backup_share
 import easystock.shared.generated.resources.dataset_reset_lost
 import easystock.shared.generated.resources.dataset_reset_message
 import easystock.shared.generated.resources.dataset_reset_ok
@@ -21,6 +25,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun DatasetResetDialog(engine: SyncEngine) {
     val notice by engine.resetNotice.collectAsStateWithLifecycle()
+    LaunchedEffect(engine) { engine.restoreResetNotice() }
+    val share = rememberAutoBackupSharer()
     val shown = notice ?: return
     AlertDialog(
         onDismissRequest = engine::resetNoticeShown,
@@ -31,7 +37,12 @@ fun DatasetResetDialog(engine: SyncEngine) {
                 if (shown.lostChanges > 0) {
                     Text(pluralStringResource(Res.plurals.dataset_reset_lost, shown.lostChanges, shown.lostChanges))
                 }
+                if (shown.backupFile != null) Text(stringResource(Res.string.dataset_reset_backup_saved))
+                if (shown.backupFailed) Text(stringResource(Res.string.dataset_reset_backup_failed))
             }
+        },
+        dismissButton = shown.backupFile?.let { file ->
+            { TextButton(onClick = { share(file) }) { Text(stringResource(Res.string.dataset_reset_backup_share)) } }
         },
         confirmButton = { TextButton(onClick = engine::resetNoticeShown) { Text(stringResource(Res.string.dataset_reset_ok)) } },
     )

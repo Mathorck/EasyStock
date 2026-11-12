@@ -23,6 +23,7 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.IOException
 import kotlinx.io.readByteArray
@@ -168,6 +169,8 @@ class SyncEngineTest {
         epochs: DatasetEpochStore = InMemoryDatasetEpochStore(),
         afterPull: suspend () -> Unit = {},
         onDatasetReset: () -> Unit = {},
+        backupBeforeReset: suspend () -> String? = { null },
+        notices: ResetNoticeStore = InMemoryResetNoticeStore(),
         handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData,
     ): SyncEngine {
         session.accessToken = "access-1"
@@ -181,7 +184,8 @@ class SyncEngineTest {
         )
         val remote = SyncRemote(KtorSyncApi(client), KtorAccountApi(client))
         return SyncEngine(store, { remote }, backgroundScope, clock, newBatchId = { "batch-${++batchIds}" },
-            afterPull = afterPull, onDatasetReset = onDatasetReset, epochs = epochs)
+            afterPull = afterPull, onDatasetReset = onDatasetReset, epochs = epochs,
+            backupBeforeReset = backupBeforeReset, resetNotices = notices)
     }
 
     private fun MockRequestHandleScope.ok(body: String) = respond(body, HttpStatusCode.OK, json)
@@ -494,6 +498,71 @@ class SyncEngineTest {
 
         engine.resetNoticeShown()
         assertNull(engine.resetNotice.value)
+    }
+
+    @Test
+    fun aDatasetResetBacksUpThePhoneBeforeTheWipe() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val events = mutableListOf<String>()
+        val notices = InMemoryResetNoticeStore()
+        val engine = engine(store, epochStore("e1"), notices = notices, backupBeforeReset = {
+            events += "backup after ${store.wipes} wipe"
+            "auto-easystock-20260101-1200.easystock"
+        }) { request ->
+            when {
+                request.path != "sync/pull" -> defaults(request)
+                request.epoch == "e1" -> datasetReset()
+                else -> ok("""{"rows":{},"next":20,"hasMore":false,"datasetEpoch":"e2"}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(listOf("backup after 0 wipe"), events)
+        val expected = DatasetResetNotice(0, "auto-easystock-20260101-1200.easystock")
+        assertEquals(expected, engine.resetNotice.value)
+        assertEquals(expected, DatasetResetNotice.decode(notices.load()))
+    }
+
+    @Test
+    fun aFailedBackupDoesNotStopTheReset() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val engine = engine(store, epochStore("e1"), backupBeforeReset = { error("disk full") }) { request ->
+            when {
+                request.path != "sync/pull" -> defaults(request)
+                request.epoch == "e1" -> datasetReset()
+                else -> ok("""{"rows":{},"next":20,"hasMore":false,"datasetEpoch":"e2"}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(1, store.wipes)
+        assertEquals(DatasetResetNotice(0, null, backupFailed = true), engine.resetNotice.value)
+    }
+
+    @Test
+    fun theResetNoticeSurvivesARestartUntilDismissed() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val notices = InMemoryResetNoticeStore()
+        val reset = engine(store, epochStore("e1"), notices = notices, backupBeforeReset = { "auto-x.easystock" }) { request ->
+            when {
+                request.path != "sync/pull" -> defaults(request)
+                request.epoch == "e1" -> datasetReset()
+                else -> ok("""{"rows":{},"next":20,"hasMore":false,"datasetEpoch":"e2"}""")
+            }
+        }
+        reset.sync()
+
+        // A new process: same store, nothing in memory
+        val restarted = engine(FakeSyncStore(state()), notices = notices) { defaults(it) }
+        assertNull(restarted.resetNotice.value)
+        restarted.restoreResetNotice()
+        assertEquals(DatasetResetNotice(0, "auto-x.easystock"), restarted.resetNotice.value)
+
+        restarted.resetNoticeShown()
+        runCurrent()
+        assertNull(restarted.resetNotice.value)
+        assertNull(notices.load())
+        val again = engine(FakeSyncStore(state()), notices = notices) { defaults(it) }
+        again.restoreResetNotice()
+        assertNull(again.resetNotice.value)
     }
 
     @Test

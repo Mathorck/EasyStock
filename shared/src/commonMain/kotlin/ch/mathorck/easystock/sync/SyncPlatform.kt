@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.update
 @Composable
 expect fun rememberSyncEngine(): SyncEngine?
 
+/** Sends the automatic backup file of that name ([AutoBackups]) to another app chosen by the user. */
+@Composable
+expect fun rememberAutoBackupSharer(): (fileName: String) -> Unit
+
 /** Counts the photo downloads, so a placeholder shown for a photo still downloading loads it once it is there. */
 object SyncImages {
     private val _downloads = MutableStateFlow(0)

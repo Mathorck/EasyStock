@@ -8,4 +8,7 @@
         <item quantity="other">%1$d changes made on this phone had not been sent yet and are lost.</item>
     </plurals>
     <string name="dataset_reset_ok">OK</string>
+    <string name="dataset_reset_backup_saved">A backup of this phone’s data from before the reset was saved. You can send it to yourself or to another app.</string>
+    <string name="dataset_reset_backup_share">Send the backup</string>
+    <string name="dataset_reset_backup_failed">No backup could be saved before the reset.</string>
 </resources>

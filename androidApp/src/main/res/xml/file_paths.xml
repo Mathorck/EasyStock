@@ -6,4 +6,6 @@
     <cache-path name="backup" path="backup/share/" />
     <!-- Server mode: a server backup or the printed QR code PDF being saved or shared by an Admin -->
     <cache-path name="server" path="server/share/" />
+    <!-- Automatic backups written before a server reset, shared by the user from the reset notice -->
+    <files-path name="auto_backups" path="auto-backups/" />
 </paths>

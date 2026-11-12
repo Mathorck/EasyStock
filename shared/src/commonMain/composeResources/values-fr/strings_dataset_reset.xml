@@ -8,4 +8,7 @@
         <item quantity="other">%1$d modifications faites sur ce téléphone n’avaient pas encore été envoyées et sont perdues.</item>
     </plurals>
     <string name="dataset_reset_ok">OK</string>
+    <string name="dataset_reset_backup_saved">Une sauvegarde des données de ce téléphone, faite avant la réinitialisation, a été enregistrée. Vous pouvez l’envoyer à vous-même ou à une autre application.</string>
+    <string name="dataset_reset_backup_share">Envoyer la sauvegarde</string>
+    <string name="dataset_reset_backup_failed">Aucune sauvegarde n’a pu être enregistrée avant la réinitialisation.</string>
 </resources>
