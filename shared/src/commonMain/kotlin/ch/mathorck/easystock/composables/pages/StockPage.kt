@@ -267,7 +267,10 @@ fun StockContent(
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
-            placeholder = { Text(stringResource(Res.string.stock_search_hint)) },
+            // One line at phone width: the fr and de hints are long and would wrap, making the field taller.
+            placeholder = {
+                Text(stringResource(Res.string.stock_search_hint), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
             leadingIcon = { Icon(painterResource(Res.drawable.ic_search), contentDescription = null) },
             singleLine = true,
             shape = RoundedCornerShape(28.dp),
