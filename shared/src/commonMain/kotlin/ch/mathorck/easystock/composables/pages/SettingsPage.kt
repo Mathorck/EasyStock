@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -17,6 +18,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,6 +38,9 @@ import ch.mathorck.easystock.applyAppLanguage
 import ch.mathorck.easystock.auth.AppPermissions
 import ch.mathorck.easystock.auth.LocalPermissions
 import ch.mathorck.easystock.auth.SettingsGates
+import ch.mathorck.easystock.prefs.LocalAppPreferences
+import ch.mathorck.easystock.theme.isDynamicColorSupported
+import androidx.compose.runtime.collectAsState
 import ch.mathorck.easystock.backup.WifiState
 import ch.mathorck.easystock.backup.rememberBackupService
 import ch.mathorck.easystock.composables.settings.AppInfoScreen
@@ -101,6 +106,9 @@ import easystock.shared.generated.resources.settings_categories_summary
 import easystock.shared.generated.resources.settings_section_catalogue
 import easystock.shared.generated.resources.settings_cancel
 import easystock.shared.generated.resources.settings_language
+import easystock.shared.generated.resources.settings_dynamic_color
+import easystock.shared.generated.resources.settings_dynamic_color_summary
+import easystock.shared.generated.resources.ic_palette
 import easystock.shared.generated.resources.settings_language_english
 import easystock.shared.generated.resources.settings_language_french
 import easystock.shared.generated.resources.settings_language_german
@@ -127,6 +135,8 @@ fun SettingsPage(
 ) {
     val service = rememberBackupService()
     var language by remember { mutableStateOf(currentAppLanguage()) }
+    val preferences = LocalAppPreferences.current
+    val dynamicColor by preferences.dynamicColor.collectAsState()
     var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
     // Same view model as the backup screen: a Wi-Fi share goes on when that screen is closed
     val backup = viewModel(key = "settings-backup") { BackupViewModel(service) }
@@ -236,6 +246,8 @@ fun SettingsPage(
             },
             gates = gates,
             serverAddress = syncState?.let { ServerConnection.of(it).serverUrl.substringAfter("://") },
+            dynamicColor = dynamicColor.takeIf { isDynamicColorSupported() },
+            onDynamicColorChange = preferences::setDynamicColor,
             wifiShareDeadline = share,
             onStopWifiShare = backup::reset,
         )
@@ -247,6 +259,9 @@ fun SettingsPage(
 fun SettingsContent(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
+    /** Phone colors on or off; null where the platform has none (the row is hidden). */
+    dynamicColor: Boolean? = null,
+    onDynamicColorChange: (Boolean) -> Unit = {},
     onOpen: (SettingsSubpageId) -> Unit = {},
     /** Entries the role can open, all of them in standalone mode. */
     gates: SettingsGates = SettingsGates.of(AppPermissions.Standalone),
@@ -275,6 +290,20 @@ fun SettingsContent(
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
             modifier = Modifier.clickable { showLanguageDialog = true },
         )
+        if (dynamicColor != null) {
+            ListItem(
+                headlineContent = { Text(stringResource(Res.string.settings_dynamic_color)) },
+                supportingContent = { Text(stringResource(Res.string.settings_dynamic_color_summary)) },
+                leadingContent = { Icon(painterResource(Res.drawable.ic_palette), contentDescription = null) },
+                trailingContent = { Switch(checked = dynamicColor, onCheckedChange = null) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                modifier = Modifier.toggleable(
+                    value = dynamicColor,
+                    role = Role.Switch,
+                    onValueChange = onDynamicColorChange,
+                ),
+            )
+        }
 
         if (gates.catalogue) SectionHeader(stringResource(Res.string.settings_section_catalogue))
         if (SettingsSubpageId.Attributes in gates.subpages) {
