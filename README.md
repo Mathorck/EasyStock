@@ -48,6 +48,8 @@ EasyStock is a free, open-source Android app to manage a physical stock with NFC
 
 It is built for small businesses (1-5 people), associations and hobbyists who can't justify paid tools. Everything works offline on the phone: no server, no account, no tracking. Data stays on the device, which keeps personal data minimal and local, in line with the Swiss nFADP and the GDPR.
 
+Standalone first, server optional: a team can connect its phones to an EasyStock server (a separate, self-hosted project) to share one stock. Until you connect, the app makes no network call and nothing changes.
+
 Target hardware budget: 100 CHF. 3D-printable NFC tag holders will be published separately.
 
 ---
@@ -68,6 +70,7 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 - **BACK UP BEFORE UPDATING**: export a backup file first (Settings > backup).
 - **USE PERMANENT-UID NFC TAGS**: NTAG213, NTAG215 or NTAG216. Not bank cards or phone-emulated cards, whose ID changes on every read.
 - **iOS IS NOT SUPPORTED**: the iOS target compiles from the same code but is not tested.
+- **SERVER MODE IS NEW**: it needs an EasyStock server, and joining a server needs an empty phone (export a backup first).
 
 ---
 
@@ -88,8 +91,10 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 - An unknown tag can be linked to an existing article or location, or used to create one.
 
 ### Stock and search
-- Quantities per article, filters, add or remove stock in one tap.
+- Quantities per article. Add, remove or move stock in one tap. Tools move unit by unit.
+- Filters: location, category, type (consumables or tools), low or out of stock, with or without NFC tag, attribute.
 - Search across names and attributes.
+- History of every movement on the article page.
 
 ### Articles and photos
 - Take a picture or pick one from the gallery, then crop it.
@@ -98,7 +103,7 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 - Custom attributes per category: text, number, or measurement with a unit chosen per value.
 
 ### Name templates
-- Build the article name from its attributes.
+- Build the article name from its attributes and its category (`{category}`).
 
 ### Tools and consumables
 - Track tools one by one (serial units with their own properties and location), or count consumables as a quantity.
@@ -106,37 +111,57 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 ### Locations
 - Hierarchy (room > shelf > bin), with an icon and a color per location.
 
+### NFC tags
+- List every linked tag (articles and locations), search by name or tag ID, scan a tag to find it, move it to another article or location, or unlink it.
+
 ### Low stock
 - Threshold per article: a badge on the article and a "low stock" filter. Not applied to serial-tracked articles.
 
 ### Stock review
 - Go through a location, tick off what is there, and see the gaps in a summary.
+- Flag wrong info during a review: it shows on the article page until marked fixed.
 
 ### Backup and transfer
 - Export to a file, a QR code, or over the local Wi-Fi.
 - Optional password. Merge into or replace the existing data.
 
-### Languages
-- English, French, German.
+### Settings and app info
+- Language: English, French, German.
+- Phone colors (Android 12+): use the wallpaper colors, or turn them off.
+- App info: version, data counts, device details to copy into a bug report (no stock contents).
+- Reset all data, with a typed confirmation and an offer to make a backup first.
+
+### Server mode (optional)
+- Connect from Settings > Server: scan the QR code from an administrator, or type the server address. Plain HTTP shows a warning, a self-signed HTTPS certificate is accepted only when it matches the fingerprint in the QR code.
+- Roles: Admin, Editor, Viewer, Guest. The app hides what a role can't do. Guests only see the stock.
+- Account: display name, password change, log out (this erases the server data from the phone). A Guest can be promoted by an Admin.
+- Administration (Admin only): users and roles, devices, invites, a printed QR code for Guests (PDF), server backup, server settings.
+- Sync with the server: when the app opens, a few seconds after a change, pull to refresh on the Stock page, every 15 minutes in the background, and on a [UnifiedPush](https://unifiedpush.org) message if a distributor app is installed (no Google services).
+- Movement history shows who made each movement.
+- Low-stock notifications sent by the server (Admins and Editors by default, Viewers if they turn them on).
+- Conflicts: the first change wins. Changes the server didn't accept are listed under "Changes not accepted", with "Keep mine" or the server's version.
+- When an administrator replaces the server data, the phone saves an automatic backup of its own data, then downloads the new data.
 
 ---
 
 ## Roadmap
 
-- Server mode (multiple users, movement history, low-stock notifications). Optional: standalone stays the default.
+- Server mode: upload a phone's existing data as the first content of a new, empty server (today, joining needs an empty phone).
 
 ---
 
 ## How to build
 
-Requirements: Android Studio (recent stable) with Android SDK 37, JDK 21 (auto-provisioned by Gradle), a device or emulator on API 26+.
+Requirements: Android SDK 37, JDK 21 (auto-provisioned by Gradle), a device or emulator on API 26+. Android Studio is optional. Builds on Linux, Windows and macOS.
 
 ```
 ./gradlew :androidApp:assembleDebug       # debug APK
 ./gradlew :shared:testAndroidHostTest     # shared logic tests, JVM
 ```
 
-Or open the root folder in Android Studio and run the `androidApp` configuration. No environment variables are needed.
+Gradle finds the SDK through `ANDROID_HOME` or `sdk.dir` in `local.properties` (Android Studio writes it). Or open the root folder in Android Studio and run the `androidApp` configuration.
+
+Local builds are named after the last git tag with `-dev` (e.g. `0.4.0-dev`), so fetch the tags.
 
 Kotlin Multiplatform + Compose Multiplatform:
 
@@ -147,8 +172,11 @@ Kotlin Multiplatform + Compose Multiplatform:
 | `androidApp` | Android entry point |
 | `iosApp` | iOS entry point (not supported) |
 | `docs/schema.dbml` | Database schema ([dbdiagram.io](https://dbdiagram.io) can draw it) |
+| `docs/db-versions.md` | Database versions and their migrations |
+| `docs/server-mode/02-app.md` | Server mode in the app: spec and open points |
+| `docs/test-cases` | Merge test cases shared with the server |
 
-Data model: catalogue (`category`, `attribute_definition`, `category_attribute`, `article`), physical stock (`location`, `item`), and `stock_movement`, append-only (stock = `SUM(quantity)`). UUID keys generated on the device, UTC timestamps, soft delete via `deleted_at`.
+Data model: catalogue (`category`, `attribute_definition`, `category_attribute`, `article`), physical stock (`location`, `item`), and `stock_movement`, append-only (stock = `SUM(quantity)`). UUID keys generated on the device, UTC timestamps, soft delete via `deleted_at`. Stock reviews use `stock_review` and `stock_review_line`. Server mode adds app-only tables (sync state, outbox, users, alerts, rejected changes), empty in standalone mode and never in a backup. Database version: 11.
 
 ---
 
@@ -187,7 +215,7 @@ git tag 0.1.0
 git push origin 0.1.0
 ```
 
-`versionName` = tag, `versionCode` = `MAJOR*10000 + MINOR*100 + PATCH`.
+`versionName` = tag, `versionCode` = `MAJOR*10000 + MINOR*100 + PATCH`. Local builds use the last tag + `-dev` and `versionCode` 1.
 
 Required repository secrets (Settings > Secrets and variables > Actions):
 
