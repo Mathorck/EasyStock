@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import ch.mathorck.easystock.composables.MainComposable
+import ch.mathorck.easystock.prefs.LocalAppPreferences
+import ch.mathorck.easystock.prefs.rememberAppPreferences
 import org.jetbrains.compose.resources.painterResource
 
 import easystock.shared.generated.resources.Res
@@ -24,7 +26,9 @@ import easystock.shared.generated.resources.compose_multiplatform
 @Composable
 @Preview
 fun App() {
-    EasyStockTheme {
-        MainComposable()
+    CompositionLocalProvider(LocalAppPreferences provides rememberAppPreferences()) {
+        EasyStockTheme {
+            MainComposable()
+        }
     }
 }

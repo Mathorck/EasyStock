@@ -14,8 +14,8 @@ import kotlinx.coroutines.withContext
  *
  * A full wipe the user asked for and confirmed in writing: rows are hard-deleted, the soft-delete
  * and append-only `stock_movement` rules don't apply (see [BackupDao.wipeAll]).
- * A fresh install has no seed data, so nothing is recreated. The app language is kept (a UI
- * preference, stored by the platform, not data).
+ * A fresh install has no seed data, so nothing is recreated. The UI preferences are kept (not
+ * data, stored by the platform): the app language and `AppPreferences` (phone colors).
  */
 class DataReset(
     private val db: AppDatabase,

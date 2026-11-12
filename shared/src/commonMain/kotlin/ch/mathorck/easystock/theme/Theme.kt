@@ -5,7 +5,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
+import ch.mathorck.easystock.prefs.LocalAppPreferences
 
 // Generated from the brand color #485C43 (olive green) with
 // material-color-utilities, "fidelity" scheme: primaryContainer is the brand color.
@@ -91,9 +94,12 @@ private val DarkColors = darkColorScheme(
 /** App theme. Follows the system dark mode unless [darkTheme] is set. */
 @Composable
 fun EasyStockTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    val dynamicColor by LocalAppPreferences.current.dynamicColor.collectAsState()
+    // The platform scheme is composable (needs a context): ask it only when the user wants it
+    val platformScheme = if (dynamicColor) platformColorScheme(darkTheme) else null
     MaterialTheme(
-        // Dynamic colors (Material You, Android 12+) when the platform has them, else the brand schemes.
-        colorScheme = platformColorScheme(darkTheme) ?: if (darkTheme) DarkColors else LightColors,
+        // Dynamic colors (Material You, Android 12+) when on and the platform has them, else the brand schemes.
+        colorScheme = platformScheme ?: if (darkTheme) DarkColors else LightColors,
         content = content,
     )
 }

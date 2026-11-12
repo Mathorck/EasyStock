@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_dynamic_color">Farben des Telefons</string>
+    <string name="settings_dynamic_color_summary">Verwendet die Farben des Hintergrundbilds</string>
     <string name="settings_section_general">Allgemein</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_system">Systemstandard</string>

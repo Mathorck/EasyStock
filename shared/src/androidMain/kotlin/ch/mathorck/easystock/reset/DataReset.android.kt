@@ -11,7 +11,8 @@ import java.io.File
 
 /**
  * Deletes the files the app owns, except the database (emptied by [DataReset]) and the platform
- * settings (app language):
+ * settings (app language) and the
+ * `easystock_prefs` preferences (phone colors):
  * - `filesDir/images`: article photos, and the `images.incoming` / `images.old` folders a restore
  *   may have left behind;
  * - `cacheDir/camera`: a photo waiting for the crop screen;
