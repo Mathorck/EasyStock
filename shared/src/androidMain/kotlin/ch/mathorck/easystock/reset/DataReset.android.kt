@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.auth.sessionStore
 import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.images.IMAGE_DIR
+import ch.mathorck.easystock.push.pushRegistrar
 import ch.mathorck.easystock.server.releaseServerClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,6 +38,8 @@ actual fun rememberDataReset(): DataReset {
             db = appDatabase(context),
             wipeFiles = { wipeAppFiles(context.filesDir, context.cacheDir) },
             clearSession = {
+                // The distributor forgets this app (no network: the session may be revoked already)
+                pushRegistrar(context).forget()
                 withContext(Dispatchers.Main) { releaseServerClient() }
                 sessionStore(context).clear()
             },

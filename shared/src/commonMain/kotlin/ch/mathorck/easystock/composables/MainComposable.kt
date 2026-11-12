@@ -23,6 +23,7 @@ import ch.mathorck.easystock.auth.LocalPermissions
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import ch.mathorck.easystock.push.PushHost
 import ch.mathorck.easystock.sync.SyncHost
 import ch.mathorck.easystock.alerts.AlertHost
 import androidx.compose.runtime.getValue
@@ -73,6 +74,7 @@ private fun MainContent() {
     ServerSessionWatcher(onWiped = { page = Page.Stock })
     val connected = LocalPermissions.current.connected
     SyncHost(connected)
+    PushHost(connected)
     // Asked once right after joining a server (Android 13+)
     var askAlertPermission by rememberSaveable { mutableStateOf(false) }
     AlertHost(askPermission = askAlertPermission, onAsked = { askAlertPermission = false }, onOpen = { page = Page.Stock })
