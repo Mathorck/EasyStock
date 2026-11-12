@@ -226,14 +226,23 @@ class AdminApiTest {
         val users = api {
             ok(
                 """[
-                {"id":"u1","displayName":"Ana","userName":"ana","role":"admin","kind":"full","lastSeenAt":"2026-11-10T08:00:00Z",
-                 "devices":[{"id":"d1","deviceName":"Pixel","lastUsedAt":"2026-11-10T08:00:00Z"}]},
-                {"id":"u2","displayName":"Guest 1","role":"guest","kind":"guest","shortCode":"K7-4QX",
-                 "pendingPromotion":{"role":"member","expiresAt":"2026-11-12T08:00:00Z"}}
+                {"id":"u1","displayName":"Ana","username":"ana","role":"admin","kind":"full","shortCode":"",
+                 "createdAt":"2026-11-01T08:00:00+00:00","lastSeenAt":"2026-11-10T08:00:00+00:00","disabled":false,
+                 "devices":[{"id":"d1","deviceName":"Pixel","lastUsedAt":"2026-11-10T08:00:00+00:00"}],"pendingPromotion":null},
+                {"id":"u2","displayName":"Guest 1","username":null,"role":"guest","kind":"guest","shortCode":"K7-4QX",
+                 "createdAt":"2026-11-02T08:00:00+00:00","lastSeenAt":null,"disabled":false,"devices":[],
+                 "pendingPromotion":{"role":"member","expiresAt":"2026-11-12T08:00:00+00:00"}},
+                {"id":"u3","displayName":"Marc","username":"marc","role":"viewer","kind":"full","shortCode":"",
+                 "createdAt":"2026-11-03T08:00:00+00:00","lastSeenAt":null,"disabled":true,"devices":[],"pendingPromotion":null}
                 ]""",
             )
         }.users()
-        assertEquals(2, users.size)
+        assertEquals(3, users.size)
+        assertEquals("ana", users[0].username)
+        assertFalse(users[0].disabled)
+        assertNull(users[1].username)
+        assertEquals("marc", users[2].username)
+        assertTrue(users[2].disabled)
         assertEquals(Role.ADMIN, users[0].appRole)
         assertEquals("Pixel", users[0].devices.single().deviceName)
         assertTrue(users[1].isGuest)
@@ -256,7 +265,7 @@ class AdminApiTest {
     @Test
     fun disableUser() = runTest {
         login()
-        api { ok("""{"id":"u1","disabledAt":"2026-11-10T08:00:00Z"}""") }.setDisabled("u1", true).also { assertTrue(it.disabled) }
+        api { ok("""{"id":"u1","displayName":"Ana","username":"ana","role":"member","kind":"full","shortCode":"","createdAt":"2026-11-01T08:00:00+00:00","lastSeenAt":null,"disabled":true,"devices":[],"pendingPromotion":null}""") }.setDisabled("u1", true).also { assertTrue(it.disabled) }
         assertEquals("""{"disabled":true}""", seen.single().body)
     }
 

@@ -32,7 +32,7 @@ data class AdminUser(
     val id: String,
     val displayName: String = "",
     /** Null for a Guest (no username). */
-    val userName: String? = null,
+    val username: String? = null,
     val role: String = "",
     /** [UserKind]. */
     val kind: String = UserKind.FULL,
@@ -40,12 +40,12 @@ data class AdminUser(
     val createdAt: String? = null,
     /** Last request of any of the user's devices: the "last sync" of the list. */
     val lastSeenAt: String? = null,
-    val disabledAt: String? = null,
+    /** Sent by the server as a plain boolean (no timestamp). */
+    val disabled: Boolean = false,
     val devices: List<AdminDevice> = emptyList(),
     val pendingPromotion: PendingPromotion? = null,
 ) {
     val isGuest: Boolean get() = kind == UserKind.GUEST
-    val disabled: Boolean get() = disabledAt != null
     val appRole: Role? get() = WireRole.parse(role)
 }
 

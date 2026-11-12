@@ -263,7 +263,7 @@ internal fun UserDetail(
                 supportingContent = {
                     Column {
                         Text(stringResource(if (user.isGuest) Res.string.admin_kind_guest else Res.string.admin_kind_full))
-                        user.userName?.let { Text(it) }
+                        user.username?.let { Text(it) }
                         Text(stringResource(Res.string.admin_user_last_sync, serverTime(user.lastSeenAt)))
                         if (user.isGuest && user.shortCode != null) {
                             Text(stringResource(Res.string.admin_user_short_code, user.shortCode))
@@ -516,7 +516,7 @@ private fun PromoteFormContent(form: PromoteForm, busy: Boolean, onCodeChange: (
 private val previewUsers = listOf(
     AdminUser("u1", "Ana", "ana", "admin", UserKind.FULL, lastSeenAt = "2026-11-10T08:00:00Z"),
     AdminUser("u2", "Guest 1", null, "guest", UserKind.GUEST, shortCode = "K7-4QX", pendingPromotion = PendingPromotion("member")),
-    AdminUser("u3", "Marc", "marc", "viewer", UserKind.FULL, disabledAt = "2026-11-01T08:00:00Z"),
+    AdminUser("u3", "Marc", "marc", "viewer", UserKind.FULL, disabled = true),
 )
 
 @Preview(showBackground = true)
