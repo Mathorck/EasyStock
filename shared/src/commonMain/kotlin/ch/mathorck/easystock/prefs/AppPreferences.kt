@@ -36,8 +36,14 @@ class AppPreferences(private val store: KeyValueStore) {
         _dynamicColor.value = enabled
     }
 
+    /** True while the phone is connected as a Guest (see `alerts/AlertPermissionRule.kt`). */
+    var wasGuest: Boolean
+        get() = store.getBoolean(KEY_WAS_GUEST, false)
+        set(value) = store.putBoolean(KEY_WAS_GUEST, value)
+
     private companion object {
         const val KEY_DYNAMIC_COLOR = "dynamic_color"
+        const val KEY_WAS_GUEST = "was_guest"
     }
 }
 

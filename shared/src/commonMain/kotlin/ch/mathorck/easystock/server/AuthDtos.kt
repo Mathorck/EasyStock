@@ -68,6 +68,10 @@ data class MeAnswer(
     val pendingPromotion: PendingPromotion? = null,
 )
 
+/** `PATCH /me` with the alert preference (the server also takes `displayName`, which the app does not send here). */
+@Serializable
+data class UpdateAlertsRequest(val alertsEnabled: Boolean)
+
 /** Rules of the account fields (03-server-spec.md, "Accounts"), checked before sending. */
 object AccountRules {
     const val PASSWORD_MIN = 10

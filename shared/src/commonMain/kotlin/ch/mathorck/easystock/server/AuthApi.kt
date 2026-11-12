@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -52,6 +53,9 @@ class KtorJoinApi(private val http: HttpClient) : JoinApi, AutoCloseable {
 interface AccountApi {
     suspend fun me(): MeAnswer
 
+    /** `PATCH /me` `{"alertsEnabled": enabled}`: the alert preference (Guests cannot). */
+    suspend fun setAlertsEnabled(enabled: Boolean)
+
     /** Revokes this session on the server; a Guest account is deleted. */
     suspend fun logout()
 
@@ -68,6 +72,10 @@ class KtorAccountApi(private val client: ServerClient) : AccountApi {
     override fun hashCode(): Int = client.hashCode()
 
     override suspend fun me(): MeAnswer = apiCall { http.get("me").body() }
+
+    override suspend fun setAlertsEnabled(enabled: Boolean) {
+        apiCall { http.patch("me") { json(UpdateAlertsRequest(enabled)) } }
+    }
 
     override suspend fun logout() {
         apiCall { http.post("auth/logout") }

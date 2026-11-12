@@ -13,4 +13,9 @@
     <string name="alerts_permission_message">EasyStock peut vous avertir quand un article atteint son seuil d’alerte sur le serveur. Vous pourrez changer cela plus tard dans les réglages d’Android.</string>
     <string name="alerts_permission_allow">Autoriser</string>
     <string name="alerts_permission_later">Plus tard</string>
+    <!-- Interrupteur des alertes sur l’écran Compte -->
+    <string name="alerts_switch_title">Alertes de stock bas</string>
+    <string name="alerts_switch_on">Vous êtes averti quand un article atteint son seuil d’alerte.</string>
+    <string name="alerts_switch_off">Vous n’êtes pas averti des stocks bas.</string>
+    <string name="alerts_switch_offline">Connectez-vous au serveur pour modifier ce réglage.</string>
 </resources>
