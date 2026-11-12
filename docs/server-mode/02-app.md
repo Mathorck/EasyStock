@@ -291,8 +291,10 @@ Open points (sync engine)
   works too.
 * A new row the server rejects without a server version stays on this phone only (never synced, still in the
   rejected list). The user decides: delete it, or change it so it is sent again.
-* `MOVEMENT_KEPT`: the server's movement overwrites the local one with the same id, the only case where the app
-  changes a movement (it was never accepted, so it is not a synced row).
+* `MOVEMENT_KEPT`: the server must send its kept movement back in `row`. The app then overwrites the local movement
+  with the same id: the only case where the app changes a movement (an exception to the append-only rule, to
+  confirm: the local one was never accepted, so it is not a synced row). Without `row`, the phone keeps its own
+  version, out of sync until the next full pull.
 * A pulled row whose parent is still missing after the last page fails the cycle (error SERVER); the cursor does not
   move, the next cycle tries again. Pages are kept in memory until their parents arrive.
 * The 426 pause lasts until the app restarts or joins another server. The Account screen shows "update the app".

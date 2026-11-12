@@ -132,6 +132,33 @@ class SyncDaoTest {
         assertEquals(1, dao.outbox(100).size)
     }
 
+    /** A merge while connected queues its rows, never the recomputed unit location (a cache every phone recomputes). */
+    @Test
+    fun aMergedMovementIsQueuedButNotTheUnitLocation() = runBlocking {
+        val buffer = pull(
+            SyncTable.LOCATION to toWire(SyncTable.LOCATION, location("l1")),
+            SyncTable.LOCATION to toWire(SyncTable.LOCATION, location("l2")),
+            SyncTable.ARTICLE to toWire(SyncTable.ARTICLE, article("a1", tracking = Tracking.SERIAL)),
+            SyncTable.ITEM to toWire(SyncTable.ITEM, item("i1", "a1", location = "l1")),
+            SyncTable.STOCK_MOVEMENT to toWire(SyncTable.STOCK_MOVEMENT, movement("m1", "a1", "l1", 1000, item = "i1", at = 10)),
+        )
+        dao.applyPull(buffer, next = 42, fullPull = true, now = 99)
+        assertTrue(dao.outbox(100).isEmpty())
+
+        val plan = db.backupDao().merge(
+            BackupData(
+                movements = listOf(
+                    movement("m2", "a1", "l1", -1000, item = "i1", at = 20),
+                    movement("m3", "a1", "l2", 1000, item = "i1", at = 20),
+                ),
+            ),
+        )
+        assertEquals(mapOf<String, String?>("i1" to "l2"), plan.itemLocationFixes)
+        assertEquals("l2", (dao.wireRow(SyncTable.ITEM, "i1")!!["locationId"] as JsonPrimitive).content)
+        assertEquals(setOf("stock_movement:m2", "stock_movement:m3"), dao.outbox(100).map { "${it.tableName}:${it.rowId}" }.toSet())
+        assertEquals(false, dao.syncState()!!.applying)
+    }
+
     @Test
     fun replaceIsRefusedWhileConnected() = runBlocking<Unit> {
         assertTrue(db.backupDao().isConnected())

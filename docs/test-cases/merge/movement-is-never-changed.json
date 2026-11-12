@@ -1,7 +1,7 @@
 {
   "name": "movement-is-never-changed",
   "description": "Incoming movement with an existing id and another quantity: the existing one is kept",
-  "actorRole": "editor",
+  "actorRole": "member",
   "existing": {
     "location": [
       {
@@ -50,7 +50,16 @@
         "table": "stock_movement",
         "id": "m1",
         "status": "changed",
-        "conflict": "MOVEMENT_KEPT"
+        "conflict": "MOVEMENT_KEPT",
+        "row": {
+          "id": "m1",
+          "articleId": "a1",
+          "locationId": "l1",
+          "quantity": 2000,
+          "reason": "purchase",
+          "occurredAt": 5,
+          "createdAt": 5
+        }
       }
     ],
     "final": {
