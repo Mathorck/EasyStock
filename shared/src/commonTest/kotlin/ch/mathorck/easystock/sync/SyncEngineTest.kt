@@ -764,6 +764,18 @@ class SyncEngineTest {
     }
 
     @Test
+    fun aRefusedSyncKeepsTheProblemTypeForTheScreen() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        val engine = engine(store) { request ->
+            if (request.path == "sync/push") respond("""{"type":"batch-too-large","status":413}""", HttpStatusCode.PayloadTooLarge, headersOf(HttpHeaders.ContentType, "application/problem+json"))
+            else defaults(request)
+        }
+        assertEquals(SyncResult.FAILED, engine.sync())
+        assertEquals("batch-too-large", engine.status.value.problemType)
+    }
+
+    @Test
     fun theEpochOfAFullPullIsKeptAndSentAfterwards() = runTest {
         val store = FakeSyncStore(state(since = 0))
         val epochs = epochStore("stale")

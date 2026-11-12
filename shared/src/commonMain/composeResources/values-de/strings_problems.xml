@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Meldungen der Problemtypen des Servers -->
+    <string name="problem_role_not_allowed">Diese Rolle kann hier nicht vergeben werden.</string>
+    <string name="problem_use_promotion">Ein Gastkonto kann nur befördert werden: «Befördern» verwenden.</string>
+    <string name="problem_batch_reused">Diese Änderungen wurden schon gesendet. Erneut synchronisieren.</string>
+    <string name="problem_dataset_reset">Die Serverdaten wurden ersetzt. Zum Laden erneut synchronisieren.</string>
+    <string name="problem_image_too_large">Ein Foto ist für den Server zu gross.</string>
+    <string name="problem_batch_too_large">Zu viele Änderungen auf einmal für den Server.</string>
+    <string name="problem_hash_mismatch">Ein Foto wurde unterwegs beschädigt. Erneut versuchen.</string>
+    <string name="problem_not_a_jpeg">Ein Foto ist kein gültiges JPEG.</string>
+    <string name="problem_unsupported_media">Der Server akzeptiert diese Dateiart nicht.</string>
+    <string name="problem_backup_invalid">Die Sicherungsdatei ist beschädigt oder unvollständig.</string>
+    <string name="problem_backup_encrypted">Die Sicherung ist verschlüsselt: der Server kann sie nicht lesen.</string>
+    <string name="problem_backup_newer">Die Sicherung stammt von einer neueren EasyStock-Version.</string>
+    <string name="problem_not_a_backup">Diese Datei ist keine EasyStock-Sicherung.</string>
+</resources>

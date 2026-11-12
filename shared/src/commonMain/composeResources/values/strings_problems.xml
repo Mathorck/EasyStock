@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Messages of the server problem types -->
+    <string name="problem_role_not_allowed">This role can’t be given here.</string>
+    <string name="problem_use_promotion">A Guest account can only be promoted: use Promote.</string>
+    <string name="problem_batch_reused">These changes were already sent. Sync again.</string>
+    <string name="problem_dataset_reset">The server data was replaced. Sync again to load it.</string>
+    <string name="problem_image_too_large">A photo is too large for the server.</string>
+    <string name="problem_batch_too_large">Too many changes at once for the server.</string>
+    <string name="problem_hash_mismatch">A photo was damaged on the way. Try again.</string>
+    <string name="problem_not_a_jpeg">A photo is not a valid JPEG.</string>
+    <string name="problem_unsupported_media">The server does not accept this kind of file.</string>
+    <string name="problem_backup_invalid">The backup file is damaged or incomplete.</string>
+    <string name="problem_backup_encrypted">The backup is encrypted: the server can’t read it.</string>
+    <string name="problem_backup_newer">The backup comes from a newer version of EasyStock.</string>
+    <string name="problem_not_a_backup">This file is not an EasyStock backup.</string>
+</resources>

@@ -29,23 +29,19 @@ import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.backup.QrCodeImage
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ProblemTypes
+import ch.mathorck.easystock.composables.server.problemMessage
 import ch.mathorck.easystock.viewmodels.admin.ActionFailure
 import ch.mathorck.easystock.viewmodels.admin.Loaded
 import ch.mathorck.easystock.viewmodels.formatDateTime
 import easystock.shared.generated.resources.Res
-import easystock.shared.generated.resources.admin_error_backup_too_large
 import easystock.shared.generated.resources.admin_error_conflict
 import easystock.shared.generated.resources.admin_error_forbidden
-import easystock.shared.generated.resources.admin_error_guest_limit
 import easystock.shared.generated.resources.admin_error_invalid
-import easystock.shared.generated.resources.admin_error_last_admin
 import easystock.shared.generated.resources.admin_error_network
 import easystock.shared.generated.resources.admin_error_not_found
 import easystock.shared.generated.resources.admin_error_rate_limited
 import easystock.shared.generated.resources.admin_error_server
 import easystock.shared.generated.resources.admin_error_session_revoked
-import easystock.shared.generated.resources.admin_error_short_code
 import easystock.shared.generated.resources.admin_error_too_old
 import easystock.shared.generated.resources.admin_never
 import easystock.shared.generated.resources.admin_qr_close
@@ -67,13 +63,7 @@ internal fun Role.label(): StringResource = when (this) {
 }
 
 /** The message of a failed call; the Problem Details type is more precise than the status. */
-internal fun ActionFailure.message(): StringResource = when (problemType) {
-    ProblemTypes.LAST_ADMIN -> Res.string.admin_error_last_admin
-    ProblemTypes.SHORT_CODE_MISMATCH -> Res.string.admin_error_short_code
-    ProblemTypes.GUEST_LIMIT_REACHED -> Res.string.admin_error_guest_limit
-    ProblemTypes.BACKUP_TOO_LARGE -> Res.string.admin_error_backup_too_large
-    else -> error.message()
-}
+internal fun ActionFailure.message(): StringResource = problemMessage(problemType) ?: error.message()
 
 internal fun ApiError.message(): StringResource = when (this) {
     ApiError.NETWORK -> Res.string.admin_error_network

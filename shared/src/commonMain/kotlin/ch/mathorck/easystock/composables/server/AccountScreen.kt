@@ -395,7 +395,7 @@ private fun SyncRow(lastSyncAt: Long?, status: SyncStatus, onSyncNow: () -> Unit
                                 SyncError.APP_TOO_OLD -> Res.string.sync_error_app_too_old
                                 SyncError.FORBIDDEN -> Res.string.sync_error_forbidden
                                 SyncError.NETWORK -> Res.string.sync_error_network
-                                else -> Res.string.sync_error_server
+                                else -> problemMessage(status.problemType) ?: Res.string.sync_error_server
                             },
                         ),
                         color = MaterialTheme.colorScheme.error,

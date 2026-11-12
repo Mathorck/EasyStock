@@ -55,6 +55,8 @@ data class SyncStatus(
     /** Rows written so far by the running full pull (after joining or a promotion), null otherwise. */
     val fullPullRows: Int? = null,
     val error: SyncError? = null,
+    /** The Problem Details `type` behind [error], when the server sent one (a precise message on screen). */
+    val problemType: String? = null,
     /** A 426 paused the sync until the app is updated. */
     val paused: Boolean = false,
 )
@@ -168,7 +170,7 @@ class SyncEngine(
                 startOver(remote.sync)
             }
             notifyAlerts()
-            _status.update { it.copy(error = null) }
+            _status.update { it.copy(error = null, problemType = null) }
             // A failed cleanup is not a failed sync: the next cycle tries again
             try {
                 store.removeOrphanPhotos()
@@ -185,11 +187,11 @@ class SyncEngine(
         } catch (e: ApiException) {
             val error = syncErrorOf(e)
             if (error == SyncError.APP_TOO_OLD) pausedFor = state.serverUrl
-            _status.update { it.copy(error = error, paused = error == SyncError.APP_TOO_OLD) }
+            _status.update { it.copy(error = error, problemType = e.problemType, paused = error == SyncError.APP_TOO_OLD) }
             if (error == SyncError.APP_TOO_OLD) SyncResult.PAUSED else SyncResult.FAILED
         } catch (e: Exception) {
             // A row the database refused (a reference still missing after the last page...): tried again next time
-            _status.update { it.copy(error = SyncError.SERVER) }
+            _status.update { it.copy(error = SyncError.SERVER, problemType = null) }
             SyncResult.FAILED
         } finally {
             _status.update { it.copy(running = false, fullPullRows = null) }

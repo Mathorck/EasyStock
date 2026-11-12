@@ -38,11 +38,6 @@ import easystock.shared.generated.resources.rejected_deleted_row
 import easystock.shared.generated.resources.rejected_dismiss
 import easystock.shared.generated.resources.rejected_empty
 import easystock.shared.generated.resources.rejected_hint
-import easystock.shared.generated.resources.rejected_reason_conflict
-import easystock.shared.generated.resources.rejected_reason_invalid
-import easystock.shared.generated.resources.rejected_reason_missing_reference
-import easystock.shared.generated.resources.rejected_reason_not_allowed
-import easystock.shared.generated.resources.rejected_reason_review_open
 import easystock.shared.generated.resources.rejected_reason_unknown
 import easystock.shared.generated.resources.rejected_table_article
 import easystock.shared.generated.resources.rejected_table_attribute_definition
@@ -144,13 +139,9 @@ internal fun tableLabel(table: String): StringResource? = when (table) {
 }
 
 @Composable
-private fun reasonText(reason: String): String = when (val code = RowConflict.codeOf(reason)) {
-    "not-allowed" -> stringResource(Res.string.rejected_reason_not_allowed)
-    "invalid" -> stringResource(Res.string.rejected_reason_invalid)
-    "missing-reference" -> stringResource(Res.string.rejected_reason_missing_reference)
-    "review-open" -> stringResource(Res.string.rejected_reason_review_open)
-    "conflict" -> stringResource(Res.string.rejected_reason_conflict)
-    else -> stringResource(Res.string.rejected_reason_unknown, code)
+private fun reasonText(reason: String): String {
+    val code = RowConflict.codeOf(reason)
+    return rejectReasonMessage(code)?.let { stringResource(it) } ?: stringResource(Res.string.rejected_reason_unknown, code)
 }
 
 @Preview(showBackground = true)

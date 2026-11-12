@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Messages des types de problème du serveur -->
+    <string name="problem_role_not_allowed">Ce rôle ne peut pas être attribué ici.</string>
+    <string name="problem_use_promotion">Un compte Invité ne peut que être promu : utilisez Promouvoir.</string>
+    <string name="problem_batch_reused">Ces modifications ont déjà été envoyées. Synchronisez à nouveau.</string>
+    <string name="problem_dataset_reset">Les données du serveur ont été remplacées. Synchronisez pour les recharger.</string>
+    <string name="problem_image_too_large">Une photo est trop grande pour le serveur.</string>
+    <string name="problem_batch_too_large">Trop de modifications à la fois pour le serveur.</string>
+    <string name="problem_hash_mismatch">Une photo a été abîmée en route. Réessayez.</string>
+    <string name="problem_not_a_jpeg">Une photo n’est pas un JPEG valide.</string>
+    <string name="problem_unsupported_media">Le serveur n’accepte pas ce type de fichier.</string>
+    <string name="problem_backup_invalid">Le fichier de sauvegarde est abîmé ou incomplet.</string>
+    <string name="problem_backup_encrypted">La sauvegarde est chiffrée : le serveur ne peut pas la lire.</string>
+    <string name="problem_backup_newer">La sauvegarde vient d’une version plus récente d’EasyStock.</string>
+    <string name="problem_not_a_backup">Ce fichier n’est pas une sauvegarde EasyStock.</string>
+</resources>

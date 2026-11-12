@@ -144,21 +144,21 @@ enum class ConnectError {
  * wrong password, not a revoked session ([apiErrorOf] maps every 401 to [ApiError.SESSION_REVOKED]).
  */
 fun connectErrorOf(e: ApiException): ConnectError = when (e.problemType) {
-    "invalid-credentials" -> ConnectError.WRONG_CREDENTIALS
-    "account-locked" -> ConnectError.ACCOUNT_LOCKED
+    ProblemTypes.INVALID_CREDENTIALS -> ConnectError.WRONG_CREDENTIALS
+    ProblemTypes.ACCOUNT_LOCKED -> ConnectError.ACCOUNT_LOCKED
     ProblemTypes.ACCOUNT_DISABLED -> ConnectError.ACCOUNT_DISABLED
-    "invite-invalid" -> ConnectError.CODE_INVALID
-    "invite-expired", "reset-expired", "promotion-expired" -> ConnectError.CODE_EXPIRED
-    "invite-used", "reset-used" -> ConnectError.CODE_USED
-    "setup-done" -> ConnectError.SETUP_DONE
-    "username-taken" -> ConnectError.USERNAME_TAKEN
-    "guest-signup-off" -> ConnectError.GUEST_SIGNUP_OFF
+    ProblemTypes.INVITE_INVALID -> ConnectError.CODE_INVALID
+    ProblemTypes.INVITE_EXPIRED, ProblemTypes.RESET_EXPIRED, ProblemTypes.PROMOTION_EXPIRED -> ConnectError.CODE_EXPIRED
+    ProblemTypes.INVITE_USED, ProblemTypes.RESET_USED -> ConnectError.CODE_USED
+    ProblemTypes.SETUP_DONE -> ConnectError.SETUP_DONE
+    ProblemTypes.USERNAME_TAKEN -> ConnectError.USERNAME_TAKEN
+    ProblemTypes.GUEST_SIGNUP_OFF -> ConnectError.GUEST_SIGNUP_OFF
     ProblemTypes.GUEST_LIMIT_REACHED -> ConnectError.GUEST_LIMIT_REACHED
     ProblemTypes.APP_TOO_OLD -> ConnectError.APP_TOO_OLD
     ProblemTypes.SESSION_REVOKED -> ConnectError.SESSION_REVOKED
-    "no-promotion" -> ConnectError.NO_PROMOTION
-    "validation-failed" -> ConnectError.INVALID
-    "rate-limited" -> ConnectError.RATE_LIMITED
+    ProblemTypes.NO_PROMOTION -> ConnectError.NO_PROMOTION
+    ProblemTypes.VALIDATION_FAILED -> ConnectError.INVALID
+    ProblemTypes.RATE_LIMITED -> ConnectError.RATE_LIMITED
     else -> when (e.error) {
         ApiError.NETWORK -> ConnectError.NETWORK
         ApiError.APP_TOO_OLD -> ConnectError.APP_TOO_OLD
