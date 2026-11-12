@@ -91,6 +91,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
 
     abstract fun syncDao(): SyncDao
+
+    abstract fun alertDao(): AlertDao
 }
 
 // Implemented by the Room compiler on each platform

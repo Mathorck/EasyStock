@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Low-stock alert notifications (server mode) -->
+    <string name="alerts_channel_name">Stock bas</string>
+    <string name="alerts_channel_description">Un article du serveur a atteint son seuil d’alerte.</string>
+    <string name="alerts_single_title">Stock bas : %1$s</string>
+    <string name="alerts_single_text">Il reste %1$s %2$s en stock</string>
+    <string name="alerts_group_title">%1$d articles ont un stock bas</string>
+    <string name="alerts_group_line">%1$s : %2$s %3$s</string>
+
+    <!-- Asked once after joining a server (Android 13+) -->
+    <string name="alerts_permission_title">Alertes de stock bas</string>
+    <string name="alerts_permission_message">EasyStock peut vous avertir quand un article atteint son seuil d’alerte sur le serveur. Vous pourrez changer cela plus tard dans les réglages d’Android.</string>
+    <string name="alerts_permission_allow">Autoriser</string>
+    <string name="alerts_permission_later">Plus tard</string>
+</resources>

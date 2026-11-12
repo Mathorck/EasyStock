@@ -3,7 +3,10 @@ package ch.mathorck.easystock.sync
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import ch.mathorck.easystock.alerts.AlertNotifier
+import ch.mathorck.easystock.alerts.alertNotifications
 import ch.mathorck.easystock.data.db.appDatabase
+import ch.mathorck.easystock.data.db.asAlertStore
 import ch.mathorck.easystock.images.isValidImagePath
 import ch.mathorck.easystock.server.KtorAccountApi
 import ch.mathorck.easystock.server.ServerConnection
@@ -53,6 +56,7 @@ fun syncEngine(context: Context): SyncEngine = engine ?: synchronized(SyncEngine
             },
             scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
             onImagesDownloaded = SyncImages::downloaded,
+            afterPull = AlertNotifier(appDatabase(app).alertDao().asAlertStore(), alertNotifications(app))::check,
         ).also { engine = it }
     }
 }

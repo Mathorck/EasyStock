@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Low-stock alert notifications (server mode) -->
+    <string name="alerts_channel_name">Niedriger Bestand</string>
+    <string name="alerts_channel_description">Ein Artikel des Servers hat seine Warnschwelle erreicht.</string>
+    <string name="alerts_single_title">Niedriger Bestand: %1$s</string>
+    <string name="alerts_single_text">Noch %1$s %2$s am Lager</string>
+    <string name="alerts_group_title">%1$d Artikel haben einen niedrigen Bestand</string>
+    <string name="alerts_group_line">%1$s: %2$s %3$s</string>
+
+    <!-- Asked once after joining a server (Android 13+) -->
+    <string name="alerts_permission_title">Warnungen bei niedrigem Bestand</string>
+    <string name="alerts_permission_message">EasyStock kann Sie benachrichtigen, wenn ein Artikel auf dem Server seine Warnschwelle erreicht. Sie können das später in den Android-Einstellungen ändern.</string>
+    <string name="alerts_permission_allow">Erlauben</string>
+    <string name="alerts_permission_later">Später</string>
+</resources>

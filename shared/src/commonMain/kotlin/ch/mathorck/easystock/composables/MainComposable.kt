@@ -24,6 +24,7 @@ import ch.mathorck.easystock.data.db.rememberAppDatabase
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import ch.mathorck.easystock.sync.SyncHost
+import ch.mathorck.easystock.alerts.AlertHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,6 +73,9 @@ private fun MainContent() {
     ServerSessionWatcher(onWiped = { page = Page.Stock })
     val connected = LocalPermissions.current.connected
     SyncHost(connected)
+    // Asked once right after joining a server (Android 13+)
+    var askAlertPermission by rememberSaveable { mutableStateOf(false) }
+    AlertHost(askPermission = askAlertPermission, onAsked = { askAlertPermission = false }, onOpen = { page = Page.Stock })
     val db = rememberAppDatabase()
     val unseenFlow = remember(db, connected) {
         if (connected) db.syncDao().observeUnseenRejectedCount() else flowOf(0)
@@ -100,6 +104,7 @@ private fun MainContent() {
                         scope.launch { snackbar.showSnackbar(loggedOut) }
                     },
                     onJoined = { address ->
+                        askAlertPermission = true
                         scope.launch { snackbar.showSnackbar(getString(Res.string.server_joined, address)) }
                     },
                 )

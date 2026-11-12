@@ -125,6 +125,8 @@ import easystock.shared.generated.resources.stock_search_hint
 import kotlinx.coroutines.launch
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import ch.mathorck.easystock.sync.rememberSyncEngine
+import ch.mathorck.easystock.alerts.AlertNavigation
+import ch.mathorck.easystock.alerts.AlertTarget
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -143,6 +145,19 @@ fun StockPage() {
     var selectedArticleId by rememberSaveable { mutableStateOf<String?>(null) }
     // Hoisted so the list keeps its scroll position while the detail is shown
     val listState = rememberLazyListState()
+    // A tapped low-stock notification: its article, or the low-stock articles
+    val alertTarget by AlertNavigation.target.collectAsStateWithLifecycle()
+    LaunchedEffect(alertTarget) {
+        when (val target = alertTarget) {
+            is AlertTarget.Article -> selectedArticleId = target.articleId
+            AlertTarget.LowStock -> {
+                selectedArticleId = null
+                viewModel.onFiltersChange(StockFilters(stockLevel = StockLevelFilter.LOW))
+            }
+            null -> return@LaunchedEffect
+        }
+        AlertNavigation.consumed()
+    }
     // A saved new article opens its detail screen
     LaunchedEffect(createdArticleId) {
         createdArticleId?.let {

@@ -64,7 +64,7 @@ enum class SyncResult { DONE, NOT_CONNECTED, PAUSED, FAILED }
  * The sync engine (02-app.md, "Sync engine"). One cycle at a time ([SyncCoordinator]):
  * 1. `GET /me`: refreshes the access token when needed (bearer plugin) and updates the role;
  * 2. push the outbox (Admin and Editor only), batch after batch;
- * 3. pull every page since `sync_state.since`, write the rows, users and alerts;
+ * 3. pull every page since `sync_state.since`, write the rows, users and alerts, then notify the new alerts;
  * 4. download the missing photos, in the background.
  * Never used in standalone mode: no `sync_state` row, no cycle, no network.
  */
@@ -79,6 +79,8 @@ class SyncEngine(
     private val newBatchId: () -> String = { Uuid.random().toString() },
     /** Called after photos were downloaded, so the screens load them. */
     private val onImagesDownloaded: () -> Unit = {},
+    /** Called after each successful pull, in the cycle: shows the new low-stock alerts (alerts/AlertNotifier). */
+    private val afterPull: suspend () -> Unit = {},
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -126,6 +128,7 @@ class SyncEngine(
             val role = refreshAccount(state, remote.account)
             if (Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)) push(remote.sync)
             pull(remote.sync, state.since)
+            notifyAlerts()
             _status.update { it.copy(error = null) }
             startDownloads(remote.sync)
             SyncResult.DONE
@@ -216,6 +219,17 @@ class SyncEngine(
                 if (fullPull) _status.update { it.copy(fullPullRows = written) }
             }
             if (!page.hasMore) return
+        }
+    }
+
+    /** A notification that fails never fails the sync: the alerts stay pending for the next cycle. */
+    private suspend fun notifyAlerts() {
+        try {
+            afterPull()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Tried again after the next pull
         }
     }
 

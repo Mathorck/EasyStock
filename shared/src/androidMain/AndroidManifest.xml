@@ -17,5 +17,7 @@
         android:required="false" />
     <!-- Short buzz when a tag is read -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Low-stock alerts from the server (server mode only). Asked at runtime (Android 13+) right after joining -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 </manifest>
