@@ -7,8 +7,8 @@
     <string name="movement_kept_use_server">Use the server’s version</string>
     <string name="movement_kept_keep_mine">Keep mine</string>
     <string name="movement_kept_keep_mine_hint">Keep mine adds your quantity again as a new movement, dated now.</string>
-    <string name="movement_kept_blocked_serial">Keep mine is not possible for the movement of a unit.</string>
-    <string name="movement_kept_blocked_transfer">Keep mine is not possible for one half of a transfer.</string>
+    <string name="movement_kept_blocked_serial">This item has already been moved by someone else. You can redo the move from the article page.</string>
+    <string name="movement_kept_blocked_transfer">This item has already been moved by someone else. You can redo the move from the article page.</string>
     <string name="movement_kept_blocked_article_gone">Keep mine is not possible: the article was deleted.</string>
     <string name="movement_kept_blocked_location_gone">Keep mine is not possible: the location was deleted.</string>
     <string name="movement_kept_blocked_not_enough_stock">Keep mine is not possible: there is not enough stock at this location now.</string>

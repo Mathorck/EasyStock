@@ -7,8 +7,8 @@
     <string name="movement_kept_use_server">Version des Servers verwenden</string>
     <string name="movement_kept_keep_mine">Meine behalten</string>
     <string name="movement_kept_keep_mine_hint">Meine behalten fügt Ihre Menge erneut als neue Bewegung mit dem aktuellen Datum hinzu.</string>
-    <string name="movement_kept_blocked_serial">Meine behalten ist für die Bewegung einer Einheit nicht möglich.</string>
-    <string name="movement_kept_blocked_transfer">Meine behalten ist für eine Hälfte einer Umlagerung nicht möglich.</string>
+    <string name="movement_kept_blocked_serial">Dieser Artikel wurde bereits von jemand anderem verschoben. Sie können die Bewegung auf der Artikelseite wiederholen.</string>
+    <string name="movement_kept_blocked_transfer">Dieser Artikel wurde bereits von jemand anderem verschoben. Sie können die Bewegung auf der Artikelseite wiederholen.</string>
     <string name="movement_kept_blocked_article_gone">Meine behalten ist nicht möglich: Der Artikel wurde gelöscht.</string>
     <string name="movement_kept_blocked_location_gone">Meine behalten ist nicht möglich: Der Lagerort wurde gelöscht.</string>
     <string name="movement_kept_blocked_not_enough_stock">Meine behalten ist nicht möglich: Am Lagerort ist jetzt nicht genug Bestand.</string>
