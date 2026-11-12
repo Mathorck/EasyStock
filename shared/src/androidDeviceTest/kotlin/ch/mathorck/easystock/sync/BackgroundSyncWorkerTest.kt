@@ -42,4 +42,22 @@ class BackgroundSyncWorkerTest {
         scheduler.cancel()
         assertTrue(manager.getWorkInfosForUniqueWork(BACKGROUND_SYNC_WORK).get().all { it.state == WorkInfo.State.CANCELLED })
     }
+
+    @Test
+    fun pushesInABurstEnqueueOneExpeditedUniqueJob() {
+        val manager = WorkManager.getInstance(context)
+        repeat(3) { enqueuePushSync(context) }
+        val infos = manager.getWorkInfosForUniqueWork(PUSH_SYNC_WORK).get()
+        assertEquals(1, infos.size)
+        assertTrue(pushSyncRequest().workSpec.expedited)
+        assertEquals(NetworkType.CONNECTED, pushSyncRequest().workSpec.constraints.requiredNetworkType)
+    }
+
+    @Test
+    fun cancelStopsThePushJobToo() {
+        val manager = WorkManager.getInstance(context)
+        enqueuePushSync(context)
+        WorkManagerBackgroundSync(context).cancel()
+        assertTrue(manager.getWorkInfosForUniqueWork(PUSH_SYNC_WORK).get().all { it.state == WorkInfo.State.CANCELLED })
+    }
 }

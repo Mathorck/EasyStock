@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Backup transfer over the local Wi-Fi network only (sockets to local addresses, see backup/LanTransfer.kt) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -19,8 +20,16 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Low-stock alerts from the server (server mode only). Asked at runtime (Android 13+) right after joining -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Expedited sync started by a push message, on Android 11 and older (WorkManager foreground service) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application>
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <!-- Server mode, optional: a UnifiedPush message from the distributor app starts a sync -->
         <service
             android:name="ch.mathorck.easystock.push.EasyStockPushService"
