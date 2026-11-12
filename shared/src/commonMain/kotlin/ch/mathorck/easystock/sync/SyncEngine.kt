@@ -186,6 +186,8 @@ class SyncEngine(
             val list = byTable[table.tableName].orEmpty().mapNotNull { store.wireRow(table, it.rowId, hashNewImages = true) }
             if (list.isNotEmpty()) rows[table.tableName] = list
         }
+        // Only entries of rows that no longer exist (never the case: hard deletes clear their entry)
+        if (rows.isEmpty()) return null
         rows[SyncTable.ARTICLE.tableName].orEmpty().mapNotNull { it.imageSha256 }.distinct().forEach { sha ->
             if (!api.hasImage(sha)) store.imageBytes(sha)?.let { api.putImage(sha, it) }
         }
