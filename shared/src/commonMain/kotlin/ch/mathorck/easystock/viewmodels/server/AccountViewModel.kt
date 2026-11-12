@@ -54,6 +54,8 @@ data class AccountUiState(
     val me: MeAnswer? = null,
     /** `GET /me` failed: the screen shows what is stored on the phone. */
     val meError: ConnectError? = null,
+    /** An alerts switch change is being sent. */
+    val alertsBusy: Boolean = false,
     val logout: LogoutStep? = null,
     val promotion: PromotionForm? = null,
     /** Shown once in a dialog. */
@@ -97,6 +99,32 @@ class AccountViewModel(
                 _state.update { it.copy(meError = connectErrorOf(e)) }
             } catch (e: Exception) {
                 _state.update { it.copy(meError = ConnectError.NETWORK) }
+            }
+        }
+    }
+
+    // ---------- Alerts ----------
+
+    /**
+     * Turns the low-stock alerts on or off (`PATCH /me`). The switch changes at once; a failure puts it back
+     * and shows the error. [onSaved] runs after the server accepted it (the screen asks the notification
+     * permission there when turned on).
+     */
+    fun setAlerts(enabled: Boolean, onSaved: () -> Unit = {}) {
+        val before = _state.value
+        val me = before.me ?: return
+        if (before.alertsBusy) return
+        _state.update { it.copy(me = me.copy(alertsEnabled = enabled), alertsBusy = true) }
+        viewModelScope.launch {
+            try {
+                api.setAlertsEnabled(enabled)
+                _state.update { it.copy(alertsBusy = false) }
+                onSaved()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val error = (e as? ApiException)?.let(::connectErrorOf) ?: ConnectError.NETWORK
+                _state.update { it.copy(me = it.me?.copy(alertsEnabled = me.alertsEnabled), alertsBusy = false, error = error) }
             }
         }
     }
