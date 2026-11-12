@@ -10,12 +10,14 @@ import ch.mathorck.easystock.data.model.SyncState
 import ch.mathorck.easystock.server.AccountApi
 import ch.mathorck.easystock.server.ApiError
 import ch.mathorck.easystock.server.ApiException
+import ch.mathorck.easystock.server.ProblemTypes
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -79,9 +81,20 @@ class SyncEngine(
     private val newBatchId: () -> String = { Uuid.random().toString() },
     /** Called after photos were downloaded, so the screens load them. */
     private val onImagesDownloaded: () -> Unit = {},
+    /** The data set this phone holds, sent with push and pull ([DatasetEpochStore]). */
+    private val epochs: DatasetEpochStore = InMemoryDatasetEpochStore(),
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
+
+    private val _resetNotice = MutableStateFlow<DatasetResetNotice?>(null)
+
+    /** Set when the server replaced its data set and the phone started over, until [resetNoticeShown]. */
+    val resetNotice: StateFlow<DatasetResetNotice?> = _resetNotice.asStateFlow()
+
+    fun resetNoticeShown() {
+        _resetNotice.value = null
+    }
 
     private var downloads: Job? = null
 
@@ -123,9 +136,17 @@ class SyncEngine(
         _status.update { it.copy(running = true, fullPullRows = if (state.since == 0L) 0 else null) }
         return try {
             val remote = remote(state)
-            val role = refreshAccount(state, remote.account)
-            if (Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)) push(remote.sync)
-            pull(remote.sync, state.since)
+            try {
+                val role = refreshAccount(state, remote.account)
+                // The epoch is only sent for data pulled with it: a full pull starts a data set
+                val epoch = if (state.since > 0) epochs.load() else null
+                if (Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)) push(remote.sync, epoch)
+                pull(remote.sync, state.since, epoch)
+            } catch (e: Exception) {
+                if (!isDatasetReset(e)) throw e
+                // Once per cycle: a second reset fails the cycle (SERVER), never wipes again
+                startOver(remote.sync)
+            }
             _status.update { it.copy(error = null) }
             startDownloads(remote.sync)
             SyncResult.DONE
@@ -156,11 +177,27 @@ class SyncEngine(
         return Role.fromDb(role)
     }
 
-    private suspend fun push(api: SyncApi) {
+    /**
+     * The server replaced its data set (409 `dataset-reset`, or a pull answer with another epoch):
+     * the unsent changes are counted (lost), every server row and photo of this phone is erased, and
+     * everything is pulled again from 0. The session stays connected.
+     */
+    private suspend fun startOver(api: SyncApi) {
+        // A download would store a photo of the old data set
+        downloads?.cancelAndJoin()
+        val lost = store.outbox(Int.MAX_VALUE).size
+        if (!store.wipeServerData()) throw LeftServer()
+        epochs.save(null)
+        _resetNotice.update { DatasetResetNotice((it?.lostChanges ?: 0) + lost) }
+        _status.update { it.copy(fullPullRows = 0) }
+        pull(api, 0, null)
+    }
+
+    private suspend fun push(api: SyncApi, epoch: String?) {
         repeat(MAX_BATCHES_PER_CYCLE) {
             val pending = store.pendingPush() ?: buildBatch(api) ?: return
             val answer = try {
-                api.push(pending.body)
+                api.push(pending.body, epoch)
             } catch (e: ApiException) {
                 // Network: keep the batch, the next cycle sends the same id and body again.
                 // Refused as a whole (403 role, 409 batch id, 413...): the server applied nothing,
@@ -197,13 +234,22 @@ class SyncEngine(
         return withBody
     }
 
-    private suspend fun pull(api: SyncApi, startSince: Long) {
+    /** [startEpoch]: the data set of the rows on the phone, null when unknown or for a full pull. */
+    private suspend fun pull(api: SyncApi, startSince: Long, startEpoch: String?) {
         val fullPull = startSince == 0L
         val buffer = PullBuffer()
         var since = startSince
+        var epoch = startEpoch
         var written = 0
         while (true) {
-            val page = api.pull(since)
+            val page = api.pull(since, epoch = epoch)
+            page.datasetEpoch?.let { answered ->
+                // A server that doesn't check the header: the answer still tells
+                if (epoch != null && answered != epoch) throw DatasetEpochChanged()
+                // Saved before the rows: a crash in between leaves `since` at its old value
+                if (epoch == null) epochs.save(answered)
+                epoch = answered
+            }
             buffer.add(page)
             since = page.next
             val missing = buffer.missingReferences { table, ids -> store.existingIds(table, ids) }
@@ -257,6 +303,10 @@ class SyncEngine(
 
 /** `sync_state` is gone: the phone left the server while the cycle ran. */
 private class LeftServer : Exception()
+
+/** The server replaced its data set since this phone pulled it. */
+internal fun isDatasetReset(e: Exception): Boolean =
+    e is DatasetEpochChanged || (e is ApiException && e.problemType == ProblemTypes.DATASET_RESET)
 
 internal fun syncErrorOf(e: ApiException): SyncError = when (e.error) {
     ApiError.NETWORK -> SyncError.NETWORK

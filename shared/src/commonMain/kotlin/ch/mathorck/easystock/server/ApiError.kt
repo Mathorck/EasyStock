@@ -64,6 +64,7 @@ object ProblemTypes {
     const val SHORT_CODE_MISMATCH = "short-code-mismatch"
     const val GUEST_LIMIT_REACHED = "guest-limit-reached"
     const val BACKUP_TOO_LARGE = "backup-too-large"
+    const val DATASET_RESET = "dataset-reset"
 }
 
 /** The error of an HTTP status. */

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The server replaced its whole data set (dataset-reset) -->
+    <string name="dataset_reset_title">Les données du serveur ont été remplacées</string>
+    <string name="dataset_reset_message">Un administrateur a remplacé toutes les données du serveur. Ce téléphone a effacé sa copie et télécharge les nouvelles données. Vous restez connecté.</string>
+    <plurals name="dataset_reset_lost">
+        <item quantity="one">%1$d modification faite sur ce téléphone n’avait pas encore été envoyée et est perdue.</item>
+        <item quantity="other">%1$d modifications faites sur ce téléphone n’avaient pas encore été envoyées et sont perdues.</item>
+    </plurals>
+    <string name="dataset_reset_ok">OK</string>
+</resources>

@@ -60,6 +60,13 @@ interface SyncStore {
      */
     suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean
 
+    /**
+     * The server replaced its data set: deletes every synced row, the outbox, the pending push, the
+     * rejected changes, alerts, users and photos, and sets `since` to 0, in one transaction (the photo
+     * files after it). `sync_state` and the session stay. False when `sync_state` is gone.
+     */
+    suspend fun wipeServerData(): Boolean
+
     /** Photos of articles whose file is not on the phone yet. */
     suspend fun missingImages(): List<ImageHash>
 

@@ -17,10 +17,13 @@ interface SyncImageFiles {
 
     /** Writes the whole file or nothing (temporary file, then rename). */
     suspend fun write(path: String, bytes: ByteArray)
+
+    /** Deletes every article photo (the server replaced its data set). */
+    suspend fun deleteAll()
 }
 
 /** [SyncStore] on the Room database (data/db/SyncDao) and the photo files. */
-class RoomSyncStore(db: AppDatabase, private val files: SyncImageFiles) : SyncStore {
+class RoomSyncStore(private val db: AppDatabase, private val files: SyncImageFiles) : SyncStore {
     private val dao = db.syncDao()
 
     override suspend fun syncState(): SyncState? = dao.syncState()
@@ -57,6 +60,13 @@ class RoomSyncStore(db: AppDatabase, private val files: SyncImageFiles) : SyncSt
 
     override suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean =
         dao.applyPull(buffer, next, fullPull, now)
+
+    override suspend fun wipeServerData(): Boolean {
+        if (!db.backupDao().wipeServerData()) return false
+        // After the rows: an article never points at a deleted photo
+        files.deleteAll()
+        return true
+    }
 
     override suspend fun missingImages(): List<ImageHash> =
         dao.articleImages().filter { isValidImagePath(it.imagePath) && !files.exists(it.imagePath) }

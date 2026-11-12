@@ -35,4 +35,5 @@ fun SyncHost(connected: Boolean) {
             .debounce(OUTBOX_DEBOUNCE)
             .collect { engine.requestSync() }
     }
+    DatasetResetDialog(engine)
 }

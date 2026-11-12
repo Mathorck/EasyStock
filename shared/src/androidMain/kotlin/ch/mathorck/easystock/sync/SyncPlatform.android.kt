@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.data.db.appDatabase
+import ch.mathorck.easystock.images.IMAGE_DIR
 import ch.mathorck.easystock.images.isValidImagePath
 import ch.mathorck.easystock.server.KtorAccountApi
 import ch.mathorck.easystock.server.ServerConnection
@@ -35,7 +36,31 @@ internal class AndroidSyncImageFiles(private val filesDir: File) : SyncImageFile
             temp.delete()
         }
     }
+
+    override suspend fun deleteAll() {
+        withContext(Dispatchers.IO) { File(filesDir, IMAGE_DIR).deleteRecursively() }
+    }
 }
+
+/** [DatasetEpochStore] in a small private preferences file (not personal data: a server UUID). */
+internal class AndroidDatasetEpochStore(context: Context) : DatasetEpochStore {
+    private val prefs = context.getSharedPreferences(DATASET_EPOCH_FILE, Context.MODE_PRIVATE)
+
+    override suspend fun load(): String? = withContext(Dispatchers.IO) { prefs.getString(KEY, null) }
+
+    override suspend fun save(epoch: String?) = withContext(Dispatchers.IO) {
+        // commit: on disk before the pulled rows are written
+        prefs.edit().apply { if (epoch == null) remove(KEY) else putString(KEY, epoch) }.commit()
+        Unit
+    }
+
+    private companion object {
+        const val KEY = "dataset_epoch"
+    }
+}
+
+/** Preferences file of [AndroidDatasetEpochStore]. */
+const val DATASET_EPOCH_FILE = "sync_dataset"
 
 @Volatile
 private var engine: SyncEngine? = null
@@ -53,6 +78,7 @@ fun syncEngine(context: Context): SyncEngine = engine ?: synchronized(SyncEngine
             },
             scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
             onImagesDownloaded = SyncImages::downloaded,
+            epochs = AndroidDatasetEpochStore(app),
         ).also { engine = it }
     }
 }
