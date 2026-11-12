@@ -60,6 +60,8 @@ class AccountViewModelTest {
     private var syncs = 0
     private var leftAfterSync = 0
     private var leavingDuringLogout = false
+    private val order = mutableListOf<String>()
+    private var beforeLogoutError: Exception? = null
 
     private fun vm() = AccountViewModel(
         api = api,
@@ -73,6 +75,10 @@ class AccountViewModelTest {
         wipe = {
             leavingDuringLogout = ServerSessionEvents.leaving
             wipes++
+        },
+        beforeLogout = {
+            order += "beforeLogout:${api.logouts}"
+            beforeLogoutError?.let { throw it }
         },
     )
 
@@ -115,6 +121,27 @@ class AccountViewModelTest {
         assertTrue(leavingDuringLogout)
         assertFalse(ServerSessionEvents.leaving)
         assertEquals(LogoutStep.Done, vm.state.value.logout)
+    }
+
+    @Test
+    fun thePushAddressIsDroppedBeforeTheLogout() {
+        val vm = vm()
+        vm.askLogout(guest = false)
+        vm.confirmLogout()
+        // Before the logout call, while the session still works
+        assertEquals(listOf("beforeLogout:0"), order)
+        assertEquals(1, api.logouts)
+        assertEquals(LogoutStep.Done, vm.state.value.logout)
+    }
+
+    @Test
+    fun aFailedPushUnregisterDoesNotStopTheLogout() {
+        beforeLogoutError = IllegalStateException("offline")
+        val vm = vm()
+        vm.askLogout(guest = false)
+        vm.confirmLogout()
+        assertEquals(1, api.logouts)
+        assertEquals(1, wipes)
     }
 
     @Test

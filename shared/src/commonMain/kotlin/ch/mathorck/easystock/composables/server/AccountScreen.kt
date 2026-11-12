@@ -58,6 +58,7 @@ import ch.mathorck.easystock.server.rememberServerClient
 import ch.mathorck.easystock.sync.SyncError
 import ch.mathorck.easystock.sync.SyncStatus
 import ch.mathorck.easystock.sync.rememberSyncEngine
+import ch.mathorck.easystock.push.rememberPushRegistrar
 import androidx.compose.material3.Badge
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.mutableStateOf
@@ -160,6 +161,7 @@ fun AccountScreen(
     val dataReset = rememberDataReset()
     val client = rememberServerClient(syncState) ?: return
     val engine = rememberSyncEngine()
+    val push = rememberPushRegistrar()
     var showRejected by rememberSaveable { mutableStateOf(false) }
     val loggedOut by rememberUpdatedState(onLoggedOut)
     // One view model per client: a new connection (after a logout) gets a fresh one
@@ -190,6 +192,7 @@ fun AccountScreen(
                 dataReset.run()
                 loggedOut()
             },
+            beforeLogout = { push?.beforeLogout() },
         )
     }
     LaunchedEffect(vm) { vm.refresh() }
@@ -234,6 +237,7 @@ fun AccountScreen(
             dismissError = vm::dismissError,
             openAdministration = onOpenAdministration,
         ),
+        pushRow = { PushRow(ServerConnection.of(syncState).serverUrl) },
     )
 }
 
@@ -249,6 +253,7 @@ internal fun AccountContent(
     syncStatus: SyncStatus = SyncStatus(),
     rejected: Int = 0,
     unseenRejected: Int = 0,
+    pushRow: @Composable () -> Unit = {},
 ) {
     val me = state.me
     SettingsSubpage(title = stringResource(Res.string.settings_server), onBack = onBack) {
@@ -273,6 +278,7 @@ internal fun AccountContent(
             val shortCode = me?.shortCode
             if (role == Role.GUEST && !shortCode.isNullOrBlank()) ShortCodeCard(shortCode)
             SyncRow(lastSyncAt, syncStatus, actions.syncNow)
+            pushRow()
             if (rejected > 0) {
                 ListItem(
                     headlineContent = { Text(stringResource(Res.string.rejected_title)) },

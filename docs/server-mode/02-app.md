@@ -283,7 +283,7 @@ Open points (sync engine)
   pull right after joining or a promotion), the sync row and the rejected changes screen on the Account screen, and
   the Settings badge for unseen rejected changes.
 * Done: the 15-minute WorkManager job (`sync/BackgroundSync*.kt`, WorkManager 2.12.0): unique periodic work, network required, KEEP, exponential backoff. Scheduled while `sync_state` exists (join and app start), cancelled when it disappears (logout, leave, revoked session, reset); the worker also cancels itself when the cycle says NOT_CONNECTED. Runs `syncEngine(context).sync()`, so never two cycles at once. A network failure retries with backoff. Assumes nothing new of the server.
-* Not done yet: UnifiedPush, and the low-stock alert notifications (alerts are
+* Not done yet: the low-stock alert notifications (alerts are
   pulled and stored in `low_stock_alert`, nothing is shown yet).
 * Done: `dataset-reset` (the server replaced its whole data set, server plan §1.2 #21). The engine
   (`sync/DatasetReset.kt`) keeps the server's `datasetEpoch` and sends it as `X-EasyStock-Dataset-Epoch` with push
@@ -333,3 +333,29 @@ Open points (sync engine)
   camelCase), run against `planMerge` by `MergeTestCasesTest`. The Kotlin runner ignores `status`, `actorRole` and the
   `row` of each result; it checks the `conflict` codes and the `final` rows. `CATEGORY_RENAMED`, `SERIAL_RENAMED`,
   `BARCODE_CLEARED`, `LOCATION_PARENT_KEPT` and `MOVEMENT_KEPT` are app merge codes the server spec may not list yet.
+
+Open points (push)
+
+* Done: UnifiedPush with the connector library `org.unifiedpush.android:connector` 3.3.5 (no Firebase, no Google Play
+  Services; it brings Google Tink for the Web Push decryption, unused here). Code in `push/` (`PushRegistrar`,
+  `KtorPushApi`), Android in `push/EasyStockPushService.kt` and `PushRegistrar.android.kt`, the row in
+  `composables/server/PushRow.kt`.
+* The Account screen lists the installed distributors; the user turns push on and picks one in a dialog (always a
+  choice, even with one app). Without a distributor it says the 15-minute background sync is used.
+* A push message calls `SyncEngine.requestSync()` and nothing else: its content is ignored.
+* The opt-in and the address the server confirmed are kept in `noBackupFilesDir/unifiedpush.json`, not in the
+  database (no schema change) and never in an Android backup. Every wipe (logout, revoked session, reset) unregisters
+  from the distributor and deletes that file, without network.
+* The app registers again with the distributor each time it comes to the front while connected (as the library
+  advises), and sends the address to the server again each time (it upserts), so an address the server dropped (404
+  or 410 once, restored server, new session after a promotion) comes back at the next foreground.
+* Logout: `DELETE /push/register` first, best effort (10 s), then `POST /auth/logout`. Turning push off sends the
+  same `DELETE`. A distributor that drops the app (uninstalled) also sends it.
+* Assumed, to check with the server: the `POST /push/register` body is `{"endpoint": "<url>"}` (the spec doesn't give
+  it), `DELETE /push/register` has no body, and both answer 2xx.
+* No VAPID key and no Web Push keys are sent: the server POSTs the plain body `sync`. A distributor that answers
+  `VAPID_REQUIRED` shows "refused", and the 15-minute sync is used.
+* A sync started by a push runs in the engine's process scope (`requestSync()`): Android may stop the process before
+  it ends. To decide: should a push enqueue an expedited one-time WorkManager job instead?
+* To decide: the server sends a plain `sync` body. Some distributors may accept only encrypted Web Push; supporting
+  them needs the app to send its `pubKeySet` (auth and p256dh) and the server to encrypt.
