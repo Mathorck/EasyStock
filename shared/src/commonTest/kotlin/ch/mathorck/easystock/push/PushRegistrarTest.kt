@@ -121,12 +121,27 @@ class PushRegistrarTest {
     }
 
     @Test
-    fun theSameEndpointIsNotSentTwice() = runTest {
+    fun theSameEndpointFromTheDistributorIsNotSentTwice() = runTest {
         registered()
         registrar.onNewEndpoint(ENDPOINT)
+        assertEquals(listOf("register:$ENDPOINT"), api.calls)
+    }
+
+    @Test
+    fun eachRefreshSendsTheAddressAgain() = runTest {
+        // The server may have dropped it: it upserts
+        registered()
+        registrar.refresh()
+        assertEquals(listOf("register:$ENDPOINT", "register:$ENDPOINT"), api.calls)
+        assertEquals(listOf("use:${NTFY.id}", "register"), connector.calls)
+    }
+
+    @Test
+    fun refreshSendsNothingAfterARefusal() = runTest {
+        registered()
+        registrar.onRegistrationFailed()
         registrar.refresh()
         assertEquals(listOf("register:$ENDPOINT"), api.calls)
-        assertEquals(listOf("use:${NTFY.id}", "register"), connector.calls)
     }
 
     @Test

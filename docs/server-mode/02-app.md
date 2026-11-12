@@ -327,12 +327,15 @@ Open points (push)
   database (no schema change) and never in an Android backup. Every wipe (logout, revoked session, reset) unregisters
   from the distributor and deletes that file, without network.
 * The app registers again with the distributor each time it comes to the front while connected (as the library
-  advises), and sends the address again when the server doesn't have it yet (a failed or interrupted send).
+  advises), and sends the address to the server again each time (it upserts), so an address the server dropped (404
+  or 410 once, restored server, new session after a promotion) comes back at the next foreground.
 * Logout: `DELETE /push/register` first, best effort (10 s), then `POST /auth/logout`. Turning push off sends the
   same `DELETE`. A distributor that drops the app (uninstalled) also sends it.
 * Assumed, to check with the server: the `POST /push/register` body is `{"endpoint": "<url>"}` (the spec doesn't give
   it), `DELETE /push/register` has no body, and both answer 2xx.
 * No VAPID key and no Web Push keys are sent: the server POSTs the plain body `sync`. A distributor that answers
   `VAPID_REQUIRED` shows "refused", and the 15-minute sync is used.
-* A sync started by a push runs in the engine's process scope: Android may stop the process before it ends. Once the
-  WorkManager job exists, the push could enqueue an expedited one-time work instead.
+* A sync started by a push runs in the engine's process scope (`requestSync()`): Android may stop the process before
+  it ends. To decide: should a push enqueue an expedited one-time WorkManager job instead?
+* To decide: the server sends a plain `sync` body. Some distributors may accept only encrypted Web Push; supporting
+  them needs the app to send its `pubKeySet` (auth and p256dh) and the server to encrypt.

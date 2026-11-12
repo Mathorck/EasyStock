@@ -151,12 +151,13 @@ class PushRegistrar(
 
     /**
      * The app came to the front while connected: asks the distributor again (as the library advises, it
-     * also finds a removed distributor), and sends the address the server doesn't have yet.
+     * also finds a removed distributor), and sends the address again. The server upserts it: this brings
+     * back an address it dropped (an endpoint that once answered 404, a restored server, a new session).
      */
     suspend fun refresh() = mutex.withLock {
         if (!store.record.value.enabled) return@withLock
         connector.register()
-        sendIfNeeded()
+        sendIfNeeded(always = true)
     }
 
     /** Before a logout, while the session still works: the server forgets the address. */
@@ -174,10 +175,11 @@ class PushRegistrar(
         }
     }
 
-    private suspend fun sendIfNeeded() {
+    private suspend fun sendIfNeeded(always: Boolean = false) {
         val target = target() ?: return
         val record = store.record.value
-        if (!needsServerRegistration(record, target.serverUrl)) return
+        if (!record.enabled || record.failed) return
+        if (!always && !needsServerRegistration(record, target.serverUrl)) return
         val endpoint = record.endpoint ?: return
         if (tellServer(target) { it.api.register(endpoint) }) {
             store.save(store.record.value.copy(sentEndpoint = endpoint, sentServer = target.serverUrl))
