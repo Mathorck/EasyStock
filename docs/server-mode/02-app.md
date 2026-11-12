@@ -258,17 +258,52 @@ Open points (connect and account screens)
   implements `/server-info` yet. They are the camelCase forms of the spec's names and must be checked once the
   endpoints exist.
 * The role name: the server spec says `member` for the app's Editor. The app maps it both ways (`WireRole`).
-* The server placeholder answers `supportedSchemaVersions: [1]`, the app sends schema 9 in
+* The server placeholder answers `supportedSchemaVersions: [1]`, the app sends schema 10 in
   `X-EasyStock-Schema-Version`. `/server-info` is not refused (the app checks only `apiVersion` and `minAppVersion`
-  there), but every later call would get a 426 until the server lists 9.
+  there), but every later call gets a 426 until the server lists 10. The app does not work around it: the sync
+  pauses (see below).
 * Not done yet: the setup exception (upload the phone's data as the first content of an empty server). The app
   always asks for an empty phone, a `setup` code included.
 * Not done yet: the Android 13+ notification permission after joining. It comes with the alerts, which need the sync
   engine.
 * Logout without network: the app offers "Log out on this phone". The phone is wiped, but the session stays valid on
   the server until an Admin revokes the device or the refresh token expires.
-* Logout with changes not sent: "Sync, then log out" is shown disabled until the sync engine exists; "Log out and lose
-  them" wipes the phone.
+* Logout with changes not sent: "Sync, then log out" runs a cycle, then logs out when the outbox is empty, or asks
+  again with the number of changes left (sync failed, or rows changed meanwhile); "Log out and lose them" wipes the
+  phone.
 * "Export a backup, then erase" opens the typed erase confirmation, which links to the Backup screen. The export and
   the erase are two separate steps: the erase also deletes the temporary backup files, so it never runs right after
   an export without the user confirming it.
+
+Open points (sync engine)
+
+* Done: the engine (`sync/SyncEngine.kt`, store `sync/RoomSyncStore.kt` + `data/db/SyncDao.kt`), DB v10 tables
+  (`pending_push`, `image_hash`, `rejected_change`), push, paged pull, photo upload and download, the role update
+  from `GET /me`, triggers (foreground, 3 s after the last local change, pull to refresh on the Stock page, the full
+  pull right after joining or a promotion), the sync row and the rejected changes screen on the Account screen, and
+  the Settings badge for unseen rejected changes.
+* Not done yet: the 15-minute WorkManager job, UnifiedPush, and the low-stock alert notifications (alerts are
+  pulled and stored in `low_stock_alert`, nothing is shown yet).
+* Not done yet: `dataset-reset` (the server replaced its whole data set). The app has no handling for it.
+* The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
+  `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
+* A "changed" answer's `row` is read as partial (only the changed fields), and laid over the sent row. A full row
+  works too.
+* A new row the server rejects without a server version stays on this phone only (never synced, still in the
+  rejected list). The user decides: delete it, or change it so it is sent again.
+* `MOVEMENT_KEPT`: the server's movement overwrites the local one with the same id, the only case where the app
+  changes a movement (it was never accepted, so it is not a synced row).
+* A pulled row whose parent is still missing after the last page fails the cycle (error SERVER); the cursor does not
+  move, the next cycle tries again. Pages are kept in memory until their parents arrive.
+* The 426 pause lasts until the app restarts or joins another server. The Account screen shows "update the app".
+* A replaced photo leaves its old file on the phone until the next reset (no orphan cleanup yet).
+* A pulled article and location with the same NFC tag (both from the server) are not resolved: the server's unique
+  rule must prevent it.
+* Pull to refresh needs a scrollable list: it does not start on the empty Stock page.
+* Backup import while connected: Replace is refused (in the UI and in `BackupDao.replaceAll`). Merge is allowed for
+  Admin and Editor only: merged rows reach the outbox through the triggers and are pushed like local changes, so the
+  server applies its own conflict rules to them. Viewer and Guest can't merge.
+* Merge test cases shared with the server: `docs/test-cases/merge/*.json` (server plan §1.4 format, wire rows in
+  camelCase), run against `planMerge` by `MergeTestCasesTest`. The Kotlin runner ignores `status`, `actorRole` and the
+  `row` of each result; it checks the `conflict` codes and the `final` rows. `CATEGORY_RENAMED`, `SERIAL_RENAMED`,
+  `BARCODE_CLEARED`, `LOCATION_PARENT_KEPT` and `MOVEMENT_KEPT` are app merge codes the server spec may not list yet.
