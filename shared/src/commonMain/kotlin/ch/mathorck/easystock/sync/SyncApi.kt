@@ -78,6 +78,7 @@ data class PullAnswer(
 object ConflictCodes {
     const val ATTRIBUTE_MERGED = "ATTRIBUTE_MERGED"
     const val CATEGORY_ATTRIBUTE_SKIPPED = "CATEGORY_ATTRIBUTE_SKIPPED"
+    const val MOVEMENT_KEPT = "MOVEMENT_KEPT"
 }
 
 /** The sync calls. A fake in tests. */

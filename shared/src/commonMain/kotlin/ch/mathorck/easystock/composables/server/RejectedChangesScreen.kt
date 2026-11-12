@@ -28,6 +28,7 @@ import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.RejectedChange
 import ch.mathorck.easystock.data.model.RejectedChangeRow
+import ch.mathorck.easystock.sync.MovementKept
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.formatDateTime
 import easystock.shared.generated.resources.Res
@@ -92,7 +93,12 @@ internal fun RejectedChangesContent(rows: List<RejectedChangeRow>, onBack: () ->
                 )
             }
             items(rows, key = { it.change.id }) { row ->
-                RejectedRow(row, onDismiss = { onDismiss(row.change.id) })
+                // The server kept its own movement: the user chooses which version stays (MovementKeptRow)
+                if (MovementKept.codeOf(row.change.reason) == MovementKept.REASON) {
+                    MovementKeptRow(row)
+                } else {
+                    RejectedRow(row, onDismiss = { onDismiss(row.change.id) })
+                }
                 HorizontalDivider()
             }
         }

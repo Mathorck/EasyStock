@@ -22,6 +22,13 @@ sealed interface PushDecision {
     /** `CATEGORY_ATTRIBUTE_SKIPPED`: the category already had this attribute. The local link was never accepted: delete it. */
     data object DropLocal : PushDecision
 
+    /**
+     * `MOVEMENT_KEPT`: the server already had a movement with this id and kept its own ([server]).
+     * Write [server] (the server never accepted the phone's movement, so it is not a synced row) and
+     * record the phone's version [phone] in a `rejected_change`, until the user chooses (sync/MovementKept).
+     */
+    data class MovementKept(val server: JsonObject, val phone: JsonObject) : PushDecision
+
     /** The row was changed again after it was read: keep the outbox entry, write nothing. The newer change goes in the next push. */
     data object Keep : PushDecision
 
@@ -44,6 +51,8 @@ fun decidePush(result: PushResult, sent: JsonObject?, current: JsonObject?): Pus
             result.conflict == ConflictCodes.CATEGORY_ATTRIBUTE_SKIPPED -> PushDecision.DropLocal
             result.conflict == ConflictCodes.ATTRIBUTE_MERGED && row?.rowId != null && row.rowId != result.id ->
                 PushDecision.MergeAttribute(result.id, sent.overlay(row))
+            result.conflict == ConflictCodes.MOVEMENT_KEPT && !row.isNullOrEmpty() && result.table == SyncTable.STOCK_MOVEMENT.tableName ->
+                PushDecision.MovementKept(sent.overlay(row), sent)
             row.isNullOrEmpty() -> PushDecision.Done
             else -> PushDecision.Write(sent.overlay(row))
         }

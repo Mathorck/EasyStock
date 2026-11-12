@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Server › Changes not accepted: the server kept its own movement (MOVEMENT_KEPT) -->
+    <string name="movement_kept_reason">The server already had this movement with other values and kept its own. Your stock shows the server’s version until you choose.</string>
+    <string name="movement_kept_server">Server: %1$s · %2$s</string>
+    <string name="movement_kept_phone">This phone: %1$s · %2$s</string>
+    <string name="movement_kept_use_server">Use the server’s version</string>
+    <string name="movement_kept_keep_mine">Keep mine</string>
+    <string name="movement_kept_keep_mine_hint">Keep mine adds your quantity again as a new movement, dated now.</string>
+    <string name="movement_kept_blocked_serial">Keep mine is not possible for the movement of a unit.</string>
+    <string name="movement_kept_blocked_transfer">Keep mine is not possible for one half of a transfer.</string>
+    <string name="movement_kept_blocked_article_gone">Keep mine is not possible: the article was deleted.</string>
+    <string name="movement_kept_blocked_location_gone">Keep mine is not possible: the location was deleted.</string>
+    <string name="movement_kept_blocked_not_enough_stock">Keep mine is not possible: there is not enough stock at this location now.</string>
+    <string name="movement_kept_blocked_invalid">Keep mine is not possible for this movement.</string>
+</resources>
