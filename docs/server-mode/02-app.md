@@ -264,8 +264,7 @@ Open points (connect and account screens)
   pauses (see below).
 * Not done yet: the setup exception (upload the phone's data as the first content of an empty server). The app
   always asks for an empty phone, a `setup` code included.
-* Not done yet: the Android 13+ notification permission after joining. It comes with the alerts, which need the sync
-  engine.
+* Done: the Android 13+ notification permission after joining (see "Open points (low-stock alerts)").
 * Logout without network: the app offers "Log out on this phone". The phone is wiped, but the session stays valid on
   the server until an Admin revokes the device or the refresh token expires.
 * Logout with changes not sent: "Sync, then log out" runs a cycle, then logs out when the outbox is empty, or asks
@@ -282,8 +281,8 @@ Open points (sync engine)
   from `GET /me`, triggers (foreground, 3 s after the last local change, pull to refresh on the Stock page, the full
   pull right after joining or a promotion), the sync row and the rejected changes screen on the Account screen, and
   the Settings badge for unseen rejected changes.
-* Not done yet: the 15-minute WorkManager job, UnifiedPush, and the low-stock alert notifications (alerts are
-  pulled and stored in `low_stock_alert`, nothing is shown yet).
+* Not done yet: the 15-minute WorkManager job and UnifiedPush. The low-stock alert notifications are done (see
+  "Open points (low-stock alerts)").
 * Not done yet: `dataset-reset` (the server replaced its whole data set). The app has no handling for it.
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
   `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
@@ -309,3 +308,28 @@ Open points (sync engine)
   camelCase), run against `planMerge` by `MergeTestCasesTest`. The Kotlin runner ignores `status`, `actorRole` and the
   `row` of each result; it checks the `conflict` codes and the `final` rows. `CATEGORY_RENAMED`, `SERIAL_RENAMED`,
   `BARCODE_CLEARED`, `LOCATION_PARENT_KEPT` and `MOVEMENT_KEPT` are app merge codes the server spec may not list yet.
+
+Open points (low-stock alerts)
+
+* Done: `alerts/AlertNotifier.kt` runs after each pull, inside the cycle (`SyncEngine` `afterPull`), so a background
+  sync shows alerts too. The rules are in `planAlerts` (`alerts/AlertPlan.kt`, tested in `AlertPlanTest`); the
+  Android notifications are in `alerts/AlertPlatform.android.kt` (iOS stub). The queries are in `data/db/AlertDao.kt`.
+  No schema change: `low_stock_alert.notified` already existed.
+* Each alert is shown at most once (`notified` set after the plan). Rows are never deleted: a later full pull would
+  bring them back as new.
+* The server sends no "resolved" signal, so the app decides with its own data: an alert is shown, and its
+  notification kept, only while the article is active, not archived, quantity-tracked and at or below its threshold
+  (local `SUM(quantity)`). After each sync, a shown notification whose articles are all above it is removed.
+* The full pull after joining brings every past alert: only those of articles low right now, and at most 7 days old,
+  are shown. The others are marked silently.
+* An alert whose article is not on the phone yet (no foreign key) waits for a later sync, up to 7 days.
+* One notification per article (tag = article id): a new alert for an article replaces its notification, with the
+  current stock. More than 3 articles in one sync: one grouped notification that replaces the previous grouped one.
+* Tap: the article on the Stock page, or the Stock page filtered on "low stock" for the grouped one.
+* Leaving the server (logout, revoked session, reset) removes every alert notification.
+* Guests and roles unknown to the app get none (`Action.RECEIVE_ALERTS`). Viewers: the app shows what the server
+  sends; the server filters the Viewers who did not turn alerts on (server plan, decision 9). The account screen toggle
+  (`PATCH /me` `alertsEnabled`) is not built yet.
+* Permission (Android 13+): a short explanation, then the system dialog, once after each join, for roles that get
+  alerts (not Guests). "Not now" or a denial changes nothing else: alerts are still marked as seen, so turning
+  notifications on later does not show old ones. A Guest promoted later is not asked (Android settings only).
