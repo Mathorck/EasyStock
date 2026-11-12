@@ -70,7 +70,6 @@ import easystock.shared.generated.resources.admin_cancel
 import easystock.shared.generated.resources.admin_device_revoke
 import easystock.shared.generated.resources.admin_device_revoke_message
 import easystock.shared.generated.resources.admin_device_revoke_title
-import easystock.shared.generated.resources.admin_device_revoked
 import easystock.shared.generated.resources.admin_device_unnamed
 import easystock.shared.generated.resources.admin_device_used
 import easystock.shared.generated.resources.admin_kind_full
@@ -265,7 +264,7 @@ internal fun UserDetail(
                         Text(stringResource(if (user.isGuest) Res.string.admin_kind_guest else Res.string.admin_kind_full))
                         user.username?.let { Text(it) }
                         Text(stringResource(Res.string.admin_user_last_sync, serverTime(user.lastSeenAt)))
-                        if (user.isGuest && user.shortCode != null) {
+                        if (user.isGuest && user.shortCode.isNotBlank()) {
                             Text(stringResource(Res.string.admin_user_short_code, user.shortCode))
                         }
                         if (user.disabled) Text(stringResource(Res.string.admin_user_disabled), color = MaterialTheme.colorScheme.error)
@@ -289,7 +288,7 @@ internal fun UserDetail(
             ) {
                 if (user.isGuest) {
                     if (user.pendingPromotion == null) {
-                        OutlinedButton(onClick = onStartPromotion, enabled = !busy && user.shortCode != null) {
+                        OutlinedButton(onClick = onStartPromotion, enabled = !busy && user.shortCode.isNotBlank()) {
                             Text(stringResource(Res.string.admin_promote))
                         }
                     } else {
@@ -363,14 +362,11 @@ private fun DeviceRow(device: AdminDevice, busy: Boolean, onRevoke: () -> Unit) 
     ListItem(
         headlineContent = { Text(device.deviceName.ifBlank { stringResource(Res.string.admin_device_unnamed) }) },
         supportingContent = {
-            Text(
-                if (device.revoked) stringResource(Res.string.admin_device_revoked)
-                else stringResource(Res.string.admin_device_used, serverTime(device.lastUsedAt)),
-            )
+            Text(stringResource(Res.string.admin_device_used, serverTime(device.lastUsedAt)))
         },
         leadingContent = { Icon(painterResource(Res.drawable.ic_smartphone), contentDescription = null) },
         trailingContent = {
-            if (!device.revoked) TextButton(onClick = onRevoke, enabled = !busy) { Text(stringResource(Res.string.admin_device_revoke)) }
+            TextButton(onClick = onRevoke, enabled = !busy) { Text(stringResource(Res.string.admin_device_revoke)) }
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
     )

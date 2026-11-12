@@ -310,8 +310,11 @@ class AdminApiTest {
     @Test
     fun devicesAndRevoke() = runTest {
         login()
-        val api = api { request -> if (request.method == HttpMethod.Get) ok("""[{"id":"d1","userId":"u1","revokedAt":"2026-11-10T08:00:00Z"}]""") else noContent() }
-        assertTrue(api.devices().single().revoked)
+        val api = api { request -> if (request.method == HttpMethod.Get) ok("""[{"id":"d1","userId":"u1","userDisplayName":"Ana","deviceName":"Pixel","createdAt":"2026-11-01T08:00:00Z","revokedAt":"2026-11-10T08:00:00Z","revokeReason":"admin"}]""") else noContent() }
+        val device = api.devices().single()
+        assertTrue(device.revoked)
+        assertEquals("Ana", device.userDisplayName)
+        assertEquals("admin", device.revokeReason)
         api.revokeDevice("d1")
         assertEquals("/api/v1/admin/devices", seen[0].path)
         assertEquals(HttpMethod.Delete, seen[1].method)
@@ -398,22 +401,21 @@ class AdminApiTest {
         val settings = api { ok("""{"serverName":"Atelier","movementAuthorRetentionDays":90}""") }.settings()
         assertEquals("/api/v1/admin/settings", seen.single().path)
         assertEquals(90, settings.movementAuthorRetentionDays)
-        assertNull(settings.alertRoles)
+        assertEquals("Atelier", settings.serverName)
     }
 
     @Test
-    fun updateSettingsSendsOnlyWhatTheServerKnows() = runTest {
+    fun updateSettingsSendsBothFieldsAndNothingElse() = runTest {
         login()
-        val api = api { ok("""{"serverName":"Atelier"}""") }
+        val api = api { ok("""{"serverName":"Atelier","movementAuthorRetentionDays":30}""") }
         api.updateSettings(AdminSettings(serverName = "Atelier", movementAuthorRetentionDays = null))
         val first = body(seen[0]).jsonObject
         assertEquals(HttpMethod.Put, seen[0].method)
+        assertEquals(setOf("serverName", "movementAuthorRetentionDays"), first.keys)
         assertEquals(JsonNull, first["movementAuthorRetentionDays"])
-        assertFalse("alertRoles" in first)
 
-        api.updateSettings(AdminSettings(movementAuthorRetentionDays = 30, alertRoles = listOf("admin", "member")))
+        api.updateSettings(AdminSettings(serverName = "Atelier", movementAuthorRetentionDays = 30))
         val second = body(seen[1]).jsonObject
         assertEquals("30", second["movementAuthorRetentionDays"]!!.jsonPrimitive.content)
-        assertEquals(listOf("admin", "member"), second["alertRoles"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 }

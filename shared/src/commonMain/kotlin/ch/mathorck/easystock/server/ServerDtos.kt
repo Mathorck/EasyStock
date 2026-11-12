@@ -30,7 +30,7 @@ data class SessionUser(
     val displayName: String = "",
     val role: String = "",
     val kind: String = "",
-    val shortCode: String? = null,
+    val shortCode: String = "",
 )
 
 /** Answer of setup, login, refresh, invite redeem, reset and promotion. */

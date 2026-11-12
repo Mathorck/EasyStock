@@ -64,7 +64,6 @@
     <string name="admin_user_no_devices">Aucun appareil.</string>
     <string name="admin_device_unnamed">Appareil sans nom</string>
     <string name="admin_device_used">Dernière utilisation : %1$s</string>
-    <string name="admin_device_revoked">Révoqué</string>
     <string name="admin_device_revoke">Révoquer</string>
     <string name="admin_device_revoke_title">Révoquer cet appareil ?</string>
     <string name="admin_device_revoke_message">L’appareil est déconnecté à sa prochaine synchro.</string>
@@ -140,7 +139,5 @@
         <item quantity="one">%1$d jour</item>
         <item quantity="other">%1$d jours</item>
     </plurals>
-    <string name="admin_settings_alert_roles">Alertes de stock bas</string>
-    <string name="admin_settings_alert_roles_summary">Rôles qui reçoivent les alertes par défaut.</string>
     <string name="admin_settings_saved">Enregistré</string>
 </resources>

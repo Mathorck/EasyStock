@@ -3,8 +3,9 @@ package ch.mathorck.easystock.server
 import ch.mathorck.easystock.auth.Role
 import kotlinx.serialization.Serializable
 
-// JSON bodies of the /admin endpoints. PROVISIONAL, see ServerDtos.kt: derived from the specs, not from
-// server code. Lists are plain JSON arrays.
+// JSON bodies of the /admin endpoints, the same shapes as the server's Models (AdminUserModels.cs,
+// AdminDeviceModels.cs, AdminInviteModels.cs, ServerSettings.cs; server/openapi/v1.json). Lists are plain
+// JSON arrays. A field the app can live without has a default, so a newer server stays readable.
 
 /** A pending promotion of a Guest: they must choose a username and password to get [role]. */
 @Serializable
@@ -13,15 +14,25 @@ data class PendingPromotion(
     val expiresAt: String? = null,
 )
 
-/** A device session of a user (`device_session`). */
+/** A live device of a user, as listed in [AdminUser.devices] (server `AdminUserDevice`). */
 @Serializable
 data class AdminDevice(
     val id: String,
-    val userId: String? = null,
+    val deviceName: String = "",
+    val lastUsedAt: String? = null,
+)
+
+/** A device session of `GET /admin/devices`, revoked ones included (server `AdminDeviceAnswer`). */
+@Serializable
+data class AdminDeviceSession(
+    val id: String,
+    val userId: String,
+    val userDisplayName: String = "",
     val deviceName: String = "",
     val createdAt: String? = null,
     val lastUsedAt: String? = null,
     val revokedAt: String? = null,
+    val revokeReason: String? = null,
 ) {
     val revoked: Boolean get() = revokedAt != null
 }
@@ -36,7 +47,8 @@ data class AdminUser(
     val role: String = "",
     /** [UserKind]. */
     val kind: String = UserKind.FULL,
-    val shortCode: String? = null,
+    /** Blank for a full account, the code the Guest shows for a Guest. */
+    val shortCode: String = "",
     val createdAt: String? = null,
     /** Last request of any of the user's devices: the "last sync" of the list. */
     val lastSeenAt: String? = null,
@@ -116,8 +128,8 @@ data class PublicInvite(
     val enabled: Boolean = false,
     /** Most Guest accounts at a time, null = no limit. */
     val guestLimit: Int? = null,
-    /** Guest accounts now, when the server says it. */
-    val guestCount: Int? = null,
+    /** Guest accounts now. */
+    val guestCount: Int = 0,
     val createdAt: String? = null,
     val token: String? = null,
     val qr: String? = null,
@@ -127,17 +139,12 @@ data class PublicInvite(
     override fun toString(): String = "PublicInvite(enabled=$enabled, guestLimit=$guestLimit, guestCount=$guestCount)"
 }
 
-/**
- * `GET`/`PUT /admin/settings`. A field the server doesn't send is null: the screen hides it and the
- * app doesn't send it back (the server refuses unknown keys).
- */
+/** `GET`/`PUT /admin/settings`: exactly these two fields (the server refuses unknown keys). */
 @Serializable
 data class AdminSettings(
-    val serverName: String? = null,
+    val serverName: String = "",
     /** Days after which the author of a movement is removed, null = keep. */
     val movementAuthorRetentionDays: Int? = null,
-    /** Roles that get low-stock alerts by default (wire names). Null when the server has no such setting. */
-    val alertRoles: List<String>? = null,
 )
 
 /** Backup import into the server. */

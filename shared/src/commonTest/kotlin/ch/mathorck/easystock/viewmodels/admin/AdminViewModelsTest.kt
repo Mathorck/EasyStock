@@ -2,7 +2,7 @@ package ch.mathorck.easystock.viewmodels.admin
 
 import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.server.AdminApi
-import ch.mathorck.easystock.server.AdminDevice
+import ch.mathorck.easystock.server.AdminDeviceSession
 import ch.mathorck.easystock.server.AdminSettings
 import ch.mathorck.easystock.server.AdminUser
 import ch.mathorck.easystock.server.ApiError
@@ -247,26 +247,13 @@ class AdminSettingsViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun alertRoleReplacesBothSpellings() {
-        api.settings = AdminSettings(movementAuthorRetentionDays = 90, alertRoles = listOf("admin", "editor"))
+    fun retentionIsSaved() {
+        api.settings = AdminSettings(serverName = "Atelier", movementAuthorRetentionDays = null)
         val vm = AdminSettingsViewModel(api)
         vm.refresh()
-        vm.setAlertRole(Role.EDITOR, false)
-        assertEquals(listOf("admin"), api.settings.alertRoles)
-        vm.setAlertRole(Role.EDITOR, true)
-        assertEquals(listOf("admin", "member"), api.settings.alertRoles)
-        assertEquals(setOf(Role.ADMIN, Role.EDITOR), vm.state.value.alertRoles)
-    }
-
-    @Test
-    fun noAlertRolesWhenTheServerHasNone() {
-        api.settings = AdminSettings(movementAuthorRetentionDays = null)
-        val vm = AdminSettingsViewModel(api)
-        vm.refresh()
-        assertNull(vm.state.value.alertRoles)
         vm.setRetention(30)
         assertEquals(30, api.settings.movementAuthorRetentionDays)
-        assertNull(api.settings.alertRoles)
+        assertEquals("Atelier", api.settings.serverName)
     }
 }
 
@@ -309,7 +296,7 @@ private class FakeAdminApi : AdminApi {
         promoted = Triple(userId, role, shortCode)
     }
     override suspend fun cancelPromotion(userId: String) = check() ?: Unit
-    override suspend fun devices(): List<AdminDevice> = emptyList()
+    override suspend fun devices(): List<AdminDeviceSession> = emptyList()
     override suspend fun revokeDevice(deviceId: String) = check() ?: Unit
     override suspend fun createInvite(role: Role) = Invite("i", "member", token = "t")
     override suspend fun invites(): List<Invite> = emptyList()

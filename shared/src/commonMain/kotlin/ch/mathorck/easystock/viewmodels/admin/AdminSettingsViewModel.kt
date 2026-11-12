@@ -2,10 +2,8 @@ package ch.mathorck.easystock.viewmodels.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.server.AdminApi
 import ch.mathorck.easystock.server.AdminSettings
-import ch.mathorck.easystock.server.WireRole
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,12 +19,9 @@ data class AdminSettingsState(
     val saving: Boolean = false,
     val failure: ActionFailure? = null,
     val saved: Boolean = false,
-) {
-    /** Roles with alerts by default, null when the server has no such setting (the screen hides it). */
-    val alertRoles: Set<Role>? get() = settings.data?.alertRoles?.mapNotNullTo(mutableSetOf(), WireRole::parse)
-}
+)
 
-/** Server settings: retention of the movement authors, default alert roles. */
+/** Server settings: retention of the movement authors. */
 class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
     private val _state = MutableStateFlow(AdminSettingsState())
     val state: StateFlow<AdminSettingsState> = _state.asStateFlow()
@@ -44,14 +39,6 @@ class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
     fun retry() = loader.load()
 
     fun setRetention(days: Int?) = save { it.copy(movementAuthorRetentionDays = days) }
-
-    fun setAlertRole(role: Role, on: Boolean) = save { current ->
-        val roles = current.alertRoles ?: return@save current
-        val wire = WireRole.of(role)
-        // Also drop the other spelling of the same role (member/editor)
-        val others = roles.filter { WireRole.parse(it) != role }
-        current.copy(alertRoles = if (on) others + wire else others)
-    }
 
     fun consumeMessage() = _state.update { it.copy(failure = null, saved = false) }
 
@@ -76,8 +63,7 @@ class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
     }
 
     private fun merge(sent: AdminSettings, answer: AdminSettings) = AdminSettings(
-        serverName = answer.serverName ?: sent.serverName,
+        serverName = answer.serverName.ifBlank { sent.serverName },
         movementAuthorRetentionDays = if (answer == AdminSettings()) sent.movementAuthorRetentionDays else answer.movementAuthorRetentionDays,
-        alertRoles = answer.alertRoles ?: sent.alertRoles,
     )
 }

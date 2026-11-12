@@ -167,13 +167,11 @@ internal fun PublicInviteContent(
                 trailingContent = { Switch(checked = data.enabled, onCheckedChange = onEnabled, enabled = !busy) },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
             )
-            data.guestCount?.let {
-                Text(
-                    stringResource(Res.string.admin_public_guests, it),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
+            Text(
+                stringResource(Res.string.admin_public_guests, data.guestCount),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             GuestLimitField(data.guestLimit, busy, onLimit)
             Column(
                 Modifier.fillMaxWidth().padding(16.dp),

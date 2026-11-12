@@ -62,7 +62,8 @@ data class MeAnswer(
     val displayName: String = "",
     val role: String = "",
     val kind: String = "",
-    val shortCode: String? = null,
+    /** Blank for a full account. */
+    val shortCode: String = "",
     val alertsEnabled: Boolean? = null,
     /** Same shape as in the admin user list ([PendingPromotion]). */
     val pendingPromotion: PendingPromotion? = null,

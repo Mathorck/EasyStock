@@ -66,7 +66,6 @@
     <string name="admin_user_no_devices">No devices.</string>
     <string name="admin_device_unnamed">Unnamed device</string>
     <string name="admin_device_used">Last used: %1$s</string>
-    <string name="admin_device_revoked">Revoked</string>
     <string name="admin_device_revoke">Revoke</string>
     <string name="admin_device_revoke_title">Revoke this device?</string>
     <string name="admin_device_revoke_message">The device is disconnected at its next sync.</string>
@@ -147,7 +146,5 @@
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
     </plurals>
-    <string name="admin_settings_alert_roles">Low-stock alerts</string>
-    <string name="admin_settings_alert_roles_summary">Roles that get the alerts by default.</string>
     <string name="admin_settings_saved">Saved</string>
 </resources>

@@ -64,7 +64,6 @@
     <string name="admin_user_no_devices">Keine Geräte.</string>
     <string name="admin_device_unnamed">Unbenanntes Gerät</string>
     <string name="admin_device_used">Zuletzt verwendet: %1$s</string>
-    <string name="admin_device_revoked">Widerrufen</string>
     <string name="admin_device_revoke">Widerrufen</string>
     <string name="admin_device_revoke_title">Dieses Gerät widerrufen?</string>
     <string name="admin_device_revoke_message">Das Gerät wird bei seiner nächsten Synchronisierung getrennt.</string>
@@ -140,7 +139,5 @@
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tage</item>
     </plurals>
-    <string name="admin_settings_alert_roles">Warnungen bei niedrigem Bestand</string>
-    <string name="admin_settings_alert_roles_summary">Rollen, die die Warnungen standardmässig erhalten.</string>
     <string name="admin_settings_saved">Gespeichert</string>
 </resources>

@@ -16,7 +16,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.encodeURLPathPart
 import io.ktor.utils.io.ByteReadChannel
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -42,7 +41,7 @@ interface AdminApi {
     suspend fun cancelPromotion(userId: String)
 
     /** All device sessions of the server. */
-    suspend fun devices(): List<AdminDevice>
+    suspend fun devices(): List<AdminDeviceSession>
 
     suspend fun revokeDevice(deviceId: String)
 
@@ -67,7 +66,6 @@ interface AdminApi {
 
     suspend fun settings(): AdminSettings
 
-    /** Sends only what the server knows: [AdminSettings.alertRoles] only when the server returned it. */
     suspend fun updateSettings(settings: AdminSettings): AdminSettings
 }
 
@@ -110,7 +108,7 @@ class KtorAdminApi(private val client: ServerClient) : AdminApi {
         apiCall { http.delete("admin/users/${userId.path()}/promote") }
     }
 
-    override suspend fun devices(): List<AdminDevice> = apiCall { http.get("admin/devices").body() }
+    override suspend fun devices(): List<AdminDeviceSession> = apiCall { http.get("admin/devices").body() }
 
     override suspend fun revokeDevice(deviceId: String) {
         apiCall { http.delete("admin/devices/${deviceId.path()}") }
@@ -172,11 +170,10 @@ class KtorAdminApi(private val client: ServerClient) : AdminApi {
     }
 }
 
-/** Settings body: retention null = keep forever (explicit null), alert roles only when known. */
+/** Settings body: both fields, retention null = keep forever (explicit null). */
 internal fun settingsBody(settings: AdminSettings) = buildJsonObject {
-    settings.serverName?.let { put("serverName", JsonPrimitive(it)) }
+    put("serverName", JsonPrimitive(settings.serverName))
     put("movementAuthorRetentionDays", settings.movementAuthorRetentionDays?.let(::JsonPrimitive) ?: JsonNull)
-    settings.alertRoles?.let { roles -> put("alertRoles", JsonArray(roles.map(::JsonPrimitive))) }
 }
 
 private fun String.path(): String = encodeURLPathPart()

@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -29,11 +27,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.server.AdminApi
 import ch.mathorck.easystock.server.AdminSettings
-import ch.mathorck.easystock.server.WireRole
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.admin.AdminSettingsState
 import ch.mathorck.easystock.viewmodels.admin.AdminSettingsViewModel
@@ -41,8 +37,6 @@ import ch.mathorck.easystock.viewmodels.admin.Loaded
 import ch.mathorck.easystock.viewmodels.admin.RETENTION_CHOICES
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.admin_settings
-import easystock.shared.generated.resources.admin_settings_alert_roles
-import easystock.shared.generated.resources.admin_settings_alert_roles_summary
 import easystock.shared.generated.resources.admin_settings_retention
 import easystock.shared.generated.resources.admin_settings_retention_days
 import easystock.shared.generated.resources.admin_settings_retention_forever
@@ -69,7 +63,7 @@ internal fun AdminSettingsScreen(api: AdminApi, onBack: () -> Unit) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        AdminSettingsContent(state, onBack, viewModel::refresh, viewModel::retry, viewModel::setRetention, viewModel::setAlertRole)
+        AdminSettingsContent(state, onBack, viewModel::refresh, viewModel::retry, viewModel::setRetention)
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 }
@@ -81,7 +75,6 @@ internal fun AdminSettingsContent(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onRetention: (Int?) -> Unit,
-    onAlertRole: (Role, Boolean) -> Unit,
 ) {
     SettingsSubpage(title = stringResource(Res.string.admin_settings), onBack = onBack) {
         if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -108,25 +101,6 @@ internal fun AdminSettingsContent(
                         onClick = { onRetention(days) },
                     ),
                 )
-            }
-            val alertRoles = state.alertRoles
-            if (alertRoles != null) {
-                SectionTitle(stringResource(Res.string.admin_settings_alert_roles))
-                Hint(stringResource(Res.string.admin_settings_alert_roles_summary))
-                WireRole.assignable.forEach { role ->
-                    val on = role in alertRoles
-                    ListItem(
-                        headlineContent = { Text(stringResource(role.label())) },
-                        leadingContent = { Checkbox(checked = on, onCheckedChange = null, enabled = !state.saving) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-                        modifier = Modifier.toggleable(
-                            value = on,
-                            enabled = !state.saving,
-                            role = SemanticsRole.Checkbox,
-                            onValueChange = { onAlertRole(role, it) },
-                        ),
-                    )
-                }
             }
         }
     }
@@ -157,8 +131,8 @@ private fun Hint(text: String) {
 private fun AdminSettingsPreview() {
     EasyStockTheme {
         AdminSettingsContent(
-            AdminSettingsState(Loaded(AdminSettings("Atelier", 90, listOf("admin", "member")), loading = false)),
-            {}, {}, {}, {}, { _, _ -> },
+            AdminSettingsState(Loaded(AdminSettings("Atelier", 90), loading = false)),
+            {}, {}, {}, {},
         )
     }
 }
