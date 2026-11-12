@@ -385,7 +385,7 @@ Open points (push)
   `composables/server/PushRow.kt`.
 * The Account screen lists the installed distributors; the user turns push on and picks one in a dialog (always a
   choice, even with one app). Without a distributor it says the 15-minute background sync is used.
-* A push message calls `SyncEngine.requestSync()` and nothing else: its content is ignored.
+* A push message enqueues a one-off expedited WorkManager job (`enqueuePushSync`, unique name `easystock-push-sync`, `KEEP` so a burst gives one job, network required, `RUN_AS_NON_EXPEDITED_WORK_REQUEST` when the quota is spent) and nothing else: its content is ignored. It reuses `BackgroundSyncWorker` (same engine, same outcome mapping). On Android 11 and older it runs as a foreground service with a quiet notification (channel `push_sync`, min importance, `FOREGROUND_SERVICE_DATA_SYNC`). Logout, leave, revoked session and reset cancel it with the periodic job.
 * The opt-in and the address the server confirmed are kept in `noBackupFilesDir/unifiedpush.json`, not in the
   database (no schema change) and never in an Android backup. Every wipe (logout, revoked session, reset) unregisters
   from the distributor and deletes that file, without network.
@@ -398,7 +398,6 @@ Open points (push)
   it), `DELETE /push/register` has no body, and both answer 2xx.
 * No VAPID key and no Web Push keys are sent: the server POSTs the plain body `sync`. A distributor that answers
   `VAPID_REQUIRED` shows "refused", and the 15-minute sync is used.
-* A sync started by a push runs in the engine's process scope (`requestSync()`): Android may stop the process before
-  it ends. To decide: should a push enqueue an expedited one-time WorkManager job instead?
+* Done: a push-started sync is a WorkManager job, not the process scope (see above).
 * To decide: the server sends a plain `sync` body. Some distributors may accept only encrypted Web Push; supporting
   them needs the app to send its `pubKeySet` (auth and p256dh) and the server to encrypt.

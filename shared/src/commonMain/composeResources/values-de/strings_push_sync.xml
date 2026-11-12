@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quiet notification of the sync a push message starts (Android 11 and older) -->
+    <string name="push_sync_channel_name">Sofort-Sync</string>
+    <string name="push_sync_notification_title">Bestand wird synchronisiert</string>
+</resources>
