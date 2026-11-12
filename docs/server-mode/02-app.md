@@ -284,7 +284,22 @@ Open points (sync engine)
   the Settings badge for unseen rejected changes.
 * Not done yet: the 15-minute WorkManager job, UnifiedPush, and the low-stock alert notifications (alerts are
   pulled and stored in `low_stock_alert`, nothing is shown yet).
-* Not done yet: `dataset-reset` (the server replaced its whole data set). The app has no handling for it.
+* Done: `dataset-reset` (the server replaced its whole data set, server plan §1.2 #21). The engine
+  (`sync/DatasetReset.kt`) keeps the server's `datasetEpoch` and sends it as `X-EasyStock-Dataset-Epoch` with push
+  and pull. On a 409 `dataset-reset` (any call of the cycle), or a pull answer with another `datasetEpoch` than the
+  one kept, it counts the unsent changes, erases every synced row, the outbox, the pending push, the rejected
+  changes, alerts, users, photo hashes and photo files (`BackupDao.wipeServerData`, built from the wipe of a reset),
+  sets `since` to 0 and pulls everything again in the same cycle. `sync_state` and the tokens stay: the user stays
+  connected. A dialog says the server data was replaced, and how many unsent changes were lost. At most one reset
+  per cycle: a second one fails the cycle (SERVER).
+* Assumed about the server: the epoch is `datasetEpoch` in each pull answer; a request without the header is not
+  checked (a pull from 0, after joining or a reset, sends none and takes the answer's epoch); the header is checked
+  on `/sync/push` and `/sync/pull` at least. Without `datasetEpoch` in the answers, nothing is detected.
+* The epoch is kept outside the database (`sync_dataset` preferences file) because this change adds no schema
+  version. It is written before the first page of a full pull, read only when `since > 0`. To decide: a
+  `sync_state.dataset_epoch` column (next DB version) would save it in the same transaction as `since`.
+* Not done: offering a backup export of the unsent changes before the wipe (the plan says wipe and pull from 0; the
+  changes may point at rows the new data set doesn't have). They are only counted in the dialog.
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
   `invalid`, `missing-reference`, `review-open`, `conflict`; an unknown code is shown as is.
 * A "changed" answer's `row` is read as partial (only the changed fields), and laid over the sent row. A full row
