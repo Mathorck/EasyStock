@@ -6,10 +6,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ch.mathorck.easystock.auth.Action
 import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.auth.Role
+import ch.mathorck.easystock.prefs.LocalAppPreferences
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.alerts_permission_allow
@@ -23,7 +27,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * The low-stock notifications outside the sync: removes them when the phone leaves the server, sends a
  * tapped one to the Stock page ([onOpen]), and asks the notification permission once after joining
- * ([askPermission], cleared by [onAsked]).
+ * ([askPermission], cleared by [onAsked]) and once when a Guest is promoted to a role that gets alerts.
  */
 @Composable
 fun AlertHost(askPermission: Boolean, onAsked: () -> Unit, onOpen: () -> Unit) {
@@ -36,6 +40,16 @@ fun AlertHost(askPermission: Boolean, onAsked: () -> Unit, onOpen: () -> Unit) {
             if (connected) notifications.createChannel() else notifications.cancelAll()
         }
     }
+    // A Guest promoted later (the role change came with a sync) is asked once, like after joining
+    var askAfterPromotion by remember { mutableStateOf(false) }
+    val prefs = LocalAppPreferences.current
+    LaunchedEffect(db, prefs) {
+        db.sessionDao().observeRole().distinctUntilChanged().collect { stored ->
+            val mark = nextGuestMark(prefs.wasGuest, stored != null, Role.fromDb(stored))
+            prefs.wasGuest = mark.wasGuest
+            if (mark.ask) askAfterPromotion = true
+        }
+    }
     val target by AlertNavigation.target.collectAsStateWithLifecycle()
     LaunchedEffect(target) {
         // Consumed by the Stock page
@@ -43,7 +57,12 @@ fun AlertHost(askPermission: Boolean, onAsked: () -> Unit, onOpen: () -> Unit) {
     }
     // Outside the prompt: the launcher must outlive the explanation dialog
     val permission = rememberNotificationPermission()
-    if (askPermission) NotificationPermissionPrompt(permission, onAsked)
+    if (askPermission || askAfterPromotion) {
+        NotificationPermissionPrompt(permission) {
+            askAfterPromotion = false
+            onAsked()
+        }
+    }
 }
 
 /** A short explanation, then the system dialog (Android 13+). Skipped when nothing must be asked. */
