@@ -15,7 +15,7 @@
     <string name="admin_backup">Server backup</string>
     <string name="admin_backup_summary">Download or import the server data</string>
     <string name="admin_settings">Server settings</string>
-    <string name="admin_settings_summary">Movement authors, alerts</string>
+    <string name="admin_settings_summary">Server name</string>
 
     <string name="admin_role_admin">Admin</string>
     <string name="admin_role_editor">Editor</string>
@@ -143,12 +143,7 @@
     <string name="admin_backup_imported">Backup imported</string>
 
     <!-- Server settings -->
-    <string name="admin_settings_retention">Movement authors</string>
-    <string name="admin_settings_retention_summary">After this time, the name of who made a movement is removed. The movement stays.</string>
-    <string name="admin_settings_retention_forever">Keep</string>
-    <plurals name="admin_settings_retention_days">
-        <item quantity="one">%1$d day</item>
-        <item quantity="other">%1$d days</item>
-    </plurals>
+    <string name="admin_settings_server_name">Server name</string>
+    <string name="admin_settings_save">Save</string>
     <string name="admin_settings_saved">Saved</string>
 </resources>

@@ -139,12 +139,10 @@ data class PublicInvite(
     override fun toString(): String = "PublicInvite(enabled=$enabled, guestLimit=$guestLimit, guestCount=$guestCount)"
 }
 
-/** `GET`/`PUT /admin/settings`: exactly these two fields (the server refuses unknown keys). */
+/** `GET`/`PUT /admin/settings`: exactly this one field (the server refuses unknown keys). */
 @Serializable
 data class AdminSettings(
     val serverName: String = "",
-    /** Days after which the author of a movement is removed, null = keep. */
-    val movementAuthorRetentionDays: Int? = null,
 )
 
 /** Backup import into the server. */

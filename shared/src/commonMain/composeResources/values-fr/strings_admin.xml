@@ -14,7 +14,7 @@
     <string name="admin_backup">Sauvegarde du serveur</string>
     <string name="admin_backup_summary">Télécharger ou importer les données du serveur</string>
     <string name="admin_settings">Réglages du serveur</string>
-    <string name="admin_settings_summary">Auteurs des mouvements, alertes</string>
+    <string name="admin_settings_summary">Nom du serveur</string>
 
     <string name="admin_role_admin">Admin</string>
     <string name="admin_role_editor">Éditeur</string>
@@ -136,12 +136,7 @@
     <string name="admin_backup_replace_word">REMPLACER</string>
     <string name="admin_backup_imported">Sauvegarde importée</string>
 
-    <string name="admin_settings_retention">Auteurs des mouvements</string>
-    <string name="admin_settings_retention_summary">Passé ce délai, le nom de qui a fait un mouvement est retiré. Le mouvement reste.</string>
-    <string name="admin_settings_retention_forever">Conserver</string>
-    <plurals name="admin_settings_retention_days">
-        <item quantity="one">%1$d jour</item>
-        <item quantity="other">%1$d jours</item>
-    </plurals>
+    <string name="admin_settings_server_name">Nom du serveur</string>
+    <string name="admin_settings_save">Enregistrer</string>
     <string name="admin_settings_saved">Enregistré</string>
 </resources>

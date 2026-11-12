@@ -286,8 +286,8 @@ abstract class SyncDao {
     protected abstract suspend fun insertMovement(row: StockMovement)
 
     /**
-     * The only update of a movement: its author fields, set (or cleared by the retention job) by the
-     * server. Never quantity or any other column.
+     * The only update of a movement: its author fields, set by the server after
+     * the push. Never quantity or any other column.
      */
     @Query("UPDATE stock_movement SET created_by = :createdBy, device_id = :deviceId WHERE id = :id")
     abstract suspend fun updateMovementAuthor(id: String, createdBy: String?, deviceId: String?)

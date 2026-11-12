@@ -11,9 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Retention choices of the movement authors, in days. Null = keep forever. */
-val RETENTION_CHOICES: List<Int?> = listOf(null, 30, 90, 180, 365, 730)
-
 data class AdminSettingsState(
     val settings: Loaded<AdminSettings> = Loaded(),
     val saving: Boolean = false,
@@ -21,7 +18,7 @@ data class AdminSettingsState(
     val saved: Boolean = false,
 )
 
-/** Server settings: retention of the movement authors. */
+/** Server settings: the server name. */
 class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
     private val _state = MutableStateFlow(AdminSettingsState())
     val state: StateFlow<AdminSettingsState> = _state.asStateFlow()
@@ -38,7 +35,7 @@ class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
 
     fun retry() = loader.load()
 
-    fun setRetention(days: Int?) = save { it.copy(movementAuthorRetentionDays = days) }
+    fun setServerName(name: String) = save { it.copy(serverName = name.trim()) }
 
     fun consumeMessage() = _state.update { it.copy(failure = null, saved = false) }
 
@@ -62,8 +59,6 @@ class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
         }
     }
 
-    private fun merge(sent: AdminSettings, answer: AdminSettings) = AdminSettings(
-        serverName = answer.serverName.ifBlank { sent.serverName },
-        movementAuthorRetentionDays = if (answer == AdminSettings()) sent.movementAuthorRetentionDays else answer.movementAuthorRetentionDays,
-    )
+    private fun merge(sent: AdminSettings, answer: AdminSettings) =
+        AdminSettings(serverName = answer.serverName.ifBlank { sent.serverName })
 }

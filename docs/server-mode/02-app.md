@@ -133,7 +133,7 @@ Sync engine
   keeps its old seq, so its push is checked against the version the user edited.
 * Pull continues page by page while the server says more rows are waiting.
 * After applying rows, the app recomputes the `item.location_id` cache for the items whose movements changed.
-* Movements received from the server are inserted. A movement already on the phone is never updated, except its author fields `created_by` and `device_id` (incremental and full pull): the server sets them after the push, and its retention job clears them. No other column ever changes.
+* Movements received from the server are inserted. A movement already on the phone is never updated, except its author fields `created_by` and `device_id` (incremental and full pull): the server sets them after the push. No other column ever changes.
 * An accepted movement in the push answer carries `id`, `createdBy` and `deviceId`: the app writes those two fields at once, so the author shows without waiting for a pull.
 * Viewer and Guest phones skip the push step, since their outbox is always empty.
 
@@ -231,7 +231,7 @@ Admin screens
 * Invites: create an invite by choosing a role, show its QR code full screen, list open invites, cancel one.
 * Printed QR code: turn it on or off, set the Guest limit, generate a new code, and export a PDF to print.
 * Server backup: download a server backup file, and import a backup file into the server (merge or replace, with a strong confirmation for replace).
-* Settings: retention of who made each movement, and which roles get alerts by default.
+* Settings: the server name.
 
 Printed QR code PDF
 

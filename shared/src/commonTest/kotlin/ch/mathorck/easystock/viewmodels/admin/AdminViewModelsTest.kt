@@ -275,13 +275,12 @@ class AdminSettingsViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun retentionIsSaved() {
-        api.settings = AdminSettings(serverName = "Atelier", movementAuthorRetentionDays = null)
+    fun serverNameIsSaved() {
+        api.settings = AdminSettings(serverName = "Atelier")
         val vm = AdminSettingsViewModel(api)
         vm.refresh()
-        vm.setRetention(30)
-        assertEquals(30, api.settings.movementAuthorRetentionDays)
-        assertEquals("Atelier", api.settings.serverName)
+        vm.setServerName(" Maison ")
+        assertEquals("Maison", api.settings.serverName)
     }
 }
 

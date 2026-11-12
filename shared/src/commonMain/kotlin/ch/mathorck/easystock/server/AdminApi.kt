@@ -176,10 +176,9 @@ class KtorAdminApi(private val client: ServerClient) : AdminApi {
     }
 }
 
-/** Settings body: both fields, retention null = keep forever (explicit null). */
+/** Settings body: the server name only. */
 internal fun settingsBody(settings: AdminSettings) = buildJsonObject {
     put("serverName", JsonPrimitive(settings.serverName))
-    put("movementAuthorRetentionDays", settings.movementAuthorRetentionDays?.let(::JsonPrimitive) ?: JsonNull)
 }
 
 private fun String.path(): String = encodeURLPathPart()

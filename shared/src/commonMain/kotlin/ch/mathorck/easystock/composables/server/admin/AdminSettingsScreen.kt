@@ -4,22 +4,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role as SemanticsRole
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,16 +32,12 @@ import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.admin.AdminSettingsState
 import ch.mathorck.easystock.viewmodels.admin.AdminSettingsViewModel
 import ch.mathorck.easystock.viewmodels.admin.Loaded
-import ch.mathorck.easystock.viewmodels.admin.RETENTION_CHOICES
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.admin_settings
-import easystock.shared.generated.resources.admin_settings_retention
-import easystock.shared.generated.resources.admin_settings_retention_days
-import easystock.shared.generated.resources.admin_settings_retention_forever
-import easystock.shared.generated.resources.admin_settings_retention_summary
+import easystock.shared.generated.resources.admin_settings_save
 import easystock.shared.generated.resources.admin_settings_saved
+import easystock.shared.generated.resources.admin_settings_server_name
 import org.jetbrains.compose.resources.getString
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -63,7 +57,7 @@ internal fun AdminSettingsScreen(api: AdminApi, onBack: () -> Unit) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        AdminSettingsContent(state, onBack, viewModel::refresh, viewModel::retry, viewModel::setRetention)
+        AdminSettingsContent(state, onBack, viewModel::refresh, viewModel::retry, viewModel::setServerName)
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 }
@@ -74,56 +68,27 @@ internal fun AdminSettingsContent(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
-    onRetention: (Int?) -> Unit,
+    onSave: (String) -> Unit,
 ) {
     SettingsSubpage(title = stringResource(Res.string.admin_settings), onBack = onBack) {
         if (state.saving) LinearProgressIndicator(Modifier.fillMaxWidth())
         LoadedContent(state.settings, onRefresh, onRetry, isEmpty = { false }, emptyText = "") { settings ->
-            SectionTitle(stringResource(Res.string.admin_settings_retention))
-            Hint(stringResource(Res.string.admin_settings_retention_summary))
-            // A value the server has that is not in the list is shown too
-            val choices = (RETENTION_CHOICES + settings.movementAuthorRetentionDays).distinct()
-            choices.forEach { days ->
-                val selected = days == settings.movementAuthorRetentionDays
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            if (days == null) stringResource(Res.string.admin_settings_retention_forever)
-                            else pluralStringResource(Res.plurals.admin_settings_retention_days, days, days),
-                        )
-                    },
-                    leadingContent = { RadioButton(selected = selected, onClick = null, enabled = !state.saving) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-                    modifier = Modifier.selectable(
-                        selected = selected,
-                        enabled = !state.saving,
-                        role = SemanticsRole.RadioButton,
-                        onClick = { onRetention(days) },
-                    ),
-                )
-            }
+            var name by remember(settings.serverName) { mutableStateOf(settings.serverName) }
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(Res.string.admin_settings_server_name)) },
+                singleLine = true,
+                enabled = !state.saving,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            )
+            Button(
+                onClick = { onSave(name) },
+                enabled = !state.saving && name.isNotBlank() && name.trim() != settings.serverName,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            ) { Text(stringResource(Res.string.admin_settings_save)) }
         }
     }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
-    )
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
 }
 
 @Preview(showBackground = true)
@@ -131,7 +96,7 @@ private fun Hint(text: String) {
 private fun AdminSettingsPreview() {
     EasyStockTheme {
         AdminSettingsContent(
-            AdminSettingsState(Loaded(AdminSettings("Atelier", 90), loading = false)),
+            AdminSettingsState(Loaded(AdminSettings("Atelier"), loading = false)),
             {}, {}, {}, {},
         )
     }

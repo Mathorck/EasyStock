@@ -417,24 +417,19 @@ class AdminApiTest {
     @Test
     fun settings() = runTest {
         login()
-        val settings = api { ok("""{"serverName":"Atelier","movementAuthorRetentionDays":90}""") }.settings()
+        val settings = api { ok("""{"serverName":"Atelier"}""") }.settings()
         assertEquals("/api/v1/admin/settings", seen.single().path)
-        assertEquals(90, settings.movementAuthorRetentionDays)
         assertEquals("Atelier", settings.serverName)
     }
 
     @Test
-    fun updateSettingsSendsBothFieldsAndNothingElse() = runTest {
+    fun updateSettingsSendsTheServerNameAndNothingElse() = runTest {
         login()
-        val api = api { ok("""{"serverName":"Atelier","movementAuthorRetentionDays":30}""") }
-        api.updateSettings(AdminSettings(serverName = "Atelier", movementAuthorRetentionDays = null))
-        val first = body(seen[0]).jsonObject
+        val api = api { ok("""{"serverName":"Atelier"}""") }
+        api.updateSettings(AdminSettings(serverName = "Atelier"))
+        val sent = body(seen[0]).jsonObject
         assertEquals(HttpMethod.Put, seen[0].method)
-        assertEquals(setOf("serverName", "movementAuthorRetentionDays"), first.keys)
-        assertEquals(JsonNull, first["movementAuthorRetentionDays"])
-
-        api.updateSettings(AdminSettings(serverName = "Atelier", movementAuthorRetentionDays = 30))
-        val second = body(seen[1]).jsonObject
-        assertEquals("30", second["movementAuthorRetentionDays"]!!.jsonPrimitive.content)
+        assertEquals(setOf("serverName"), sent.keys)
+        assertEquals("Atelier", sent["serverName"]!!.jsonPrimitive.content)
     }
 }
