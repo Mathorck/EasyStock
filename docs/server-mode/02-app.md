@@ -282,7 +282,8 @@ Open points (sync engine)
   from `GET /me`, triggers (foreground, 3 s after the last local change, pull to refresh on the Stock page, the full
   pull right after joining or a promotion), the sync row and the rejected changes screen on the Account screen, and
   the Settings badge for unseen rejected changes.
-* Not done yet: the 15-minute WorkManager job, UnifiedPush, and the low-stock alert notifications (alerts are
+* Done: the 15-minute WorkManager job (`sync/BackgroundSync*.kt`, WorkManager 2.12.0): unique periodic work, network required, KEEP, exponential backoff. Scheduled while `sync_state` exists (join and app start), cancelled when it disappears (logout, leave, revoked session, reset); the worker also cancels itself when the cycle says NOT_CONNECTED. Runs `syncEngine(context).sync()`, so never two cycles at once. A network failure retries with backoff. Assumes nothing new of the server.
+* Not done yet: UnifiedPush, and the low-stock alert notifications (alerts are
   pulled and stored in `low_stock_alert`, nothing is shown yet).
 * Not done yet: `dataset-reset` (the server replaced its whole data set). The app has no handling for it.
 * The push endpoint is not implemented on the server yet. The rejected reason codes are assumed: `not-allowed`,
