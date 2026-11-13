@@ -20,6 +20,7 @@ import ch.mathorck.easystock.server.ServerImportMode
 import ch.mathorck.easystock.server.ServerInfo
 import ch.mathorck.easystock.server.UserKind
 import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -281,6 +282,86 @@ class AdminSettingsViewModelTest {
         vm.refresh()
         vm.setServerName(" Maison ")
         assertEquals("Maison", api.settings.serverName)
+        assertEquals("Maison", vm.state.value.settings.data?.serverName)
+        assertTrue(vm.state.value.saved)
+    }
+
+    @Test
+    fun blankNameIsRejected() {
+        api.settings = AdminSettings(serverName = "Atelier")
+        val vm = AdminSettingsViewModel(api)
+        vm.refresh()
+        assertFalse(vm.state.value.canSaveServerName("   "))
+        vm.setServerName("   ")
+        vm.setServerName("")
+        assertEquals(0, api.settingsWrites)
+        assertEquals("Atelier", api.settings.serverName)
+    }
+
+    @Test
+    fun sameNameIsNotSaved() {
+        api.settings = AdminSettings(serverName = "Atelier")
+        val vm = AdminSettingsViewModel(api)
+        vm.refresh()
+        assertFalse(vm.state.value.canSaveServerName(" Atelier "))
+        vm.setServerName(" Atelier ")
+        assertEquals(0, api.settingsWrites)
+    }
+
+    @Test
+    fun nameRule() {
+        assertTrue(isNewServerName(" Maison ", "Atelier"))
+        assertFalse(isNewServerName("Atelier", "Atelier"))
+        assertFalse(isNewServerName(" \t ", "Atelier"))
+        // Nothing loaded yet, or a save running: no save
+        assertFalse(AdminSettingsState().canSaveServerName("Maison"))
+        val loaded = AdminSettingsState(Loaded(AdminSettings("Atelier"), loading = false))
+        assertTrue(loaded.canSaveServerName("Maison"))
+        assertFalse(loaded.copy(saving = true).canSaveServerName("Maison"))
+    }
+
+    @Test
+    fun blankServerAnswerKeepsTheSentName() {
+        api.settings = AdminSettings(serverName = "Atelier")
+        val vm = AdminSettingsViewModel(api)
+        vm.refresh()
+        api.settingsAnswer = AdminSettings()
+        vm.setServerName("Maison")
+        assertEquals("Maison", vm.state.value.settings.data?.serverName)
+    }
+
+    @Test
+    fun loadRunningDuringSaveDoesNotBringTheOldNameBack() {
+        api.settings = AdminSettings(serverName = "Atelier")
+        val vm = AdminSettingsViewModel(api)
+        vm.refresh()
+        val gate = CompletableDeferred<Unit>()
+        api.settingsGate = gate
+        vm.refresh() // reads "Atelier", then waits
+        assertTrue(vm.state.value.settings.refreshing)
+        api.settingsGate = null
+        vm.setServerName("Maison")
+        gate.complete(Unit)
+        assertEquals("Maison", vm.state.value.settings.data?.serverName)
+        assertFalse(vm.state.value.settings.refreshing)
+    }
+
+    @Test
+    fun failedSaveStopsTheCancelledRefresh() {
+        api.settings = AdminSettings(serverName = "Atelier")
+        val vm = AdminSettingsViewModel(api)
+        vm.refresh()
+        val gate = CompletableDeferred<Unit>()
+        api.settingsGate = gate
+        vm.refresh()
+        api.fail = ApiException(ApiError.SERVER)
+        vm.setServerName("Maison")
+        gate.complete(Unit)
+        val state = vm.state.value
+        assertNotNull(state.failure)
+        assertFalse(state.saving)
+        assertFalse(state.settings.refreshing)
+        assertEquals("Atelier", state.settings.data?.serverName)
     }
 }
 
@@ -368,13 +449,23 @@ private class FakeAdminApi : AdminApi {
     }
     override suspend fun settings(): AdminSettings {
         check()
-        return settings
+        // Read before waiting, like a server that answered before a later save
+        val read = settings
+        settingsGate?.await()
+        return read
     }
     override suspend fun updateSettings(settings: AdminSettings): AdminSettings {
+        settingsWrites++
         check()
         this.settings = settings
-        return settings
+        return settingsAnswer ?: settings
     }
+
+    /** When set, a settings read waits for it. */
+    var settingsGate: CompletableDeferred<Unit>? = null
+    var settingsWrites = 0
+    /** When set, what the server answers to a settings update. */
+    var settingsAnswer: AdminSettings? = null
 }
 
 private class FakeFileStore : ServerFileStore {

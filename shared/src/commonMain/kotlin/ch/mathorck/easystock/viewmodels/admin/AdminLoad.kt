@@ -57,4 +57,11 @@ internal class Loader<T>(
             }
         }
     }
+
+    /** Stops a running load: its result is dropped. The data shown stays. */
+    fun cancel() {
+        job?.cancel()
+        job = null
+        state.update { it.copy(refreshing = false) }
+    }
 }

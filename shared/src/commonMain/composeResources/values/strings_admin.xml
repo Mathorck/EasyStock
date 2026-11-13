@@ -143,7 +143,5 @@
     <string name="admin_backup_imported">Backup imported</string>
 
     <!-- Server settings -->
-    <string name="admin_settings_server_name">Server name</string>
-    <string name="admin_settings_save">Save</string>
     <string name="admin_settings_saved">Saved</string>
 </resources>

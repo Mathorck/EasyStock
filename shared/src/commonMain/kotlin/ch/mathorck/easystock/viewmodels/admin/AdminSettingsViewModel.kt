@@ -30,26 +30,28 @@ class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
         viewModelScope.launch { settings.collect { loaded -> _state.update { it.copy(settings = loaded) } } }
     }
 
-    /** Loads, or reloads with the current data shown (pull-to-refresh, screen opened again). */
-    fun refresh() = loader.load(refresh = true)
+    /** Loads, or reloads with the current data shown (pull-to-refresh, screen opened again). Not while saving. */
+    fun refresh() {
+        if (!_state.value.saving) loader.load(refresh = true)
+    }
 
-    fun retry() = loader.load()
+    fun retry() {
+        if (!_state.value.saving) loader.load()
+    }
 
-    fun setServerName(name: String) = save { it.copy(serverName = name.trim()) }
-
-    fun consumeMessage() = _state.update { it.copy(failure = null, saved = false) }
-
-    private fun save(change: (AdminSettings) -> AdminSettings) {
+    /** Saves [typed] as the server name, trimmed. Ignored unless [isNewServerName]. */
+    fun setServerName(typed: String) {
         val current = settings.value.data ?: return
-        if (_state.value.saving) return
-        val next = change(current)
-        if (next == current) return
+        if (_state.value.saving || !isNewServerName(typed, current.serverName)) return
+        val sent = current.copy(serverName = typed.trim())
+        // A load still running would read the old name and set it back after the save
+        loader.cancel()
         _state.update { it.copy(saving = true, failure = null, saved = false) }
         viewModelScope.launch {
             try {
-                val answer = api.updateSettings(next)
-                // A server that answers without the body fields keeps what was sent
-                settings.value = Loaded(merge(next, answer), loading = false)
+                val answer = api.updateSettings(sent)
+                // A server that answers without the name keeps what was sent
+                settings.value = Loaded(answer.copy(serverName = answer.serverName.ifBlank { sent.serverName }), loading = false)
                 _state.update { it.copy(saving = false, saved = true) }
             } catch (e: CancellationException) {
                 throw e
@@ -59,6 +61,15 @@ class AdminSettingsViewModel(private val api: AdminApi) : ViewModel() {
         }
     }
 
-    private fun merge(sent: AdminSettings, answer: AdminSettings) =
-        AdminSettings(serverName = answer.serverName.ifBlank { sent.serverName })
+    fun consumeMessage() = _state.update { it.copy(failure = null, saved = false) }
 }
+
+/** The server name rule: [typed], trimmed, is not blank and differs from [current]. */
+fun isNewServerName(typed: String, current: String): Boolean {
+    val name = typed.trim()
+    return name.isNotEmpty() && name != current
+}
+
+/** The Save button and the keyboard Done: a new name, loaded and nothing being saved. */
+fun AdminSettingsState.canSaveServerName(typed: String): Boolean =
+    !saving && settings.data?.let { isNewServerName(typed, it.serverName) } == true
