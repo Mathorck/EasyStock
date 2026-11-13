@@ -179,7 +179,7 @@ class SyncDaoTest {
             dao.applyPull(pull(SyncTable.STOCK_MOVEMENT to withAuthor(changed, "u1", "d1")), next = 2, fullPull = full, now = 2)
             val kept = db.backupDao().snapshot().movements.single()
             assertEquals(m.copy(createdBy = "u1", deviceId = "d1"), kept)
-            // Anonymized by the server: the authors are cleared
+            // The server is the authority on the authors: a pull applies its value, null included
             dao.applyPull(pull(SyncTable.STOCK_MOVEMENT to withAuthor(changed, null, null)), next = 3, fullPull = full, now = 3)
             assertEquals(m, db.backupDao().snapshot().movements.single())
         }
