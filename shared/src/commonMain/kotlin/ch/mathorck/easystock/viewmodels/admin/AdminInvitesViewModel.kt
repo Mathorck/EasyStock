@@ -98,6 +98,10 @@ class PublicInviteViewModel(private val api: AdminApi) : ViewModel() {
                 }
             }
         }
+        loadServerName()
+    }
+
+    private fun loadServerName() {
         viewModelScope.launch {
             val name = runCatching { api.settings().serverName }.getOrNull()?.takeIf { it.isNotBlank() }
                 ?: runCatching { api.serverInfo().serverName }.getOrNull()?.takeIf { it.isNotBlank() }
@@ -105,8 +109,11 @@ class PublicInviteViewModel(private val api: AdminApi) : ViewModel() {
         }
     }
 
-    /** Loads, or reloads with the current data shown (pull-to-refresh, screen opened again). */
-    fun refresh() = loader.load(refresh = true)
+    /** Loads, or reloads with the current data shown (pull-to-refresh, screen opened again). Also reloads the server name, which an admin may have renamed. */
+    fun refresh() {
+        loadServerName()
+        loader.load(refresh = true)
+    }
 
     fun retry() = loader.load()
 

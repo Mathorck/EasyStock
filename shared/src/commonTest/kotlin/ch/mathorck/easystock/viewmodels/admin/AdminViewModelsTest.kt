@@ -284,6 +284,26 @@ class AdminSettingsViewModelTest {
     }
 }
 
+class PublicInviteViewModelTest {
+    private val api = FakeAdminApi()
+
+    @BeforeTest
+    fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
+
+    @AfterTest
+    fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun refreshReloadsTheServerNameAfterARename() {
+        api.settings = AdminSettings(serverName = "Atelier")
+        val vm = PublicInviteViewModel(api)
+        assertEquals("Atelier", vm.state.value.serverName)
+        api.settings = AdminSettings(serverName = "Garage")
+        vm.refresh()
+        assertEquals("Garage", vm.state.value.serverName)
+    }
+}
+
 private class FakeAdminApi : AdminApi {
     var fail: Exception? = null
     var userReads = 0
