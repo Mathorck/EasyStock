@@ -9,7 +9,9 @@ import ch.mathorck.easystock.data.model.StockMovement
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ArticleDetailTest {
     private fun loc(id: String, name: String = id, parentId: String? = null, deletedAt: Long? = null) =
@@ -161,5 +163,33 @@ class ArticleDetailTest {
         val rows = historyRows(emptyList(), listOf(flag("f", flaggedAt = 10)), locations, TimeZone.UTC)
 
         assertEquals(listOf("flagged-f"), rows.map { it.key })
+    }
+
+    @Test
+    fun movementPageDropsTheExtraRowAndKnowsThereIsMore() {
+        val rows = (3 downTo 1).map { MovementWithLocation(movement("m$it", "van", 1_000, occurredAt = it * 1_000L), "Van") }
+
+        val page = MovementPage.of(rows, limit = 2)
+        assertEquals(listOf("m3", "m2"), page.movements.map { it.movement.id })
+        assertTrue(page.hasMore)
+
+        val all = MovementPage.of(rows, limit = 3)
+        assertEquals(3, all.movements.size)
+        assertFalse(all.hasMore)
+    }
+
+    @Test
+    fun partialHistoryLeavesOutFlagEventsOlderThanTheMovementsShown() {
+        val movements = listOf(
+            MovementWithLocation(movement("m3", "van", -1_000, occurredAt = 5_000), "Van"),
+            MovementWithLocation(movement("m2", "shelf", 2_000, occurredAt = 3_000), "Shelf A"),
+        )
+        val flags = listOf(flag("recent", flaggedAt = 4_000), flag("old", flaggedAt = 1_000, fixedAt = 3_000))
+
+        val partial = historyRows(movements, flags, locations, TimeZone.UTC, moreMovements = true)
+        assertEquals(listOf("movement-m3", "flagged-recent", "movement-m2", "fixed-old"), partial.map { it.key })
+
+        val complete = historyRows(movements, flags, locations, TimeZone.UTC, moreMovements = false)
+        assertEquals(listOf("movement-m3", "flagged-recent", "movement-m2", "fixed-old", "flagged-old"), complete.map { it.key })
     }
 }

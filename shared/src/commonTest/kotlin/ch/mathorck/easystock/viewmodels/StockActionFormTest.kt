@@ -266,5 +266,16 @@ class StockActionFormTest {
         assertFalse(form.needsQuantity)
         assertTrue(form.hasUnitProperties)
     }
-}
 
+    @Test
+    fun serialIndexIgnoresCaseAndCountsDuplicates() {
+        val index = SerialIndex(listOf("SN-1", "sn-1", "SN-2"))
+
+        assertTrue(index.isTaken("Sn-2"))
+        assertFalse(index.isTaken("SN-2", ownSerial = "sn-2"))
+        // Two units already have it: keeping one's own serial still collides with the other
+        assertTrue(index.isTaken("SN-1", ownSerial = "SN-1"))
+        assertFalse(index.isTaken("SN-3"))
+        assertEquals(StockActionError.DUPLICATE_SERIAL, validateSerial("sn-9", index, rejected = "SN-9"))
+    }
+}
