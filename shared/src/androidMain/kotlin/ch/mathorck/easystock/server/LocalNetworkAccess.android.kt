@@ -44,19 +44,21 @@ actual fun rememberLocalNetworkAccess(onResult: (granted: Boolean) -> Unit): Loc
     val prefs = remember(app) { app.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE) }
     val currentOnResult by rememberUpdatedState(onResult)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        // A grant (even later, in the settings) resets the denial: a revoke after it may ask again
+        // A grant resets the denial: a revoke after it may ask again
         prefs.edit().putBoolean(KEY_DENIED, !granted).apply()
         currentOnResult(granted)
     }
     return remember(context, launcher) {
         object : LocalNetworkAccess {
-            override fun isMissing() = isLocalNetworkAccessMissing(app)
+            override fun isMissing(): Boolean {
+                val missing = isLocalNetworkAccessMissing(app)
+                // Allowed meanwhile (e.g. in the settings): a later revoke may ask again
+                if (!missing && prefs.getBoolean(KEY_DENIED, false)) prefs.edit().remove(KEY_DENIED).apply()
+                return missing
+            }
 
             override fun mustOpenSettings(): Boolean {
-                if (!isMissing()) {
-                    if (prefs.getBoolean(KEY_DENIED, false)) prefs.edit().remove(KEY_DENIED).apply()
-                    return false
-                }
+                if (!isMissing()) return false
                 val activity = context.findActivity() ?: return false
                 // Before the first ask there is no rationale either: only a denial seen before counts
                 return prefs.getBoolean(KEY_DENIED, false) && !activity.shouldShowRequestPermissionRationale(PERMISSION)
