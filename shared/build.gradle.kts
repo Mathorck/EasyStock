@@ -50,7 +50,9 @@ kotlin {
             // Activity Result APIs (camera, photo picker)
             implementation(libs.androidx.activity.compose)
             implementation(libs.compose.uiToolingPreview)
-            implementation(libs.compose.uiTooling)
+            // ui-tooling (preview rendering, PreviewActivity) is not an implementation dependency: it would ship
+            // in the release app. Previews compile with ui-tooling-preview; the tooling is only on this module's
+            // runtime classpath (below, for Android Studio) and in the app's debug build (androidApp).
             // Backup transfer: QR scan (camera preview + frames) and QR encode/decode
             implementation(libs.androidx.camera.camera2)
             implementation(libs.androidx.camera.lifecycle)
@@ -101,6 +103,7 @@ kotlin {
 }
 
 dependencies {
+    // Preview rendering in Android Studio only: the runtime classpath is not passed on to the app
     androidRuntimeClasspath(libs.compose.uiTooling)
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspIosArm64", libs.androidx.room.compiler)
