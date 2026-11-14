@@ -2,6 +2,8 @@ package ch.mathorck.easystock.sync
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import ch.mathorck.easystock.data.db.rememberAppDatabase
@@ -26,6 +28,7 @@ fun SyncHost(connected: Boolean) {
     val engine = rememberSyncEngine() ?: return
     val db = rememberAppDatabase()
     val dao = remember(db) { db.syncDao() }
+    val syncState by remember(db) { db.sessionDao().observeSyncState() }.collectAsState(null)
     LifecycleResumeEffect(engine) {
         engine.requestSync()
         onPauseOrDispose {}
@@ -37,5 +40,5 @@ fun SyncHost(connected: Boolean) {
             .collect { engine.requestSync() }
     }
     DatasetResetDialog(engine)
-    LocalNetworkPrompt(engine)
+    LocalNetworkPrompt(engine, syncState?.serverUrl)
 }

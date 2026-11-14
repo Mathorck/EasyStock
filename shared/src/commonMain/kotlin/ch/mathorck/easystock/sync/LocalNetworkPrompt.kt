@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import ch.mathorck.easystock.server.rememberLocalNetworkAccess
+import ch.mathorck.easystock.server.shouldAskLocalNetwork
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.local_network_allow
 import easystock.shared.generated.resources.local_network_not_now
@@ -27,11 +29,13 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * A connected phone without the local network permission (Android 17+, e.g. after an app update):
- * background sync can't ask, so the app asks when it starts. "Not now" is not asked again until the
+ * background sync can't ask, so the app asks when it starts. Only when the server needs it
+ * ([shouldAskLocalNetwork]): a private [serverUrl], or a sync that failed for want of it. "Not now" is not asked again until the
  * next start; the Account screen keeps the way out next to the sync error. Once allowed, a sync starts.
  */
 @Composable
-internal fun LocalNetworkPrompt(engine: SyncEngine) {
+internal fun LocalNetworkPrompt(engine: SyncEngine, serverUrl: String?) {
+    val status by engine.status.collectAsState()
     var missing by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
     var dismissed by rememberSaveable { mutableStateOf(false) }
@@ -48,7 +52,7 @@ internal fun LocalNetworkPrompt(engine: SyncEngine) {
         refresh()
         onPauseOrDispose {}
     }
-    if (!missing || dismissed) return
+    if (dismissed || !shouldAskLocalNetwork(missing, serverUrl, status.error)) return
     AlertDialog(
         onDismissRequest = { dismissed = true },
         title = { Text(stringResource(Res.string.local_network_title)) },

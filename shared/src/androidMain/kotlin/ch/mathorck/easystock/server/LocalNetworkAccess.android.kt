@@ -23,8 +23,11 @@ private const val API_LOCAL_NETWORK = 37
 
 private const val PREFS_FILE = "local_network"
 
-/** Set after a denial: from then on, no rationale means the system won't show its dialog any more. */
-private const val KEY_DENIED = "denied_once"
+/** Denied for good ([deniedForGood]): the system won't show its dialog any more, only the settings can allow it. */
+private const val KEY_DENIED = "denied_for_good"
+
+/** The rationale just before the last dialog, kept across an activity recreation while it shows. */
+private const val KEY_RATIONALE_BEFORE = "rationale_before"
 
 /** True when the system blocks the local network for this app (Android 17+, not granted). Any context. */
 fun isLocalNetworkAccessMissing(context: Context): Boolean =
@@ -44,8 +47,15 @@ actual fun rememberLocalNetworkAccess(onResult: (granted: Boolean) -> Unit): Loc
     val prefs = remember(app) { app.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE) }
     val currentOnResult by rememberUpdatedState(onResult)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val rationaleNow = context.findActivity()?.shouldShowRequestPermissionRationale(PERMISSION) ?: false
+        val forGood = deniedForGood(
+            previous = prefs.getBoolean(KEY_DENIED, false),
+            granted = granted,
+            rationaleBefore = prefs.getBoolean(KEY_RATIONALE_BEFORE, false),
+            rationaleNow = rationaleNow,
+        )
         // A grant resets the denial: a revoke after it may ask again
-        prefs.edit().putBoolean(KEY_DENIED, !granted).apply()
+        prefs.edit().putBoolean(KEY_DENIED, forGood).remove(KEY_RATIONALE_BEFORE).apply()
         currentOnResult(granted)
     }
     return remember(context, launcher) {
@@ -60,12 +70,15 @@ actual fun rememberLocalNetworkAccess(onResult: (granted: Boolean) -> Unit): Loc
             override fun mustOpenSettings(): Boolean {
                 if (!isMissing()) return false
                 val activity = context.findActivity() ?: return false
-                // Before the first ask there is no rationale either: only a denial seen before counts
+                // A rationale again means the user reset the permission meanwhile: the dialog can show
                 return prefs.getBoolean(KEY_DENIED, false) && !activity.shouldShowRequestPermissionRationale(PERMISSION)
             }
 
             override fun request() {
-                if (isMissing()) launcher.launch(PERMISSION) else currentOnResult(true)
+                if (!isMissing()) return currentOnResult(true)
+                val rationale = context.findActivity()?.shouldShowRequestPermissionRationale(PERMISSION) ?: false
+                prefs.edit().putBoolean(KEY_RATIONALE_BEFORE, rationale).apply()
+                launcher.launch(PERMISSION)
             }
 
             override fun openSettings() {

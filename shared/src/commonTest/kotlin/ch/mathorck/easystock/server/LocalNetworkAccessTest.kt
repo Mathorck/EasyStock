@@ -57,4 +57,29 @@ class LocalNetworkAccessTest {
         assertEquals(SyncError.NETWORK, syncErrorOf(ApiException(ApiError.NETWORK), localNetworkMissing = false))
         assertEquals(SyncError.SERVER, syncErrorOf(ApiException(ApiError.SERVER, 500), localNetworkMissing = true))
     }
+
+    @Test
+    fun onlyAServerThatNeedsTheLocalNetworkAsksForIt() {
+        assertTrue(shouldAskLocalNetwork(missing = true, serverUrl = "http://192.168.1.20:8080", lastError = null))
+        assertTrue(shouldAskLocalNetwork(missing = true, serverUrl = "https://nas.example", lastError = SyncError.LOCAL_NETWORK_DENIED))
+        assertFalse(shouldAskLocalNetwork(missing = true, serverUrl = "https://nas.example", lastError = null))
+        assertFalse(shouldAskLocalNetwork(missing = true, serverUrl = "https://nas.example", lastError = SyncError.NETWORK))
+        assertFalse(shouldAskLocalNetwork(missing = true, serverUrl = null, lastError = null))
+        assertFalse(shouldAskLocalNetwork(missing = false, serverUrl = "http://192.168.1.20:8080", lastError = SyncError.LOCAL_NETWORK_DENIED))
+    }
+
+    @Test
+    fun onlyASecondDenialIsForGood() {
+        // First denial: the rationale shows, the dialog can ask again
+        assertFalse(deniedForGood(previous = false, granted = false, rationaleBefore = false, rationaleNow = true))
+        // Dialog dismissed without an answer: nothing changes
+        assertFalse(deniedForGood(previous = false, granted = false, rationaleBefore = false, rationaleNow = false))
+        assertFalse(deniedForGood(previous = false, granted = false, rationaleBefore = true, rationaleNow = true))
+        // Denied again after a rationale: for good
+        assertTrue(deniedForGood(previous = false, granted = false, rationaleBefore = true, rationaleNow = false))
+        // Already for good: the system answers at once, it stays so
+        assertTrue(deniedForGood(previous = true, granted = false, rationaleBefore = false, rationaleNow = false))
+        // A grant always resets it
+        assertFalse(deniedForGood(previous = true, granted = true, rationaleBefore = false, rationaleNow = false))
+    }
 }

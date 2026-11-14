@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.server
 
 import androidx.compose.runtime.Composable
+import ch.mathorck.easystock.sync.SyncError
 
 /**
  * The permission to reach devices on the local network (Android 17+, `ACCESS_LOCAL_NETWORK`). Without
@@ -66,3 +67,23 @@ fun isLocalNetworkAddress(serverUrl: String): Boolean {
     val (a, b) = octets
     return a == 10 || (a == 172 && b in 16..31) || (a == 192 && b == 168) || (a == 169 && b == 254)
 }
+
+/**
+ * True when the app should ask for the local network at start: the permission is [missing] and the
+ * server needs it, because [serverUrl] is a private address or the last sync failed for want of it
+ * ([lastError] [SyncError.LOCAL_NETWORK_DENIED], a host name on the local network). A public server never asks.
+ */
+fun shouldAskLocalNetwork(missing: Boolean, serverUrl: String?, lastError: SyncError?): Boolean =
+    missing && (serverUrl?.let(::isLocalNetworkAddress) == true || lastError == SyncError.LOCAL_NETWORK_DENIED)
+
+/**
+ * Whether the permission is denied for good after an answer of the system dialog: the dialog won't
+ * show any more, only the settings can allow it. [previous] is the value before, [rationaleBefore] and
+ * [rationaleNow] are `shouldShowRequestPermissionRationale` before and after the dialog.
+ *
+ * A denial is for good when no rationale follows it although one was due: one denial was seen before
+ * (rationale before the ask, or [previous]). A first denial shows the rationale; a dialog dismissed
+ * without an answer leaves it as it was. Both may still ask again.
+ */
+fun deniedForGood(previous: Boolean, granted: Boolean, rationaleBefore: Boolean, rationaleNow: Boolean): Boolean =
+    !granted && !rationaleNow && (rationaleBefore || previous)
