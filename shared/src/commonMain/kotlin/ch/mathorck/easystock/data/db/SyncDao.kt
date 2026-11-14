@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -131,6 +132,10 @@ abstract class SyncDao {
     /** The `server_seq` of the server version of the row, null when the server never had it (or for a movement). */
     @Query("SELECT seq FROM server_seq WHERE table_name = :table AND row_id = :id")
     abstract suspend fun serverSeq(table: String, id: String): Long?
+
+    /** [serverSeq] of each of [ids] that has one (at most 999 ids: SQLite variables). */
+    @Query("SELECT row_id, seq FROM server_seq WHERE table_name = :table AND row_id IN (:ids)")
+    abstract suspend fun serverSeqs(table: String, ids: List<String>): List<RowSeq>
 
     @Query("INSERT OR REPLACE INTO server_seq (table_name, row_id, seq) VALUES (:table, :id, :seq)")
     protected abstract suspend fun saveSeq(table: String, id: String, seq: Long)
@@ -717,3 +722,9 @@ abstract class SyncDao {
         private const val IN_CHUNK = 500
     }
 }
+
+/** One `server_seq` row, read by [SyncDao.serverSeqs]. */
+data class RowSeq(
+    @ColumnInfo(name = "row_id") val rowId: String,
+    val seq: Long,
+)

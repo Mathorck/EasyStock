@@ -66,6 +66,12 @@ class RowConflictDaoTest {
     private suspend fun changeId() = dao.observeRejectedChanges().first().single().id
 
     @Test
+    fun theSeqsOfSeveralRowsInOneRead() = runBlocking {
+        assertEquals(listOf(RowSeq("c1", dao.serverSeq("category", "c1")!!)), dao.serverSeqs("category", listOf("c1", "unknown")))
+        assertTrue(dao.serverSeqs("article", listOf("c1")).isEmpty())
+    }
+
+    @Test
     fun theServerVersionIsWrittenWithItsSeqAndThePhoneOneKept() = runBlocking {
         assertEquals("Theirs", name())
         assertEquals(9L, dao.serverSeq("category", "c1"))

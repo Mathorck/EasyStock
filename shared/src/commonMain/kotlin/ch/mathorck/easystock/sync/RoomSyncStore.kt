@@ -56,6 +56,11 @@ class RoomSyncStore(private val db: AppDatabase, private val files: SyncImageFil
     override suspend fun serverSeq(table: SyncTable, id: String): Long? =
         if (table.hasServerSeq) dao.serverSeq(table.tableName, id) else null
 
+    override suspend fun serverSeqs(table: SyncTable, ids: Collection<String>): Map<String, Long> {
+        if (!table.hasServerSeq || ids.isEmpty()) return emptyMap()
+        return ids.toList().chunked(SEQ_CHUNK).flatMap { dao.serverSeqs(table.tableName, it) }.associate { it.rowId to it.seq }
+    }
+
     override suspend fun imageBytes(sha256: String): ByteArray? =
         dao.pathsOf(sha256).firstNotNullOfOrNull { path -> if (isValidImagePath(path)) files.read(path) else null }
 
@@ -93,3 +98,6 @@ class RoomSyncStore(private val db: AppDatabase, private val files: SyncImageFil
         }
     }
 }
+
+/** Ids per `IN (...)` read, under the SQLite variable limit. */
+private const val SEQ_CHUNK = 500

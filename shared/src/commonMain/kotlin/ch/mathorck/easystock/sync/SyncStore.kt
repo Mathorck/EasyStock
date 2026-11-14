@@ -46,6 +46,10 @@ interface SyncStore {
      */
     suspend fun serverSeq(table: SyncTable, id: String): Long?
 
+    /** [serverSeq] of each of [ids] that has one, in one read where the store can. */
+    suspend fun serverSeqs(table: SyncTable, ids: Collection<String>): Map<String, Long> =
+        ids.mapNotNull { id -> serverSeq(table, id)?.let { id to it } }.toMap()
+
     /** The content of a photo with this hash, null when no such file is on the phone. */
     suspend fun imageBytes(sha256: String): ByteArray?
 

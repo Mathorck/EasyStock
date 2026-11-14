@@ -316,10 +316,10 @@ class SyncEngine(
         val rows = LinkedHashMap<String, List<JsonObject>>()
         SyncTable.entries.forEach { table ->
             // Each row once: the server takes a second copy as a stale edit of the first (the outbox key already ensures it)
-            val list = byTable[table.tableName].orEmpty().distinctBy { it.rowId }.mapNotNull { entry ->
-                // An edit of a row the server has carries the seq of the version it is based on (first change wins)
-                store.wireRow(table, entry.rowId, hashNewImages = true)?.withBaseSeq(store.serverSeq(table, entry.rowId))
-            }
+            val ids = byTable[table.tableName].orEmpty().map { it.rowId }.distinct()
+            // An edit of a row the server has carries the seq of the version it is based on (first change wins)
+            val seqs = if (ids.isEmpty()) emptyMap() else store.serverSeqs(table, ids)
+            val list = ids.mapNotNull { id -> store.wireRow(table, id, hashNewImages = true)?.withBaseSeq(seqs[id]) }
             if (list.isNotEmpty()) rows[table.tableName] = list
         }
         // Only entries of rows that no longer exist (never the case: hard deletes clear their entry)
