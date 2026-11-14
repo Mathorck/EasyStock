@@ -159,13 +159,14 @@ abstract class StockActionDao {
     @Query("SELECT COALESCE(SUM(quantity), 0) FROM stock_movement WHERE item_id = :itemId AND location_id = :locationId")
     protected abstract suspend fun itemStockAt(itemId: String, locationId: String): Long
 
-    /** Where the unit is according to its movements, null when it is out of stock (lent, lost). */
+    /** Where the unit is according to its movements (lowest location id first, as SyncDao), null when it is out of stock (lent, lost). */
     @Query(
         """
         SELECT location_id FROM stock_movement
         WHERE item_id = :itemId
         GROUP BY location_id
         HAVING SUM(quantity) > 0
+        ORDER BY location_id
         LIMIT 1
         """,
     )
