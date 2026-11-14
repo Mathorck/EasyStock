@@ -28,6 +28,7 @@ import io.ktor.http.isSuccess
 import io.ktor.serialization.ContentConvertException
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -95,7 +96,7 @@ fun createServerClient(
     versions: ClientVersions,
     onSessionRevoked: suspend () -> Unit = {},
 ): ServerClient {
-    val http = HttpClient(engine) {
+    val http = ownedClient(engine) {
         baseConfig(connection, versions)
         install(Auth) {
             bearer {
@@ -152,7 +153,17 @@ private fun HttpClientConfig<*>.baseConfig(connection: ServerConnection, version
  * session, so it can't trigger the wipe of [createServerClient].
  */
 fun createPublicClient(connection: ServerConnection, engine: HttpClientEngine, versions: ClientVersions): HttpClient =
-    HttpClient(engine) { baseConfig(connection, versions) }
+    ownedClient(engine) { baseConfig(connection, versions) }
+
+/**
+ * A client that owns [engine]: closing the client closes the engine (its OkHttp connection pool and
+ * threads) once the running calls are done. `HttpClient(engine) {}` alone leaves an engine passed in
+ * open, so each replaced client would leak one.
+ */
+private fun ownedClient(engine: HttpClientEngine, block: HttpClientConfig<*>.() -> Unit): HttpClient =
+    HttpClient(engine, block).also { client ->
+        client.coroutineContext[Job]!!.invokeOnCompletion { engine.close() }
+    }
 
 private suspend fun revoked(session: SessionStore, onSessionRevoked: suspend () -> Unit): Nothing {
     session.clear()

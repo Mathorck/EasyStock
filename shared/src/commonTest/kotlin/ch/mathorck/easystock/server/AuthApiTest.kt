@@ -11,7 +11,11 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.io.IOException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -320,5 +324,20 @@ class AuthApiTest {
         assertTrue(AccountRules.isValidDisplayName(" Jean "))
         assertFalse(AccountRules.isValidDisplayName("   "))
         assertFalse(AccountRules.isValidDisplayName("x".repeat(51)))
+    }
+
+    @Test
+    fun closingAClientClosesItsEngine() = runTest {
+        val publicEngine = MockEngine { respond("{}") }
+        createPublicClient(ServerConnection(base), publicEngine, ClientVersions("1.2.3", 9)).close()
+        val sessionEngine = MockEngine { respond("{}") }
+        createServerClient(ServerConnection(base), sessionEngine, InMemorySessionStore(), ClientVersions("1.2.3", 9)).close()
+        // Real time: the engines finish on their own threads
+        withContext(Dispatchers.Default) {
+            withTimeout(5_000) {
+                publicEngine.coroutineContext[Job]!!.join()
+                sessionEngine.coroutineContext[Job]!!.join()
+            }
+        }
     }
 }
