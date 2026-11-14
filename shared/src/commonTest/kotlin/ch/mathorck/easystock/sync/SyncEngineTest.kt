@@ -122,10 +122,14 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
 
     override suspend fun existingIds(table: SyncTable, ids: Set<String>) = ids.intersect(rows.getValue(table).keys)
 
-    override suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean {
+    override suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long, localWins: Boolean): Boolean {
         val current = state ?: return false
         SyncTable.entries.forEach { table ->
+            val waiting = outbox.filter { it.tableName == table.tableName }.map { it.rowId }.toSet()
             buffer.rows(table).forEach { row ->
+                // A waiting row is pushed, unless the role can't push: then the server's version wins
+                if (localWins && row.rowId in waiting) return@forEach
+                outbox.removeAll { it.tableName == table.tableName && it.rowId == row.rowId }
                 // The real store reads the row through the entity: serverSeq is not a column
                 rows.getValue(table)[row.rowId!!] = JsonObject(row - WireFields.SERVER_SEQ)
                 row.serverSeq?.let { setSeq(table, row.rowId!!, it) }
@@ -204,6 +208,7 @@ class SyncEngineTest {
         backupBeforeReset: suspend () -> String? = { null },
         notices: ResetNoticeStore = InMemoryResetNoticeStore(),
         localNetworkMissing: () -> Boolean = { false },
+        refused: RefusedImageStore = InMemoryRefusedImageStore(),
         handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData,
     ): SyncEngine {
         session.accessToken = "access-1"
@@ -218,7 +223,8 @@ class SyncEngineTest {
         val remote = SyncRemote(KtorSyncApi(client), KtorAccountApi(client))
         return SyncEngine(store, { remote }, backgroundScope, clock, newBatchId = { "batch-${++batchIds}" },
             afterPull = afterPull, onDatasetReset = onDatasetReset, epochs = epochs,
-            backupBeforeReset = backupBeforeReset, resetNotices = notices, localNetworkMissing = localNetworkMissing)
+            backupBeforeReset = backupBeforeReset, resetNotices = notices, localNetworkMissing = localNetworkMissing,
+            refusedImageStore = refused)
     }
 
     private fun MockRequestHandleScope.ok(body: String) = respond(body, HttpStatusCode.OK, json)
@@ -935,5 +941,146 @@ class SyncEngineTest {
         assertEquals(0, store.state!!.since)
         assertEquals(false, engine.status.value.running)
         assertNull(engine.status.value.fullPullRows)
+    }
+
+    @Test
+    fun aDemotedEditorTakesTheServerRowsOverItsUnsentChanges() = runTest {
+        val store = FakeSyncStore(state(role = "editor"))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Mine"))
+        store.put(SyncTable.CATEGORY, row("c2", "name" to "Only here"))
+        store.pending = PendingPush(batchId = "batch-0", body = "{}", createdAt = 1)
+        var backups = 0
+        val engine = engine(store, backupBeforeReset = { backups++; "b.zip" }) { request ->
+            when (request.path) {
+                "me" -> ok(me("viewer"))
+                "sync/pull" -> ok("""{"rows":{"category":[{"id":"c1","name":"Theirs"}]},"next":9,"hasMore":false}""")
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertTrue(seen.none { it.path == "sync/push" })
+        // The batch can never be sent again (403), the server's version replaced the frozen change
+        assertNull(store.pending)
+        assertEquals(JsonPrimitive("Theirs"), store.rows.getValue(SyncTable.CATEGORY).getValue("c1")["name"])
+        // A row the server never sends keeps its entry: pushed if the role can push again
+        assertEquals(listOf("c2"), store.outbox.map { it.rowId })
+        assertEquals(9, store.state!!.since)
+        // No wipe: a Viewer writes review lines to the outbox, a wipe would come back at every cycle
+        assertEquals(0, store.wipes)
+        assertEquals(0, backups)
+        assertNull(engine.resetNotice.value)
+    }
+
+    @Test
+    fun anEditorStillSkipsItsWaitingRowsInThePull() = runTest {
+        val store = FakeSyncStore(state())
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Mine"))
+        val engine = engine(store) { request ->
+            when (request.path) {
+                // Changed again meanwhile on the server's side: the row stays waiting (Keep)
+                "sync/push" -> ok("""{"results":[]}""")
+                "sync/pull" -> ok("""{"rows":{"category":[{"id":"c1","name":"Theirs"}]},"next":9,"hasMore":false}""")
+                else -> defaults(request)
+            }
+        }
+        engine.sync()
+        assertEquals(JsonPrimitive("Mine"), store.rows.getValue(SyncTable.CATEGORY).getValue("c1")["name"])
+        assertEquals(listOf("c1"), store.outbox.map { it.rowId })
+    }
+
+    @Test
+    fun aFirstSyncPullsFirstAndPushesWithTheEpochItGot() = runTest {
+        val store = FakeSyncStore(state(since = 0))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        val epochs = epochStore("stale")
+        val engine = engine(store, epochs) { request ->
+            when (request.path) {
+                "sync/pull" -> ok("""{"rows":{},"next":7,"hasMore":false,"datasetEpoch":"e1"}""")
+                else -> defaults(request, """{"results":[{"table":"category","id":"c1","status":"accepted"}]}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(listOf("me", "sync/pull", "sync/push"), seen.map { it.path })
+        assertNull(seen[1].epoch)
+        // Without an epoch a reset of the server between join and push would take the rows into the new data set
+        assertEquals("e1", seen[2].epoch)
+        assertTrue(store.outbox.isEmpty())
+    }
+
+    @Test
+    fun aResetBetweenTheFirstPullAndThePushStartsOver() = runTest {
+        val store = FakeSyncStore(state(since = 0))
+        store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
+        val engine = engine(store, epochStore(null)) { request ->
+            when (request.path) {
+                "sync/pull" -> ok("""{"rows":{},"next":7,"hasMore":false,"datasetEpoch":"e1"}""")
+                "sync/push" -> if (request.epoch == "e1") datasetReset() else defaults(request)
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(1, store.wipes)
+        assertEquals(1, engine.resetNotice.value!!.lostChanges)
+    }
+
+    @Test
+    fun aRefusedPhotoIsSentAgainAfterARestart() = runTest {
+        val refused = "c".repeat(64)
+        val refusedStore = InMemoryRefusedImageStore()
+        val store = FakeSyncStore(state())
+        store.put(SyncTable.ARTICLE, row("a1", "imageSha256" to refused))
+        store.images[refused] = byteArrayOf(1)
+        var quotaFull = true
+        val handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData = { request ->
+            when {
+                request.method == HttpMethod.Head -> respond("", HttpStatusCode.NotFound)
+                request.method == HttpMethod.Put && quotaFull ->
+                    respond("""{"type":"image-quota-exceeded","status":413}""", HttpStatusCode.PayloadTooLarge, headersOf(HttpHeaders.ContentType, "application/problem+json"))
+                request.method == HttpMethod.Put -> respond("", HttpStatusCode.Created)
+                else -> defaults(request, """{"results":[{"table":"article","id":"a1","status":"accepted"}]}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine(store, refused = refusedStore, handler = handler).sync())
+        assertEquals(RefusedImages(base, mapOf(refused to ProblemTypes.IMAGE_QUOTA_EXCEEDED)), RefusedImages.decode(refusedStore.load()))
+
+        // A new process: the outbox is empty, the photo is still sent again
+        quotaFull = false
+        seen.clear()
+        val restarted = engine(store, refused = refusedStore, handler = handler)
+        assertEquals(SyncResult.DONE, restarted.sync())
+        assertEquals(listOf("images/$refused"), seen.filter { it.method == HttpMethod.Put }.map { it.path })
+        assertEquals(0, restarted.status.value.imagesNotSent)
+        assertNull(refusedStore.load())
+    }
+
+    @Test
+    fun anotherServersRefusedPhotosAreNeverSent() = runTest {
+        val refusedStore = InMemoryRefusedImageStore()
+        refusedStore.save(RefusedImages("http://other:8080", mapOf("e".repeat(64) to null)).encode())
+        val engine = engine(FakeSyncStore(state()), refused = refusedStore) { defaults(it) }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertTrue(seen.none { it.path.startsWith("images/") })
+        assertEquals(0, engine.status.value.imagesNotSent)
+    }
+
+    @Test
+    fun leavingTheServerForgetsTheRefusedPhotos() = runTest {
+        val refusedStore = InMemoryRefusedImageStore()
+        val sha = "e".repeat(64)
+        refusedStore.save(RefusedImages(base, mapOf(sha to null)).encode())
+        val store = FakeSyncStore(state())
+        store.images[sha] = byteArrayOf(1)
+        val engine = engine(store, refused = refusedStore) { request ->
+            when (request.method) {
+                HttpMethod.Head -> respond("", HttpStatusCode.NotFound)
+                HttpMethod.Put -> respond("""{"type":"image-too-large","status":413}""", HttpStatusCode.PayloadTooLarge, headersOf(HttpHeaders.ContentType, "application/problem+json"))
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(1, engine.status.value.imagesNotSent)
+        store.state = null
+        assertEquals(SyncResult.NOT_CONNECTED, engine.sync())
+        assertNull(refusedStore.load())
     }
 }

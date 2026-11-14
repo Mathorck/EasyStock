@@ -71,6 +71,22 @@ internal class AndroidDatasetEpochStore(context: Context) : DatasetEpochStore {
 /** Preferences file of [AndroidDatasetEpochStore]. */
 const val DATASET_EPOCH_FILE = "sync_dataset"
 
+/** [RefusedImageStore] in the preferences file of [AndroidDatasetEpochStore], under its own key. */
+internal class AndroidRefusedImageStore(context: Context) : RefusedImageStore {
+    private val prefs = context.getSharedPreferences(DATASET_EPOCH_FILE, Context.MODE_PRIVATE)
+
+    override suspend fun load(): String? = withContext(Dispatchers.IO) { prefs.getString(KEY, null) }
+
+    override suspend fun save(value: String?) = withContext(Dispatchers.IO) {
+        prefs.edit().apply { if (value == null) remove(KEY) else putString(KEY, value) }.commit()
+        Unit
+    }
+
+    private companion object {
+        const val KEY = "refused_images"
+    }
+}
+
 @Volatile
 private var engine: SyncEngine? = null
 
@@ -93,6 +109,7 @@ fun syncEngine(context: Context): SyncEngine = engine ?: synchronized(SyncEngine
             backupBeforeReset = AndroidAutoBackups(autoBackupDir(app), backupService(app))::create,
             resetNotices = AndroidResetNoticeStore(app),
             localNetworkMissing = { isLocalNetworkAccessMissing(app) },
+            refusedImageStore = AndroidRefusedImageStore(app),
         ).also { engine = it }
     }
 }

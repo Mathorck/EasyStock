@@ -81,7 +81,9 @@ enum class SyncResult { DONE, NOT_CONNECTED, PAUSED, FAILED }
  * The sync engine (02-app.md, "Sync engine"). One cycle at a time ([SyncCoordinator]):
  * 1. `GET /me`: refreshes the access token when needed (bearer plugin) and updates the role;
  * 2. push the outbox (Admin and Editor only), batch after batch;
- * 3. pull every page since `sync_state.since`, write the rows, users and alerts, then notify the new alerts;
+ * 3. pull every page since `sync_state.since`, write the rows, users and alerts, then notify the new alerts
+ *    (a full pull from 0 comes before the push, so the push carries the epoch it saved; for a role that
+ *    can't push, the pulled rows replace the waiting ones);
  * 4. download the missing photos, in the background.
  * Never used in standalone mode: no `sync_state` row, no cycle, no network.
  */
@@ -111,6 +113,8 @@ class SyncEngine(
     private val resetNotices: ResetNoticeStore = InMemoryResetNoticeStore(),
     /** True while the system blocks the local network for this app (Android 17+): a failed call is then blamed on it. */
     private val localNetworkMissing: () -> Boolean = { false },
+    /** Keeps [refusedImages] across a restart. */
+    private val refusedImageStore: RefusedImageStore = InMemoryRefusedImageStore(),
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -138,10 +142,13 @@ class SyncEngine(
 
     /**
      * Photos the server refused, by hash, with the Problem `type` of the refusal: sent again at each cycle
-     * (an Admin may raise the quota). In memory only: after a restart a refused photo is only sent again
-     * when its article changes. Read and written in cycles only.
+     * (an Admin may raise the quota). Saved in [refusedImageStore], loaded at the first cycle of the server
+     * [refusedImagesOf]. Read and written in cycles only.
      */
     private val refusedImages = LinkedHashMap<String, String?>()
+
+    /** The server [refusedImages] belong to, null before they were loaded. */
+    private var refusedImagesOf: String? = null
 
     /**
      * Runs one cycle now, after the running one if any. The cycle runs in the engine scope: a wipe
@@ -167,7 +174,11 @@ class SyncEngine(
         val state = store.syncState() ?: run {
             // Left the server: nothing of that session is shown any more
             pausedFor = null
-            refusedImages.clear()
+            if (refusedImagesOf != null || refusedImages.isNotEmpty()) {
+                refusedImages.clear()
+                refusedImagesOf = null
+                saveRefusedImages()
+            }
             _status.value = SyncStatus()
             return SyncResult.NOT_CONNECTED
         }
@@ -177,18 +188,31 @@ class SyncEngine(
             _status.value = SyncStatus()
         }
         _status.update { it.copy(running = true, fullPullRows = if (state.since == 0L) 0 else null) }
+        loadRefusedImages(state.serverUrl)
         return try {
             val remote = remote(state)
             try {
                 val role = refreshAccount(state, remote.account)
-                // The epoch is only sent for data pulled with it: a full pull starts a data set
-                val epoch = if (state.since > 0) epochs.load() else null
                 val canPush = Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)
-                // Before anything is pushed (photos first): a reset is seen here, not only by the 409 of the push.
-                // Nothing to push: the pull carries the epoch and sees the reset alone, no extra call
-                if (epoch != null && canPush && hasSomethingToPush()) checkServerEpoch(remote.sync, epoch)
-                if (canPush) push(remote.sync, epoch)
-                pull(remote.sync, state.since, epoch)
+                if (!canPush) {
+                    // A batch sent before a demotion is never sent again (403): the pull brings what the server took
+                    if (store.pendingPush() != null) store.clearPendingPush()
+                    // The outbox can't be pushed any more: the server's rows are written over the waiting ones
+                    pull(remote.sync, state.since, if (state.since > 0) epochs.load() else null, localWins = false)
+                } else if (state.since == 0L) {
+                    // No data set yet (joined, promoted): the full pull comes first and saves its epoch, so
+                    // the push carries it and a reset of the server in between is seen (409), never pushed into
+                    pull(remote.sync, 0, null)
+                    push(remote.sync, epochs.load())
+                } else {
+                    // The epoch is only sent for data pulled with it
+                    val epoch = epochs.load()
+                    // Before anything is pushed (photos first): a reset is seen here, not only by the 409 of the push.
+                    // Nothing to push: the pull carries the epoch and sees the reset alone, no extra call
+                    if (epoch != null && hasSomethingToPush()) checkServerEpoch(remote.sync, epoch)
+                    push(remote.sync, epoch)
+                    pull(remote.sync, state.since, epoch)
+                }
             } catch (e: Exception) {
                 if (!isDatasetReset(e)) throw e
                 // Once per cycle: a second reset fails the cycle (SERVER), never wipes again
@@ -278,6 +302,7 @@ class SyncEngine(
         epochs.save(null)
         // The photos of the old data set are gone with it
         refusedImages.clear()
+        saveRefusedImages()
         _status.update { it.copy(imagesNotSent = 0, imageProblemType = null) }
         val notice = DatasetResetNotice((_resetNotice.value?.lostChanges ?: 0) + lost, backupFile ?: _resetNotice.value?.backupFile, backupFailed)
         _resetNotice.value = notice
@@ -346,6 +371,19 @@ class SyncEngine(
      */
     private suspend fun uploadImages(api: SyncApi, shas: List<String>) {
         if (shas.isEmpty()) return
+        val before = LinkedHashMap(refusedImages)
+        try {
+            uploadEach(api, shas)
+        } finally {
+            // Also when the cycle fails half-way: the refusals seen so far are kept
+            if (refusedImages != before) saveRefusedImages()
+        }
+        _status.update {
+            it.copy(imagesNotSent = refusedImages.size, imageProblemType = refusedImages.values.lastOrNull { type -> type != null })
+        }
+    }
+
+    private suspend fun uploadEach(api: SyncApi, shas: List<String>) {
         for (sha in shas) {
             try {
                 if (!api.hasImage(sha)) {
@@ -364,13 +402,42 @@ class SyncEngine(
                 refusedImages[sha] = e.problemType
             }
         }
+    }
+
+    /** Loads the photos refused by [serverUrl] in an earlier process, once per server. A store failure loses them only. */
+    private suspend fun loadRefusedImages(serverUrl: String) {
+        if (refusedImagesOf == serverUrl) return
+        refusedImages.clear()
+        refusedImagesOf = serverUrl
+        val kept = try {
+            RefusedImages.decode(refusedImageStore.load())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        // Another server's photos are never sent here
+        if (kept?.serverUrl == serverUrl) refusedImages.putAll(kept.images)
         _status.update {
             it.copy(imagesNotSent = refusedImages.size, imageProblemType = refusedImages.values.lastOrNull { type -> type != null })
         }
     }
 
+    /** A failure only loses the list after a restart: the photos are then sent with their next change. */
+    private suspend fun saveRefusedImages() {
+        val server = refusedImagesOf
+        val value = if (refusedImages.isEmpty() || server == null) null else RefusedImages(server, LinkedHashMap(refusedImages)).encode()
+        try {
+            refusedImageStore.save(value)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+    }
+
     /** [startEpoch]: the data set of the rows on the phone, null when unknown or for a full pull. */
-    private suspend fun pull(api: SyncApi, startSince: Long, startEpoch: String?) {
+    /** [localWins]: false when the role can't push, see [SyncStore.applyPull]. */
+    private suspend fun pull(api: SyncApi, startSince: Long, startEpoch: String?, localWins: Boolean = true) {
         val fullPull = startSince == 0L
         val buffer = PullBuffer()
         var since = startSince
@@ -391,7 +458,7 @@ class SyncEngine(
             // Rows pointing to a parent of a later page wait for it; the last page is written anyway
             if (missing.isEmpty() || !page.hasMore) {
                 val now = clock.now().toEpochMilliseconds()
-                if (!store.applyPull(buffer, since, fullPull, now)) throw LeftServer()
+                if (!store.applyPull(buffer, since, fullPull, now, localWins)) throw LeftServer()
                 written += buffer.rowCount
                 buffer.clear()
                 if (fullPull) _status.update { it.copy(fullPullRows = written) }

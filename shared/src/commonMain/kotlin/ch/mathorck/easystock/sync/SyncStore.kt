@@ -68,8 +68,10 @@ interface SyncStore {
      * and saves [next] as `sync_state.since` and [now] as the last sync, in one transaction.
      * [fullPull]: the pull started from 0 (after joining or a promotion). A movement already on the
      * phone only gets its author fields updated, in both cases. False when `sync_state` is gone (nothing written).
+     * [localWins]: a row waiting in the outbox is skipped (it is pushed). False for a role that can't push:
+     * the server's version is written over it and its outbox entry dropped.
      */
-    suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean
+    suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long, localWins: Boolean = true): Boolean
 
     /**
      * The server replaced its data set: deletes every synced row, the outbox, the pending push, the

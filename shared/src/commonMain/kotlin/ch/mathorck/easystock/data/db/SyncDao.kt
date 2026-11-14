@@ -418,17 +418,21 @@ abstract class SyncDao {
      * the outbox is skipped: the local change wins until it is pushed, and the push answer brings the
      * server's version. A movement already on the phone only gets its author fields updated
      * (`created_by`, `device_id`), whether the pull is full or not, never its other columns. False when the phone left the server.
+     * [localWins] false (a role that can't push, a demoted Editor): the outbox can never be sent, so a waiting
+     * row is not skipped, the server's version is written and its outbox entry dropped. Rows the server never
+     * sends keep their entry, pushed if the role can push again.
      */
     @Transaction
-    open suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean {
+    open suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long, localWins: Boolean = true): Boolean {
         if (syncState() == null) return false
         val touchedItems = HashSet<String>()
         // `applying` once for the whole pull: local{} turns it off around its own writes only
         applying {
             SyncTable.entries.forEach { table ->
                 val waiting = outboxIds(table.tableName).toSet()
+                val skipped = if (localWins) waiting else emptySet()
                 localWrites = false
-                val rows = buffer.rows(table).filter { it.rowId !in waiting }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
+                val rows = buffer.rows(table).filter { it.rowId !in skipped }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
                 rows.forEach { row ->
                     val id = row.rowId!!
                     // A movement that differs from the local one keeps its values, only its author is set (append-only)
@@ -436,8 +440,9 @@ abstract class SyncDao {
                     // The version this phone now holds: the base of its next edit of the row
                     row.serverSeq?.let { setSeq(table, id, it) }
                     // A local row renamed to make room for an earlier row of this pull: this row is the server's.
-                    // Only local{} writes outbox entries here (the ones before the table started are skipped above)
-                    if (localWrites) deleteOutbox(table.tableName, id)
+                    // Only local{} writes outbox entries here (the ones before the table started are skipped above,
+                    // unless the local version lost: [localWins] false)
+                    if (localWrites || id in waiting) deleteOutbox(table.tableName, id)
                     when (table) {
                         SyncTable.ITEM -> touchedItems += id
                         SyncTable.STOCK_MOVEMENT -> row.column("item_id")?.let { touchedItems += it }

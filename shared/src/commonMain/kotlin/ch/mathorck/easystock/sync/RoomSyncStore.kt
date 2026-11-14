@@ -69,8 +69,8 @@ class RoomSyncStore(private val db: AppDatabase, private val files: SyncImageFil
 
     override suspend fun existingIds(table: SyncTable, ids: Set<String>): Set<String> = dao.existingIds(table, ids)
 
-    override suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean =
-        dao.applyPull(buffer, next, fullPull, now)
+    override suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long, localWins: Boolean): Boolean =
+        dao.applyPull(buffer, next, fullPull, now, localWins)
 
     override suspend fun wipeServerData(): Boolean {
         if (!db.backupDao().wipeServerData()) return false

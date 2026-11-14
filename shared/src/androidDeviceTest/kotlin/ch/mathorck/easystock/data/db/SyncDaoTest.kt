@@ -95,6 +95,33 @@ class SyncDaoTest {
         assertEquals(1, dao.outbox(100).size)
     }
 
+    @Test
+    fun forARoleThatCantPushThePullWinsOverAWaitingRow() = runBlocking {
+        db.articleDao().insert(article("a1", sku = "LOCAL"))
+        db.articleDao().insert(article("a2", sku = "ONLY-HERE"))
+        val buffer = pull(SyncTable.ARTICLE to toWire(SyncTable.ARTICLE, article("a1", sku = "SERVER")))
+        assertTrue(dao.applyPull(buffer, next = 42, fullPull = false, now = 99, localWins = false))
+        assertEquals("SERVER", db.syncDao().article("a1")!!.sku)
+        // The row the server never sent keeps its entry
+        assertEquals(listOf("a2"), dao.outbox(100).map { it.rowId })
+        assertEquals(false, dao.syncState()!!.applying)
+    }
+
+    @Test
+    fun forARoleThatCantPushAWaitingMovementStillKeepsItsValues() = runBlocking {
+        dao.applyPull(
+            pull(SyncTable.LOCATION to toWire(SyncTable.LOCATION, location("l1")), SyncTable.ARTICLE to toWire(SyncTable.ARTICLE, article("a1"))),
+            next = 41, fullPull = true, now = 1,
+        )
+        db.stockDao().insertMovement(movement("m1", "a1", "l1", 3000))
+        val server = toWire(SyncTable.STOCK_MOVEMENT, movement("m1", "a1", "l1", 2000).copy(createdBy = "u2"))
+        dao.applyPull(pull(SyncTable.STOCK_MOVEMENT to server), next = 42, fullPull = false, now = 99, localWins = false)
+        val stored = db.backupDao().snapshot().movements.single()
+        assertEquals(3000, stored.quantityMilli)
+        assertEquals("u2", stored.createdBy)
+        assertTrue(dao.outbox(100).isEmpty())
+    }
+
     private suspend fun categoryName(id: String) = (dao.wireRow(SyncTable.CATEGORY, id)!!["name"] as JsonPrimitive).content
 
     @Test
