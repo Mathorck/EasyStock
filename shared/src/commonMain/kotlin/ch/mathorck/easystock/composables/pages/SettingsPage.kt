@@ -131,6 +131,8 @@ fun SettingsPage(
     onDataReset: () -> Unit = {},
     /** After a logout: the phone is standalone and empty again. */
     onLoggedOut: () -> Unit = {},
+    /** After "Delete my account" and the wipe. [backupFile]: the automatic backup of unsent changes, if any. */
+    onAccountDeleted: (backupFile: String?) -> Unit = { onLoggedOut() },
     /** After a join, with the server address. */
     onJoined: (String) -> Unit = {},
 ) {
@@ -223,6 +225,12 @@ fun SettingsPage(
                     returnTo = null
                     subpage = null
                     onLoggedOut()
+                },
+                onAccountDeleted = { backupFile ->
+                    backup.reset()
+                    returnTo = null
+                    subpage = null
+                    onAccountDeleted(backupFile)
                 },
             )
         }

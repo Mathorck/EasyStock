@@ -2,13 +2,18 @@ package ch.mathorck.easystock.server
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.utils.io.ByteReadChannel
 
 /**
  * The calls made before joining a server, without a token. Every call throws [ApiException] on failure;
@@ -70,10 +75,23 @@ interface AccountApi {
 
     /** A Guest with a pending promotion chooses a username and a password. Returns new tokens. */
     suspend fun completePromotion(request: CompletePromotionRequest): TokenAnswer
+
+    /**
+     * `DELETE /me` (right to erasure): the server erases the account and its personal data, the movements stay
+     * as "Deleted user". [password]: the current password, null for a Guest (who has none). Every session of
+     * the user ends, this one too.
+     */
+    suspend fun deleteAccount(password: String?)
+}
+
+/** `GET /me/data` (right of access): the user's own data as JSON, every role. */
+fun interface MyDataApi {
+    /** Streams the answer to [write], never held whole in memory. 429 `rate-limited` after 5 per hour. */
+    suspend fun downloadMyData(write: suspend (ByteReadChannel) -> Unit)
 }
 
 /** [AccountApi] over the shared [ServerClient]. */
-class KtorAccountApi(private val client: ServerClient) : AccountApi {
+class KtorAccountApi(private val client: ServerClient) : AccountApi, MyDataApi {
     private val http get() = client.http
 
     override fun equals(other: Any?): Boolean = other is KtorAccountApi && other.client === client
@@ -99,6 +117,19 @@ class KtorAccountApi(private val client: ServerClient) : AccountApi {
 
     override suspend fun completePromotion(request: CompletePromotionRequest): TokenAnswer =
         apiCall { http.post("auth/complete-promotion") { json(request) }.body() }
+
+    override suspend fun deleteAccount(password: String?) {
+        apiCall { http.delete("me") { json(DeleteMeRequest(password)) } }
+    }
+
+    override suspend fun downloadMyData(write: suspend (ByteReadChannel) -> Unit) {
+        apiCall {
+            http.prepareGet("me/data") {
+                // It may be large: only the socket timeout applies
+                timeout { requestTimeoutMillis = Long.MAX_VALUE }
+            }.execute { write(it.bodyAsChannel()) }
+        }
+    }
 }
 
 private inline fun <reified T> HttpRequestBuilder.json(body: T) {
@@ -155,6 +186,9 @@ enum class ConnectError {
 
     /** No pending promotion (any more). */
     NO_PROMOTION,
+
+    /** The own account can't be deleted: the user is the last active Admin (409 `last-admin`). */
+    LAST_ADMIN,
     SERVER,
 
     /** Writing the connection on this phone failed. */
@@ -179,6 +213,7 @@ fun connectErrorOf(e: ApiException): ConnectError = when (e.problemType) {
     ProblemTypes.APP_TOO_OLD -> ConnectError.APP_TOO_OLD
     ProblemTypes.SESSION_REVOKED -> ConnectError.SESSION_REVOKED
     ProblemTypes.NO_PROMOTION -> ConnectError.NO_PROMOTION
+    ProblemTypes.LAST_ADMIN -> ConnectError.LAST_ADMIN
     ProblemTypes.VALIDATION_FAILED -> ConnectError.INVALID
     ProblemTypes.RATE_LIMITED -> ConnectError.RATE_LIMITED
     else -> when (e.error) {

@@ -37,6 +37,7 @@ import easystock.shared.generated.resources.server_error_username_taken
 import easystock.shared.generated.resources.server_error_wrong_credentials
 import easystock.shared.generated.resources.server_guest_off
 import easystock.shared.generated.resources.server_pinned
+import easystock.shared.generated.resources.delete_account_last_admin
 import easystock.shared.generated.resources.server_error_local_network
 import easystock.shared.generated.resources.server_error_tls
 import easystock.shared.generated.resources.server_secured
@@ -70,6 +71,7 @@ internal fun ConnectError.message(): StringResource = when (this) {
     ConnectError.RATE_LIMITED -> Res.string.server_error_rate_limited
     ConnectError.SESSION_REVOKED -> Res.string.server_error_session_revoked
     ConnectError.NO_PROMOTION -> Res.string.server_error_no_promotion
+    ConnectError.LAST_ADMIN -> Res.string.delete_account_last_admin
     ConnectError.SERVER -> Res.string.server_error_server
     ConnectError.LOCAL -> Res.string.server_error_local
 }

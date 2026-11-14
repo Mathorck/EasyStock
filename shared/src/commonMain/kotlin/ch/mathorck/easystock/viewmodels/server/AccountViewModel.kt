@@ -65,6 +65,41 @@ data class PasswordForm(
     override fun toString(): String = "PasswordForm(busy=$busy)"
 }
 
+/** Where "Delete my account" is. */
+enum class DeletePhase {
+    /** The confirmation, with the password field of a full account. */
+    CONFIRM,
+
+    /** The local changes are sent first. */
+    SYNCING,
+
+    /** Not all changes could be sent: delete anyway (they are saved in an automatic backup) or cancel. */
+    SYNC_FAILED,
+
+    /** `DELETE /me`, then the wipe of the phone. */
+    DELETING,
+
+    /** Deleted and wiped: the screen leaves. */
+    DONE,
+}
+
+/**
+ * The "Delete my account" dialog. [guest]: no password (a Guest has none). [wrongPassword]: the server refused
+ * it. [pending]: in [DeletePhase.SYNC_FAILED], the changes still not sent (null when they could not be counted).
+ */
+data class DeleteForm(
+    val guest: Boolean,
+    val password: String = "",
+    val passwordEmpty: Boolean = false,
+    val wrongPassword: Boolean = false,
+    val phase: DeletePhase = DeletePhase.CONFIRM,
+    val pending: Int? = null,
+) {
+    val busy: Boolean get() = phase == DeletePhase.SYNCING || phase == DeletePhase.DELETING || phase == DeletePhase.DONE
+
+    override fun toString(): String = "DeleteForm(guest=$guest, phase=$phase)"
+}
+
 data class AccountUiState(
     /** From `GET /me`, null until it answered. */
     val me: MeAnswer? = null,
@@ -78,6 +113,7 @@ data class AccountUiState(
     val passwordForm: PasswordForm? = null,
     /** The password was changed: a dialog tells that the other devices must log in again. */
     val passwordChanged: Boolean = false,
+    val deleteForm: DeleteForm? = null,
     /** Shown once in a dialog. */
     val error: ConnectError? = null,
 )
@@ -100,6 +136,11 @@ class AccountViewModel(
     private val wipe: suspend () -> Unit,
     /** Runs first in a logout, while the session works: the server forgets the push address. Best effort. */
     private val beforeLogout: suspend () -> Unit = {},
+    /**
+     * The wipe after the server deleted the account, like [wipe]. [backupUnsent]: the user chose to delete with
+     * changes not sent: they are saved in an automatic backup first, which the wipe keeps.
+     */
+    private val wipeAfterDelete: suspend (backupUnsent: Boolean) -> Unit = { wipe() },
 ) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state: StateFlow<AccountUiState> = _state.asStateFlow()
@@ -336,6 +377,116 @@ class AccountViewModel(
             throw e
         } catch (e: Exception) {
             _state.update { it.copy(logout = null, error = ConnectError.LOCAL) }
+        } finally {
+            ServerSessionEvents.leaving = false
+        }
+    }
+
+    // ---------- Delete my account ----------
+
+    fun askDelete(guest: Boolean) = _state.update { it.copy(deleteForm = DeleteForm(guest)) }
+
+    fun cancelDelete() = _state.update { if (it.deleteForm?.busy == true) it else it.copy(deleteForm = null) }
+
+    fun deletePasswordChanged(text: String) = _state.update {
+        it.copy(deleteForm = it.deleteForm?.copy(password = text, passwordEmpty = false, wrongPassword = false))
+    }
+
+    /**
+     * Confirmed: sends the local changes first (they would be lost with the account's session), then deletes.
+     * When not all of them could be sent, the user chooses: [deleteAnyway] or [cancelDelete].
+     */
+    fun confirmDelete() {
+        val form = _state.value.deleteForm ?: return
+        if (form.phase != DeletePhase.CONFIRM) return
+        if (!form.guest && form.password.isEmpty()) {
+            _state.update { it.copy(deleteForm = form.copy(passwordEmpty = true)) }
+            return
+        }
+        _state.update { it.copy(deleteForm = form.copy(phase = DeletePhase.SYNCING)) }
+        viewModelScope.launch {
+            val pending = try {
+                pendingChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            val left = if (pending == 0) {
+                0
+            } else {
+                try {
+                    syncFirst()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (left == 0) {
+                deleteNow(form, backupUnsent = false)
+            } else {
+                _state.update { it.copy(deleteForm = form.copy(phase = DeletePhase.SYNC_FAILED, pending = left ?: pending)) }
+            }
+        }
+    }
+
+    /** After [DeletePhase.SYNC_FAILED]: deletes; the unsent changes are saved in an automatic backup first. */
+    fun deleteAnyway() {
+        val form = _state.value.deleteForm ?: return
+        if (form.phase != DeletePhase.SYNC_FAILED) return
+        deleteNow(form, backupUnsent = true)
+    }
+
+    private fun deleteNow(form: DeleteForm, backupUnsent: Boolean) {
+        _state.update { it.copy(deleteForm = form.copy(phase = DeletePhase.DELETING)) }
+        viewModelScope.launch {
+            // The session ends with the account: a 401 of another call must not start a second wipe
+            ServerSessionEvents.leaving = true
+            var deleted = false
+            var error: ConnectError? = null
+            try {
+                api.deleteAccount(if (form.guest) null else form.password)
+                deleted = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                error = (e as? ApiException)?.let(::connectErrorOf) ?: ConnectError.NETWORK
+            } finally {
+                // Until it is deleted, the account and the phone stay as they are
+                if (!deleted) ServerSessionEvents.leaving = false
+            }
+            if (deleted) finishDelete(backupUnsent) else deleteFailed(form, error ?: ConnectError.NETWORK)
+        }
+    }
+
+    /** The server refused or could not be reached: nothing changed, on the server or on the phone. */
+    private fun deleteFailed(form: DeleteForm, error: ConnectError) {
+        val back = form.copy(phase = DeletePhase.CONFIRM, pending = null)
+        when (error) {
+            ConnectError.WRONG_CREDENTIALS -> _state.update { it.copy(deleteForm = back.copy(wrongPassword = true)) }
+            // Can't be retried as it is
+            ConnectError.LAST_ADMIN -> _state.update { it.copy(deleteForm = null, error = error) }
+            ConnectError.SESSION_REVOKED -> {
+                // The client already dropped the tokens, but leaving hid the revoke: report it now (leaving is off)
+                _state.update { it.copy(deleteForm = null) }
+                ServerSessionEvents.sessionRevoked()
+            }
+            else -> _state.update { it.copy(deleteForm = back, error = error) }
+        }
+    }
+
+    private suspend fun finishDelete(backupUnsent: Boolean) {
+        try {
+            wipeAfterDelete(backupUnsent)
+            _state.update { it.copy(deleteForm = it.deleteForm?.copy(phase = DeletePhase.DONE)) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.update { it.copy(deleteForm = null) }
+            ServerSessionEvents.leaving = false
+            // The account is gone, the session with it: the revoke handler wipes again (and offers to retry)
+            ServerSessionEvents.sessionRevoked()
         } finally {
             ServerSessionEvents.leaving = false
         }

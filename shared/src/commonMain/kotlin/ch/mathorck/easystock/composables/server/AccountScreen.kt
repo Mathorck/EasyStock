@@ -151,6 +151,47 @@ import easystock.shared.generated.resources.server_promotion_banner
 import easystock.shared.generated.resources.server_promotion_open
 import easystock.shared.generated.resources.server_promotion_title
 import easystock.shared.generated.resources.settings_server
+import ch.mathorck.easystock.backup.rememberIsChangingConfigurations
+import ch.mathorck.easystock.server.clearLater
+import ch.mathorck.easystock.server.rememberServerFiles
+import ch.mathorck.easystock.viewmodels.server.DeleteForm
+import ch.mathorck.easystock.viewmodels.server.DeletePhase
+import ch.mathorck.easystock.viewmodels.server.MyDataError
+import ch.mathorck.easystock.viewmodels.server.MyDataState
+import ch.mathorck.easystock.viewmodels.server.MyDataViewModel
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.DisposableEffect
+import easystock.shared.generated.resources.admin_error_file
+import easystock.shared.generated.resources.admin_error_network
+import easystock.shared.generated.resources.admin_error_server
+import easystock.shared.generated.resources.admin_error_session_revoked
+import easystock.shared.generated.resources.admin_error_too_old
+import easystock.shared.generated.resources.delete_account
+import easystock.shared.generated.resources.delete_account_anyway
+import easystock.shared.generated.resources.delete_account_erased
+import easystock.shared.generated.resources.delete_account_final
+import easystock.shared.generated.resources.delete_account_movements
+import easystock.shared.generated.resources.delete_account_password_empty
+import easystock.shared.generated.resources.delete_account_phone
+import easystock.shared.generated.resources.delete_account_sync_failed_message
+import easystock.shared.generated.resources.delete_account_sync_failed_title
+import easystock.shared.generated.resources.delete_account_syncing
+import easystock.shared.generated.resources.delete_account_title
+import easystock.shared.generated.resources.delete_account_working
+import easystock.shared.generated.resources.ic_delete
+import easystock.shared.generated.resources.ic_download
+import easystock.shared.generated.resources.my_data
+import easystock.shared.generated.resources.my_data_download
+import easystock.shared.generated.resources.my_data_downloading
+import easystock.shared.generated.resources.my_data_message
+import easystock.shared.generated.resources.my_data_rate_limited
+import easystock.shared.generated.resources.my_data_ready
+import easystock.shared.generated.resources.my_data_save
+import easystock.shared.generated.resources.my_data_saved
+import easystock.shared.generated.resources.my_data_share
+import easystock.shared.generated.resources.my_data_summary
+import easystock.shared.generated.resources.my_data_title
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Instant
@@ -185,6 +226,16 @@ internal class AccountActions(
     val newPasswordChanged: (String) -> Unit = {},
     val submitPassword: () -> Unit = {},
     val dismissPasswordChanged: () -> Unit = {},
+    val askDelete: () -> Unit = {},
+    val cancelDelete: () -> Unit = {},
+    val deletePasswordChanged: (String) -> Unit = {},
+    val confirmDelete: () -> Unit = {},
+    val deleteAnyway: () -> Unit = {},
+    val openMyData: () -> Unit = {},
+    val closeMyData: () -> Unit = {},
+    val downloadMyData: () -> Unit = {},
+    val saveMyData: () -> Unit = {},
+    val shareMyData: () -> Unit = {},
 )
 
 /**
@@ -197,6 +248,8 @@ fun AccountScreen(
     onBack: () -> Unit,
     onOpenAdministration: () -> Unit,
     onLoggedOut: () -> Unit,
+    /** After "Delete my account" and the wipe. [backupFile]: the automatic backup of unsent changes, if any. */
+    onAccountDeleted: (backupFile: String?) -> Unit = { onLoggedOut() },
 ) {
     val db = rememberAppDatabase()
     val dao = remember(db) { db.sessionDao() }
@@ -208,6 +261,22 @@ fun AccountScreen(
     val notificationPermission = rememberNotificationPermission()
     var showRejected by rememberSaveable { mutableStateOf(false) }
     val loggedOut by rememberUpdatedState(onLoggedOut)
+    val accountDeleted by rememberUpdatedState(onAccountDeleted)
+    var myDataHolder: MyDataViewModel? = null
+    val files = rememberServerFiles(
+        onPicked = {},
+        onSaved = { myDataHolder?.saved() },
+        onFailed = { myDataHolder?.fileFailed() },
+    )
+    val myData = viewModel(key = "server-my-data-${client.hashCode()}") { MyDataViewModel(KtorAccountApi(client), files) }
+    myDataHolder = myData
+    val myDataState by myData.state.collectAsStateWithLifecycle()
+    // The export holds personal data: dropped from the cache when the screen closes (kept while the share
+    // sheet's app may still read it, and across a rotation)
+    val isChangingConfigurations = rememberIsChangingConfigurations()
+    DisposableEffect(files) {
+        onDispose { if (!isChangingConfigurations()) files.clearLater() }
+    }
     // One view model per client: a new connection (after a logout) gets a fresh one
     val vm = viewModel(key = "server-account-${client.hashCode()}") {
         AccountViewModel(
@@ -240,6 +309,16 @@ fun AccountScreen(
                 loggedOut()
             },
             beforeLogout = { push?.beforeLogout() },
+            wipeAfterDelete = { backupUnsent ->
+                // Push: the server dropped the registration with the account; the wipe makes the distributor forget the app
+                val backupFile = if (backupUnsent) {
+                    dataReset.runAfterRevoke().backupFile
+                } else {
+                    dataReset.run()
+                    null
+                }
+                accountDeleted(backupFile)
+            },
         )
     }
     LaunchedEffect(vm) { vm.refresh() }
@@ -277,8 +356,19 @@ fun AccountScreen(
         rejected = rejected.size,
         unseenRejected = rejected.count { it.seenAt == null },
         state = state,
+        myData = myDataState,
         onBack = onBack,
         actions = AccountActions(
+            askDelete = { vm.askDelete(guest = role == Role.GUEST) },
+            cancelDelete = vm::cancelDelete,
+            deletePasswordChanged = vm::deletePasswordChanged,
+            confirmDelete = vm::confirmDelete,
+            deleteAnyway = vm::deleteAnyway,
+            openMyData = myData::open,
+            closeMyData = myData::close,
+            downloadMyData = myData::download,
+            saveMyData = { myDataState.downloaded?.let(files::save) },
+            shareMyData = { myDataState.downloaded?.let(files::share) },
             askLogout = { vm.askLogout(guest = role == Role.GUEST) },
             cancelLogout = vm::cancelLogout,
             confirmLogout = vm::confirmLogout,
@@ -325,6 +415,7 @@ internal fun AccountContent(
     state: AccountUiState,
     onBack: () -> Unit,
     actions: AccountActions,
+    myData: MyDataState = MyDataState(),
     syncStatus: SyncStatus = SyncStatus(),
     /** Android won't show the local network dialog any more: the sync row offers the app settings. */
     localNetworkSettings: Boolean = false,
@@ -402,14 +493,38 @@ internal fun AccountContent(
                     modifier = Modifier.clickable(onClick = actions.openAdministration),
                 )
             }
+            // Right of access: not destructive
+            ListItem(
+                headlineContent = { Text(stringResource(Res.string.my_data)) },
+                supportingContent = { Text(stringResource(Res.string.my_data_summary)) },
+                leadingContent = { Icon(painterResource(Res.drawable.ic_download), contentDescription = null) },
+                trailingContent = { Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                modifier = Modifier.clickable(onClick = actions.openMyData),
+            )
             OutlinedButton(
                 onClick = actions.askLogout,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
             ) { Text(stringResource(Res.string.server_logout)) }
+            // Right to erasure: destructive, apart from the rest
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Button(
+                onClick = actions.askDelete,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            ) {
+                Icon(painterResource(Res.drawable.ic_delete), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text(stringResource(Res.string.delete_account))
+            }
         }
     }
 
+    state.deleteForm?.let { DeleteAccountDialog(it, actions) }
+    if (myData.summary) MyDataDialog(myData, actions)
     LogoutDialogs(state.logout, actions)
     state.promotion?.let { PromotionDialog(it, actions) }
     state.nameForm?.let { NameDialog(it, actions) }
@@ -697,6 +812,139 @@ private fun LogoutDialogs(step: LogoutStep?, actions: AccountActions) {
         )
         null -> Unit
     }
+}
+
+/** "Delete my account": what is erased and what stays, the password, the sync first, then the progress. */
+@Composable
+private fun DeleteAccountDialog(form: DeleteForm, actions: AccountActions) {
+    when (form.phase) {
+        DeletePhase.CONFIRM -> AlertDialog(
+            onDismissRequest = actions.cancelDelete,
+            properties = DialogProperties(dismissOnClickOutside = false),
+            title = { Text(stringResource(Res.string.delete_account_title)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(Res.string.delete_account_erased))
+                    Text(stringResource(Res.string.delete_account_movements))
+                    Text(stringResource(Res.string.delete_account_phone))
+                    Text(stringResource(Res.string.delete_account_final), color = MaterialTheme.colorScheme.error)
+                    if (!form.guest) {
+                        PasswordField(
+                            value = form.password,
+                            onValueChange = actions.deletePasswordChanged,
+                            label = stringResource(Res.string.server_field_current_password),
+                            rule = when {
+                                form.wrongPassword -> stringResource(Res.string.server_password_wrong)
+                                form.passwordEmpty -> stringResource(Res.string.delete_account_password_empty)
+                                else -> null
+                            },
+                            invalid = form.wrongPassword || form.passwordEmpty,
+                            enabled = true,
+                            onDone = actions.confirmDelete,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = actions.confirmDelete,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(Res.string.delete_account)) }
+            },
+            dismissButton = { TextButton(onClick = actions.cancelDelete) { Text(stringResource(Res.string.server_cancel)) } },
+        )
+        DeletePhase.SYNC_FAILED -> AlertDialog(
+            onDismissRequest = actions.cancelDelete,
+            properties = DialogProperties(dismissOnClickOutside = false),
+            title = { Text(stringResource(Res.string.delete_account_sync_failed_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    form.pending?.takeIf { it > 0 }?.let { pending ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(painterResource(Res.drawable.ic_warning), contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Text(
+                                stringResource(Res.string.server_logout_pending, pending),
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                    Text(stringResource(Res.string.delete_account_sync_failed_message))
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = actions.deleteAnyway,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(Res.string.delete_account_anyway)) }
+            },
+            dismissButton = { TextButton(onClick = actions.cancelDelete) { Text(stringResource(Res.string.server_cancel)) } },
+        )
+        DeletePhase.SYNCING, DeletePhase.DELETING, DeletePhase.DONE -> AlertDialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                    Text(
+                        stringResource(if (form.phase == DeletePhase.SYNCING) Res.string.delete_account_syncing else Res.string.delete_account_working),
+                        modifier = Modifier.padding(start = 16.dp),
+                    )
+                }
+            },
+            confirmButton = {},
+        )
+    }
+}
+
+/** "Download my data": what the export holds, the download, then save or share. */
+@Composable
+private fun MyDataDialog(state: MyDataState, actions: AccountActions) {
+    AlertDialog(
+        onDismissRequest = { if (!state.downloading) actions.closeMyData() },
+        properties = DialogProperties(dismissOnBackPress = !state.downloading, dismissOnClickOutside = false),
+        title = { Text(stringResource(Res.string.my_data_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(Res.string.my_data_message))
+                if (state.downloading) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(stringResource(Res.string.my_data_downloading), style = MaterialTheme.typography.bodySmall)
+                }
+                state.downloaded?.let { file ->
+                    Text(stringResource(Res.string.my_data_ready))
+                    Text(file.name, style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = actions.saveMyData) { Text(stringResource(Res.string.my_data_save)) }
+                        OutlinedButton(onClick = actions.shareMyData) { Text(stringResource(Res.string.my_data_share)) }
+                    }
+                }
+                if (state.saved) Text(stringResource(Res.string.my_data_saved), color = MaterialTheme.colorScheme.primary)
+                state.error?.let { Text(stringResource(it.message()), color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            if (state.downloaded == null && !state.saved) {
+                TextButton(onClick = actions.downloadMyData, enabled = !state.downloading) {
+                    Text(stringResource(Res.string.my_data_download))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.closeMyData, enabled = !state.downloading) {
+                Text(stringResource(if (state.downloaded == null && !state.saved) Res.string.server_cancel else Res.string.server_ok))
+            }
+        },
+    )
+}
+
+private fun MyDataError.message(): StringResource = when (this) {
+    MyDataError.NETWORK -> Res.string.admin_error_network
+    MyDataError.RATE_LIMITED -> Res.string.my_data_rate_limited
+    MyDataError.SESSION_REVOKED -> Res.string.admin_error_session_revoked
+    MyDataError.APP_TOO_OLD -> Res.string.admin_error_too_old
+    MyDataError.SERVER -> Res.string.admin_error_server
+    MyDataError.FILE -> Res.string.admin_error_file
 }
 
 @Composable

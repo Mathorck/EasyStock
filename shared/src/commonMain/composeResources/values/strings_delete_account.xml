@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Delete my account (right to erasure) -->
+    <string name="delete_account">Delete my account</string>
+    <string name="delete_account_title">Delete your account?</string>
+    <string name="delete_account_erased">Your account and your personal data (name, username, devices) are erased from the server.</string>
+    <string name="delete_account_movements">The stock movements you made stay on the server, shown as “Deleted user”.</string>
+    <string name="delete_account_phone">This phone is then disconnected, and the server data on it is erased.</string>
+    <string name="delete_account_final">This can’t be undone.</string>
+    <string name="delete_account_password_empty">Enter your password to confirm.</string>
+    <string name="delete_account_syncing">Sending your changes first…</string>
+    <string name="delete_account_working">Deleting your account…</string>
+    <string name="delete_account_sync_failed_title">Changes not sent</string>
+    <string name="delete_account_sync_failed_message">Your changes could not all be sent to the server. If you delete your account now, they are lost on the server. They are first saved in an automatic backup on this phone, which you can send to yourself.</string>
+    <string name="delete_account_anyway">Delete anyway</string>
+    <string name="delete_account_done">Your account was deleted</string>
+    <string name="delete_account_done_backup">Your account was deleted. Unsent changes were saved in an automatic backup.</string>
+    <string name="delete_account_last_admin">You are the last Admin of this server. Make another user Admin before you delete your account.</string>
+    <!-- Download my data (right of access) -->
+    <string name="my_data">Download my data</string>
+    <string name="my_data_summary">A copy of what the server stores about you</string>
+    <string name="my_data_title">Download your data</string>
+    <string name="my_data_message">You get a JSON file with what the server stores about you: your account, your devices, your sessions, your notification registrations and the stock movements you made. Other users’ data is not included.</string>
+    <string name="my_data_download">Download</string>
+    <string name="my_data_downloading">Downloading your data…</string>
+    <string name="my_data_ready">Your data is ready. Save it or send it to another app.</string>
+    <string name="my_data_save">Save</string>
+    <string name="my_data_share">Share</string>
+    <string name="my_data_saved">File saved</string>
+    <string name="my_data_rate_limited">You can download your data 5 times per hour. Try again later.</string>
+</resources>

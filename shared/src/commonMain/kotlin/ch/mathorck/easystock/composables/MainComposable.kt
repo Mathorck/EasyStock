@@ -9,6 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import easystock.shared.generated.resources.Res
@@ -59,6 +61,8 @@ import ch.mathorck.easystock.auth.rememberJoinPlatform
 import ch.mathorck.easystock.reset.rememberDataReset
 import easystock.shared.generated.resources.server_joined
 import easystock.shared.generated.resources.server_logged_out
+import easystock.shared.generated.resources.delete_account_done
+import easystock.shared.generated.resources.delete_account_done_backup
 import easystock.shared.generated.resources.server_ok
 import easystock.shared.generated.resources.server_revoked_message
 import easystock.shared.generated.resources.server_revoked_title
@@ -84,6 +88,7 @@ private fun MainContent() {
     val scope = rememberCoroutineScope()
     val resetDone = stringResource(Res.string.app_info_reset_done)
     val loggedOut = stringResource(Res.string.server_logged_out)
+    val shareBackup = rememberAutoBackupSharer()
     ServerSessionWatcher(onWiped = { page = Page.Stock })
     val connected = LocalPermissions.current.connected
     SyncHost(connected)
@@ -117,6 +122,21 @@ private fun MainContent() {
                     onLoggedOut = {
                         page = Page.Stock
                         scope.launch { snackbar.showSnackbar(loggedOut) }
+                    },
+                    onAccountDeleted = { backupFile ->
+                        page = Page.Stock
+                        scope.launch {
+                            if (backupFile == null) {
+                                snackbar.showSnackbar(getString(Res.string.delete_account_done))
+                            } else {
+                                val result = snackbar.showSnackbar(
+                                    getString(Res.string.delete_account_done_backup),
+                                    actionLabel = getString(Res.string.dataset_reset_backup_share),
+                                    duration = SnackbarDuration.Long,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) shareBackup(backupFile)
+                            }
+                        }
                     },
                     onJoined = { address ->
                         askAlertPermission = true

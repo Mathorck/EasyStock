@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mein Konto löschen (Recht auf Löschung) -->
+    <string name="delete_account">Mein Konto löschen</string>
+    <string name="delete_account_title">Ihr Konto löschen?</string>
+    <string name="delete_account_erased">Ihr Konto und Ihre persönlichen Daten (Name, Benutzername, Geräte) werden vom Server gelöscht.</string>
+    <string name="delete_account_movements">Ihre Lagerbewegungen bleiben auf dem Server, angezeigt als „Gelöschter Benutzer“.</string>
+    <string name="delete_account_phone">Danach wird dieses Telefon getrennt, und die Serverdaten darauf werden gelöscht.</string>
+    <string name="delete_account_final">Das kann nicht rückgängig gemacht werden.</string>
+    <string name="delete_account_password_empty">Geben Sie zur Bestätigung Ihr Passwort ein.</string>
+    <string name="delete_account_syncing">Ihre Änderungen werden zuerst gesendet…</string>
+    <string name="delete_account_working">Ihr Konto wird gelöscht…</string>
+    <string name="delete_account_sync_failed_title">Änderungen nicht gesendet</string>
+    <string name="delete_account_sync_failed_message">Nicht alle Ihre Änderungen konnten an den Server gesendet werden. Wenn Sie Ihr Konto jetzt löschen, erhält der Server sie nicht mehr. Sie werden zuerst in einer automatischen Sicherung auf diesem Telefon gespeichert, die Sie sich senden können.</string>
+    <string name="delete_account_anyway">Trotzdem löschen</string>
+    <string name="delete_account_done">Ihr Konto wurde gelöscht</string>
+    <string name="delete_account_done_backup">Ihr Konto wurde gelöscht. Nicht gesendete Änderungen wurden in einer automatischen Sicherung gespeichert.</string>
+    <string name="delete_account_last_admin">Sie sind der letzte Admin dieses Servers. Machen Sie einen anderen Benutzer zum Admin, bevor Sie Ihr Konto löschen.</string>
+    <!-- Meine Daten herunterladen (Auskunftsrecht) -->
+    <string name="my_data">Meine Daten herunterladen</string>
+    <string name="my_data_summary">Eine Kopie dessen, was der Server über Sie speichert</string>
+    <string name="my_data_title">Ihre Daten herunterladen</string>
+    <string name="my_data_message">Sie erhalten eine JSON-Datei mit dem, was der Server über Sie speichert: Ihr Konto, Ihre Geräte, Ihre Sitzungen, Ihre Benachrichtigungs-Registrierungen und Ihre Lagerbewegungen. Daten anderer Benutzer sind nicht enthalten.</string>
+    <string name="my_data_download">Herunterladen</string>
+    <string name="my_data_downloading">Ihre Daten werden heruntergeladen…</string>
+    <string name="my_data_ready">Ihre Daten sind bereit. Speichern Sie sie oder senden Sie sie an eine andere App.</string>
+    <string name="my_data_save">Speichern</string>
+    <string name="my_data_share">Teilen</string>
+    <string name="my_data_saved">Datei gespeichert</string>
+    <string name="my_data_rate_limited">Sie können Ihre Daten 5-mal pro Stunde herunterladen. Versuchen Sie es später erneut.</string>
+</resources>

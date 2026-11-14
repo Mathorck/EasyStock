@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Supprimer mon compte (droit à l’effacement) -->
+    <string name="delete_account">Supprimer mon compte</string>
+    <string name="delete_account_title">Supprimer votre compte ?</string>
+    <string name="delete_account_erased">Votre compte et vos données personnelles (nom, nom d’utilisateur, appareils) sont effacés du serveur.</string>
+    <string name="delete_account_movements">Les mouvements de stock que vous avez faits restent sur le serveur, affichés comme « Utilisateur supprimé ».</string>
+    <string name="delete_account_phone">Ce téléphone est ensuite déconnecté, et les données du serveur qu’il contient sont effacées.</string>
+    <string name="delete_account_final">C’est irréversible.</string>
+    <string name="delete_account_password_empty">Entrez votre mot de passe pour confirmer.</string>
+    <string name="delete_account_syncing">Envoi de vos modifications d’abord…</string>
+    <string name="delete_account_working">Suppression de votre compte…</string>
+    <string name="delete_account_sync_failed_title">Modifications non envoyées</string>
+    <string name="delete_account_sync_failed_message">Toutes vos modifications n’ont pas pu être envoyées au serveur. Si vous supprimez votre compte maintenant, le serveur ne les recevra pas. Elles sont d’abord enregistrées dans une sauvegarde automatique sur ce téléphone, que vous pouvez vous envoyer.</string>
+    <string name="delete_account_anyway">Supprimer quand même</string>
+    <string name="delete_account_done">Votre compte a été supprimé</string>
+    <string name="delete_account_done_backup">Votre compte a été supprimé. Les modifications non envoyées ont été enregistrées dans une sauvegarde automatique.</string>
+    <string name="delete_account_last_admin">Vous êtes le dernier Admin de ce serveur. Nommez un autre utilisateur Admin avant de supprimer votre compte.</string>
+    <!-- Télécharger mes données (droit d’accès) -->
+    <string name="my_data">Télécharger mes données</string>
+    <string name="my_data_summary">Une copie de ce que le serveur enregistre sur vous</string>
+    <string name="my_data_title">Télécharger vos données</string>
+    <string name="my_data_message">Vous recevez un fichier JSON avec ce que le serveur enregistre sur vous : votre compte, vos appareils, vos sessions, vos inscriptions aux notifications et les mouvements de stock que vous avez faits. Les données des autres utilisateurs n’en font pas partie.</string>
+    <string name="my_data_download">Télécharger</string>
+    <string name="my_data_downloading">Téléchargement de vos données…</string>
+    <string name="my_data_ready">Vos données sont prêtes. Enregistrez-les ou envoyez-les à une autre app.</string>
+    <string name="my_data_save">Enregistrer</string>
+    <string name="my_data_share">Partager</string>
+    <string name="my_data_saved">Fichier enregistré</string>
+    <string name="my_data_rate_limited">Vous pouvez télécharger vos données 5 fois par heure. Réessayez plus tard.</string>
+</resources>
