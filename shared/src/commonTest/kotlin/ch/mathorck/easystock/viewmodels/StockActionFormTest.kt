@@ -124,6 +124,18 @@ class StockActionFormTest {
     }
 
     @Test
+    fun addedSerialsCountWithTheIndexedOnes() {
+        val base = SerialIndex(listOf("SN-1"))
+        val more = base + listOf("sn-2", "SN-1")
+        assertEquals(StockActionError.DUPLICATE_SERIAL, validateSerial("SN-2", more))
+        // Counted twice: the edited unit keeping its own serial still sees the other one
+        assertTrue(more.isTaken("sn-1", ownSerial = "SN-1"))
+        assertFalse(base.isTaken("sn-1", ownSerial = "SN-1"))
+        assertFalse(base.isTaken("SN-2"))
+        assertTrue(base + emptyList() === base)
+    }
+
+    @Test
     fun addUnitUsesTheRejectedSerial() {
         val form = StockActionForm(kind = StockActionKind.ADD_UNIT, serial = "SN-9", targetLocationId = "shelf")
         assertTrue(form.validate(context).isValid)

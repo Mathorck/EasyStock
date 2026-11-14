@@ -191,8 +191,8 @@ private data class NewUnitDraft(
     val locationId: String,
     val form: StockActionForm,
     val itemAttributes: List<CategoryAttributeWithDefinition>,
-    /** Every serial number in use, soft-deleted units included. */
-    val serials: List<String>,
+    /** Every serial number in use, soft-deleted units included, indexed once when the form opens. */
+    val serials: SerialIndex,
     val saving: Boolean = false,
     val failed: Boolean = false,
     val rejectedSerial: String? = null,
@@ -327,7 +327,7 @@ class ReviewViewModel(
                     locationId = locationId,
                     form = StockActionForm(kind = StockActionKind.ADD_UNIT, targetLocationId = locationId),
                     itemAttributes = attributes,
-                    serials = dao.allSerials(),
+                    serials = SerialIndex(dao.allSerials()),
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -374,7 +374,8 @@ class ReviewViewModel(
         val context = StockActionContext(
             stockByLocation = emptyMap(),
             activeLocationIds = setOf(draft.locationId),
-            serials = SerialIndex(draft.serials + pendingSerials),
+            // Only the few pending serials are indexed per keystroke, not every serial in the database
+            serials = draft.serials + pendingSerials,
             items = emptyList(),
             itemAttributes = draft.itemAttributes,
         )
