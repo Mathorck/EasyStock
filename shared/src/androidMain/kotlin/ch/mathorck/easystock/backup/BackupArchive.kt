@@ -35,6 +35,12 @@ fun backupKind(file: File): BackupKind {
     return backupKind(prefix.copyOf(n))
 }
 
+/**
+ * Staging folder of [BackupArchive.extractPhotos], inside its target folder. Outside `images`, so a
+ * left-over one is never taken for a photo; the reset deletes it too.
+ */
+const val PHOTO_STAGING_DIR = "images.extracting"
+
 object BackupArchive {
     /**
      * Writes the archive to [out] (not closed). Photos are read from [filesDir] (`images/<uuid>.jpg`);
@@ -75,25 +81,54 @@ object BackupArchive {
     }
 
     /**
-     * Copies the photos [paths] of the archive to [targetDir] (same relative paths), each through a
-     * temporary file. Paths not in the archive or invalid are skipped. Returns the copied paths.
+     * Copies the photos [paths] of the archive to [targetDir] (same relative paths). Paths not in the
+     * archive or invalid are skipped. Returns the copied paths.
+     *
+     * All or nothing: every photo is first extracted to a staging folder ([PHOTO_STAGING_DIR] in
+     * [targetDir]), then moved into place. A damaged or too large entry, or a failed move, leaves no
+     * photo behind (an orphan photo would also make the phone look not empty for a server join).
+     * At most [maxImageBytes] per photo and [maxTotalBytes] for all of them, counted while decompressing.
      */
-    fun extractPhotos(file: File, paths: Collection<String>, targetDir: File): Set<String> = open(file) { zip ->
-        paths.filter { isValidImagePath(it) }.mapNotNullTo(HashSet()) { path ->
-            val entry = zip.getEntry(path) ?: return@mapNotNullTo null
-            val target = File(targetDir, path)
-            target.parentFile?.mkdirs()
-            val temp = File(target.parentFile, "${target.name}.tmp")
-            try {
-                FileOutputStream(temp).use { out ->
-                    zip.getInputStream(entry).use { copyBounded(it, out, MAX_IMAGE_BYTES) }
-                    out.fd.sync()
+    fun extractPhotos(
+        file: File,
+        paths: Collection<String>,
+        targetDir: File,
+        maxImageBytes: Long = MAX_IMAGE_BYTES,
+        maxTotalBytes: Long = MAX_PHOTOS_TOTAL_BYTES,
+    ): Set<String> {
+        val staging = File(targetDir, PHOTO_STAGING_DIR)
+        staging.deleteRecursively()
+        try {
+            val extracted = open(file) { zip ->
+                var total = 0L
+                paths.filter { isValidImagePath(it) }.distinct().mapNotNull { path ->
+                    val entry = zip.getEntry(path) ?: return@mapNotNull null
+                    if (entry.isDirectory) throw BackupException(BackupError.DAMAGED, "Directory entry")
+                    val staged = File(staging, path)
+                    staged.parentFile?.mkdirs()
+                    FileOutputStream(staged).use { out ->
+                        val limit = minOf(maxImageBytes, maxTotalBytes - total)
+                        total += zip.getInputStream(entry).use { copyBounded(it, out, limit) }
+                        out.fd.sync()
+                    }
+                    path
                 }
-                if (!temp.renameTo(target)) throw IOException("Cannot save the photo")
-            } finally {
-                temp.delete()
             }
-            path
+            val moved = ArrayList<File>(extracted.size)
+            try {
+                for (path in extracted) {
+                    val target = File(targetDir, path)
+                    target.parentFile?.mkdirs()
+                    if (!File(staging, path).renameTo(target)) throw IOException("Cannot save the photo")
+                    moved += target
+                }
+            } catch (e: Throwable) {
+                moved.forEach { it.delete() }
+                throw e
+            }
+            return extracted.toSet()
+        } finally {
+            staging.deleteRecursively()
         }
     }
 

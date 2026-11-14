@@ -131,4 +131,52 @@ class BackupArchiveTest {
         }
         return file
     }
+
+    private fun photoZip(vararg entries: Pair<String, ByteArray>): File {
+        val file = File(dir, "photos.zip")
+        ZipOutputStream(file.outputStream()).use { zip ->
+            entries.forEach { (name, bytes) ->
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        return file
+    }
+
+    @Test
+    fun aFailedPhotoLeavesNoPhotoBehind() {
+        val first = "images/00000000-0000-0000-0000-000000000001.jpg"
+        val second = "images/00000000-0000-0000-0000-000000000002.jpg"
+        val file = photoZip(first to ByteArray(100), second to ByteArray(300))
+        val target = File(dir, "target")
+
+        val error = assertFailsWith<BackupException> {
+            BackupArchive.extractPhotos(file, listOf(first, second), target, maxImageBytes = 200)
+        }
+
+        assertEquals(BackupError.TOO_LARGE, error.error)
+        assertTrue(target.walk().none { it.isFile })
+        assertTrue(!File(target, PHOTO_STAGING_DIR).exists())
+    }
+
+    @Test
+    fun photosTogetherAreCapped() {
+        val first = "images/00000000-0000-0000-0000-000000000001.jpg"
+        val second = "images/00000000-0000-0000-0000-000000000002.jpg"
+        val file = photoZip(first to ByteArray(150), second to ByteArray(150))
+        val target = File(dir, "target")
+
+        val error = assertFailsWith<BackupException> {
+            BackupArchive.extractPhotos(file, listOf(first, second), target, maxImageBytes = 200, maxTotalBytes = 250)
+        }
+
+        assertEquals(BackupError.TOO_LARGE, error.error)
+        assertTrue(target.walk().none { it.isFile })
+        // Under the cap, both are moved into place
+        assertEquals(setOf(first, second), BackupArchive.extractPhotos(file, listOf(first, second), target, maxTotalBytes = 300))
+        assertEquals(150, File(target, second).length())
+        assertTrue(!File(target, PHOTO_STAGING_DIR).exists())
+    }
+
 }

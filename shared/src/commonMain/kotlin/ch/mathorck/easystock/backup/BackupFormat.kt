@@ -42,6 +42,9 @@ const val MAX_MANIFEST_BYTES = 64L * 1024
 const val MAX_TABLE_BYTES = 64L * 1024 * 1024
 const val MAX_IMAGE_BYTES = 32L * 1024 * 1024
 
+/** All the photos of one archive together, decompressed. */
+const val MAX_PHOTOS_TOTAL_BYTES = 2L * 1024 * 1024 * 1024
+
 /** Table names, also the JSON file names in [TABLES_DIR]. Parent tables first (foreign keys). */
 enum class BackupTable(val tableName: String) {
     CATEGORY("category"),
