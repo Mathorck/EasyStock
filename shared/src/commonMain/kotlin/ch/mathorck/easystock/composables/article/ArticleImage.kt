@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -68,7 +69,8 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * The photo at [path], cropped to fill the box by default (or [contentScale]), or [placeholder] while loading or without photo.
- * Decoded off the main thread at about the size of the box.
+ * Decoded off the main thread at about the size of the box. For a box of known size, prefer [ArticleThumbnail]:
+ * it skips the subcomposition of [BoxWithConstraints].
  */
 @Composable
 fun ArticleImage(
@@ -79,45 +81,57 @@ fun ArticleImage(
     placeholder: @Composable () -> Unit = {},
 ) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        val store = rememberArticleImageStore()
         // Short side of the decoded image: enough to cover the box when cropped
         val side = if (constraints.hasBoundedWidth && constraints.hasBoundedHeight) max(maxWidth, maxHeight) else 400.dp
-        val requiredPx = with(LocalDensity.current) { side.roundToPx() }
-        val bitmap: ImageBitmap? by produceState(path?.let { store.cached(it, requiredPx) }, path, requiredPx) {
-            value = path?.let { store.load(it, requiredPx) }
-            // Server mode: a pulled photo may still be downloading, loaded once it is there
-            if (value == null && path != null) {
-                SyncImages.downloads.first { store.load(path, requiredPx)?.also { value = it } != null }
-            }
-        }
-        val image = bitmap
-        if (image != null) {
-            Image(image, contentDescription, contentScale = contentScale, modifier = Modifier.matchParentSize())
-        } else {
-            placeholder()
-        }
+        ArticleBitmap(path, contentDescription, side, contentScale, placeholder)
     }
 }
 
-/** Small square photo for list rows, with an icon when there is none. */
+/** Small square photo for list rows, with an icon when there is none. Its size is fixed: no constraints to measure. */
 @Composable
 fun ArticleThumbnail(path: String?, modifier: Modifier = Modifier, size: Dp = 40.dp) {
-    ArticleImage(
-        path = path,
-        contentDescription = null,
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        placeholder = {
+    ) {
+        ArticleBitmap(path, contentDescription = null, side = size, contentScale = ContentScale.Crop) {
             Icon(
                 painterResource(Res.drawable.ic_image),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(size / 2),
             )
-        },
-    )
+        }
+    }
+}
+
+/** The photo decoded for a box of [side] (its long side), filling the parent box, or [placeholder]. */
+@Composable
+private fun BoxScope.ArticleBitmap(
+    path: String?,
+    contentDescription: String?,
+    side: Dp,
+    contentScale: ContentScale,
+    placeholder: @Composable () -> Unit,
+) {
+    val store = rememberArticleImageStore()
+    val requiredPx = with(LocalDensity.current) { side.roundToPx() }
+    val bitmap: ImageBitmap? by produceState(path?.let { store.cached(it, requiredPx) }, path, requiredPx) {
+        value = path?.let { store.load(it, requiredPx) }
+        // Server mode: a pulled photo may still be downloading, loaded once it is there
+        if (value == null && path != null) {
+            SyncImages.downloads.first { store.load(path, requiredPx)?.also { value = it } != null }
+        }
+    }
+    val image = bitmap
+    if (image != null) {
+        Image(image, contentDescription, contentScale = contentScale, modifier = Modifier.matchParentSize())
+    } else {
+        placeholder()
+    }
 }
 
 /**
