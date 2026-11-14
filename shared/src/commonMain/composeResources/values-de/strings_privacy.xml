@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="privacy_wifi_local_network_message">Eine WLAN-Übertragung läuft über Ihr lokales Netzwerk. Android braucht Ihre Erlaubnis, damit EasyStock das andere Telefon erreicht.</string>
+</resources>

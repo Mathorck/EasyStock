@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="privacy_wifi_local_network_message">A Wi-Fi transfer goes over your local network. Android needs your permission for EasyStock to reach the other phone.</string>
+</resources>

@@ -90,9 +90,6 @@ sealed interface WifiState {
     /** Nobody connected in time: the QR code is no longer valid. */
     data object Expired : WifiState
 
-    /** Stopped after too many wrong attempts. */
-    data object Blocked : WifiState
-
     data class Failed(val error: BackupError) : WifiState
 }
 

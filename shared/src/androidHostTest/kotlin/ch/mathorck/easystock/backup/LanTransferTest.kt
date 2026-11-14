@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.file.Files
 import kotlin.random.Random
@@ -51,19 +52,45 @@ class LanTransferTest {
         }
     }
 
+    /** Sends a hello with [token] from [from], returns the first byte answered (-1: closed). */
+    private fun helloFrom(from: String, port: Int, token: String): Int =
+        Socket().use { socket ->
+            socket.bind(InetSocketAddress(InetAddress.getByName(from), 0))
+            socket.connect(InetSocketAddress(loopback, port), 5000)
+            socket.soTimeout = 5000
+            runCatching { socket.getOutputStream().apply { write("ESW1 $token\n".encodeToByteArray()); flush() } }
+            runCatching { socket.getInputStream().read() }.getOrDefault(-1)
+        }
+
     @Test
-    fun wrongTokenIsRefusedAndBlocksAfterThreeAttempts() {
+    fun wrongTokensBlockOnlyThatPeer() {
+        val sender = LanSender(source, loopback)
+        try {
+            val forged = WifiTicket.create("x", 1, ByteArray(16), ByteArray(32)).token
+            // Another device on the Wi-Fi (127.0.0.2) sends wrong tokens: each connection is closed
+            repeat(3) { assertEquals(-1, helloFrom("127.0.0.2", sender.ticket.port, forged)) }
+            // That peer is now ignored, even with the right token
+            assertEquals(-1, helloFrom("127.0.0.2", sender.ticket.port, sender.ticket.token))
+            assertEquals(WifiState.Waiting, sender.state.value)
+
+            // The real receiver (127.0.0.1) still gets the file
+            val target = File(dir, "target")
+            lanDownload(sender.ticket, target, Long.MAX_VALUE) {}
+            assertContentEquals(content, target.readBytes())
+            assertEquals(WifiState.Done, awaitState(sender) { it == WifiState.Done })
+        } finally {
+            sender.stop()
+        }
+    }
+
+    @Test
+    fun wrongTokenIsRefused() {
         val sender = LanSender(source, loopback)
         try {
             val forged = sender.ticket.copy(token = WifiTicket.create("x", 1, ByteArray(16), ByteArray(32)).token)
-            repeat(3) {
-                val error = assertFailsWith<BackupException> { lanDownload(forged, File(dir, "t$it"), Long.MAX_VALUE) {} }
-                assertEquals(BackupError.UNREACHABLE, error.error)
-                assertFalse(File(dir, "t$it").exists())
-            }
-            assertEquals(WifiState.Blocked, awaitState(sender) { it == WifiState.Blocked })
-            // Even the right token is refused now
-            assertFailsWith<BackupException> { lanDownload(sender.ticket, File(dir, "right"), Long.MAX_VALUE) {} }
+            val error = assertFailsWith<BackupException> { lanDownload(forged, File(dir, "t"), Long.MAX_VALUE) {} }
+            assertEquals(BackupError.UNREACHABLE, error.error)
+            assertFalse(File(dir, "t").exists())
         } finally {
             sender.stop()
         }

@@ -50,7 +50,6 @@
     <string name="backup_wifi_sending">Sending… %1$s of %2$s</string>
     <string name="backup_wifi_done">Backup sent.</string>
     <string name="backup_wifi_expired">The code has expired.</string>
-    <string name="backup_wifi_blocked">Stopped after several wrong attempts.</string>
     <string name="backup_wifi_stop">Stop</string>
     <string name="backup_wifi_active">Wi-Fi share active, %1$s left</string>
     <string name="backup_wifi_restart">New code</string>

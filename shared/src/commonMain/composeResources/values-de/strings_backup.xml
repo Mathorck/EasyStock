@@ -50,7 +50,6 @@
     <string name="backup_wifi_sending">Wird gesendet… %1$s von %2$s</string>
     <string name="backup_wifi_done">Sicherung gesendet.</string>
     <string name="backup_wifi_expired">Der Code ist abgelaufen.</string>
-    <string name="backup_wifi_blocked">Nach mehreren falschen Versuchen gestoppt.</string>
     <string name="backup_wifi_stop">Stoppen</string>
     <string name="backup_wifi_active">WLAN-Freigabe aktiv, noch %1$s</string>
     <string name="backup_wifi_restart">Neuer Code</string>

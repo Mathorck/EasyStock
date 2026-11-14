@@ -168,7 +168,6 @@ import easystock.shared.generated.resources.backup_via_qr
 import easystock.shared.generated.resources.backup_via_qr_summary
 import easystock.shared.generated.resources.backup_via_wifi
 import easystock.shared.generated.resources.backup_via_wifi_summary
-import easystock.shared.generated.resources.backup_wifi_blocked
 import easystock.shared.generated.resources.backup_wifi_done
 import easystock.shared.generated.resources.backup_wifi_expired
 import easystock.shared.generated.resources.backup_wifi_qr_description
@@ -193,6 +192,15 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import ch.mathorck.easystock.backup.QrTransfer
+import ch.mathorck.easystock.backup.ScannedQr
+import ch.mathorck.easystock.server.rememberLocalNetworkAccess
+import easystock.shared.generated.resources.local_network_allow
+import easystock.shared.generated.resources.local_network_not_now
+import easystock.shared.generated.resources.local_network_open_settings
+import easystock.shared.generated.resources.local_network_settings_hint
+import easystock.shared.generated.resources.local_network_title
+import easystock.shared.generated.resources.privacy_wifi_local_network_message
 import ch.mathorck.easystock.auth.Action
 import ch.mathorck.easystock.auth.LocalPermissions
 import easystock.shared.generated.resources.backup_merge_connected_note
@@ -241,6 +249,17 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier, onJoinCode: 
     }
     NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = back)
 
+    // Android 17+: a Wi-Fi transfer needs the local network permission, asked before it starts
+    var pendingWifi by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val localNetwork = rememberLocalNetworkAccess { granted ->
+        val action = pendingWifi
+        pendingWifi = null
+        if (granted) action?.invoke()
+    }
+    fun withLocalNetwork(action: () -> Unit) {
+        if (localNetwork.isMissing()) pendingWifi = action else action()
+    }
+
     BackupContent(
         state = state,
         saved = saved,
@@ -248,16 +267,46 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier, onJoinCode: 
         onBack = back,
         onExport = { saved = false; viewModel.export(it) },
         onShowQr = viewModel::showQr,
-        onStartWifi = viewModel::startWifi,
+        onStartWifi = { withLocalNetwork(viewModel::startWifi) },
         onScan = viewModel::scan,
-        onScanned = viewModel::scanned,
+        onScanned = { text ->
+            if (isWifiTransferQr(text)) withLocalNetwork { viewModel.scanned(text) } else viewModel.scanned(text)
+        },
         onPassword = viewModel::submitPassword,
         onImport = viewModel::import,
         onFinish = { saved = false; viewModel.reset() },
         onDismissError = viewModel::dismissError,
         modifier = modifier,
     )
+    if (pendingWifi != null) {
+        val settings = localNetwork.mustOpenSettings()
+        AlertDialog(
+            onDismissRequest = { pendingWifi = null },
+            title = { Text(stringResource(Res.string.local_network_title)) },
+            text = {
+                Text(
+                    stringResource(Res.string.privacy_wifi_local_network_message) +
+                        if (settings) "\n\n" + stringResource(Res.string.local_network_settings_hint) else "",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (settings) {
+                        pendingWifi = null
+                        localNetwork.openSettings()
+                    } else {
+                        localNetwork.request()
+                    }
+                }) { Text(stringResource(if (settings) Res.string.local_network_open_settings else Res.string.local_network_allow)) }
+            },
+            dismissButton = { TextButton(onClick = { pendingWifi = null }) { Text(stringResource(Res.string.local_network_not_now)) } },
+        )
+    }
 }
+
+/** True when [text] is the QR code of a Wi-Fi transfer (it needs the local network). */
+private fun isWifiTransferQr(text: String): Boolean =
+    runCatching { QrTransfer.parse(text) is ScannedQr.Wifi }.getOrDefault(false)
 
 /** Stateless content, previewable. */
 @Composable
@@ -414,7 +463,6 @@ private fun ColumnScope.WifiStep(qrText: String, state: WifiState, onRestart: ()
         }
         WifiState.Done -> Text(stringResource(Res.string.backup_wifi_done), color = MaterialTheme.colorScheme.primary)
         WifiState.Expired -> Text(stringResource(Res.string.backup_wifi_expired))
-        WifiState.Blocked -> Text(stringResource(Res.string.backup_wifi_blocked), color = MaterialTheme.colorScheme.error)
         is WifiState.Failed -> Text(stringResource(state.error.message()), color = MaterialTheme.colorScheme.error)
     }
     Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

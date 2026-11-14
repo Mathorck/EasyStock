@@ -34,6 +34,9 @@ import kotlin.time.TimeSource
 //   receiver -> sender: "ESW1 <token base64url>\n"
 //   sender -> receiver: "OK <size>\n", then the file in the encrypted envelope (raw ticket key)
 // A wrong token gets the connection closed. The sender serves a single download, then stops.
+// A peer address that sent [MAX_FAILED_ATTEMPTS] wrong tokens is ignored from then on; other peers
+// can still connect: a stranger on the same Wi-Fi can't block the transfer (the 128-bit token can't
+// be guessed, and the QR code expires after [WIFI_TRANSFER_TIMEOUT]).
 
 private const val HELLO = "ESW1"
 private const val MAX_LINE = 128
@@ -68,7 +71,7 @@ class LanSender(
 
     private suspend fun serve() {
         val start = TimeSource.Monotonic.markNow()
-        var failures = 0
+        val failures = HashMap<InetAddress, Int>()
         try {
             while (scope.isActive) {
                 val left = timeout - start.elapsedNow()
@@ -82,16 +85,19 @@ class LanSender(
                 } catch (e: SocketTimeoutException) {
                     continue
                 }
+                val peer = socket.inetAddress
+                // A blocked peer is closed at once, without reading anything
+                if (failures.getOrElse(peer) { 0 } >= MAX_FAILED_ATTEMPTS) {
+                    socket.close()
+                    continue
+                }
                 socket.use {
                     if (handle(it)) {
                         _state.value = WifiState.Done
                         return
                     }
                 }
-                if (++failures >= MAX_FAILED_ATTEMPTS) {
-                    _state.value = WifiState.Blocked
-                    return
-                }
+                failures[peer] = failures.getOrElse(peer) { 0 } + 1
             }
         } catch (e: SocketTimeoutException) {
             _state.value = WifiState.Failed(BackupError.TIMEOUT)
