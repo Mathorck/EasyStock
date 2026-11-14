@@ -65,6 +65,13 @@ data class SyncStatus(
     val problemType: String? = null,
     /** A 426 paused the sync until the app is updated. */
     val paused: Boolean = false,
+    /**
+     * Photos the server refused (quota, too large, not a JPEG...): their rows were pushed without them,
+     * and they are sent again at each cycle until accepted. Not an [error]: the sync itself went through.
+     */
+    val imagesNotSent: Int = 0,
+    /** The Problem Details `type` of the last refused photo (`image-quota-exceeded`...), when the server sent one. */
+    val imageProblemType: String? = null,
 )
 
 /** How a cycle ended. */
@@ -130,6 +137,13 @@ class SyncEngine(
     private var pausedFor: String? = null
 
     /**
+     * Photos the server refused, by hash, with the Problem `type` of the refusal: sent again at each cycle
+     * (an Admin may raise the quota). In memory only: after a restart a refused photo is only sent again
+     * when its article changes. Read and written in cycles only.
+     */
+    private val refusedImages = LinkedHashMap<String, String?>()
+
+    /**
      * Runs one cycle now, after the running one if any. The cycle runs in the engine scope: a wipe
      * cancels it ([SyncCoordinator.stopAndLock]), never the caller.
      */
@@ -153,6 +167,7 @@ class SyncEngine(
         val state = store.syncState() ?: run {
             // Left the server: nothing of that session is shown any more
             pausedFor = null
+            refusedImages.clear()
             _status.value = SyncStatus()
             return SyncResult.NOT_CONNECTED
         }
@@ -255,6 +270,9 @@ class SyncEngine(
         } catch (e: Exception) {
         }
         epochs.save(null)
+        // The photos of the old data set are gone with it
+        refusedImages.clear()
+        _status.update { it.copy(imagesNotSent = 0, imageProblemType = null) }
         val notice = DatasetResetNotice((_resetNotice.value?.lostChanges ?: 0) + lost, backupFile ?: _resetNotice.value?.backupFile, backupFailed)
         _resetNotice.value = notice
         // On disk before the pull: the process may die before the user sees it
@@ -269,6 +287,8 @@ class SyncEngine(
     }
 
     private suspend fun push(api: SyncApi, epoch: String?) {
+        // Photos refused before: their rows are on the server already
+        if (refusedImages.isNotEmpty()) uploadImages(api, refusedImages.keys.toList())
         repeat(MAX_BATCHES_PER_CYCLE) {
             val pending = store.pendingPush() ?: buildBatch(api) ?: return
             val answer = try {
@@ -304,13 +324,43 @@ class SyncEngine(
         }
         // Only entries of rows that no longer exist (never the case: hard deletes clear their entry)
         if (rows.isEmpty()) return null
-        rows[SyncTable.ARTICLE.tableName].orEmpty().mapNotNull { it.imageSha256 }.distinct().forEach { sha ->
-            if (!api.hasImage(sha)) store.imageBytes(sha)?.let { api.putImage(sha, it) }
-        }
+        uploadImages(api, rows[SyncTable.ARTICLE.tableName].orEmpty().mapNotNull { it.imageSha256 }.distinct())
         val push = PendingPush(batchId = newBatchId(), body = "", createdAt = clock.now().toEpochMilliseconds())
         val withBody = push.copy(body = encodePush(PushRequest(push.batchId, rows)))
         store.savePendingPush(withBody)
         return withBody
+    }
+
+    /**
+     * Uploads the photos the server doesn't have yet, one by one. A photo the server refuses (quota, too
+     * large, not a JPEG...) never blocks the rows: the server takes an article whose photo is missing (no
+     * reference check on `image_sha256`; the other phones show the placeholder), the photo is kept in
+     * [refusedImages] and shown as a warning. No answer, a revoked session, a too old app, a rate limit or a
+     * server error fail the cycle as before: the batch is sent later with its photos.
+     */
+    private suspend fun uploadImages(api: SyncApi, shas: List<String>) {
+        if (shas.isEmpty()) return
+        for (sha in shas) {
+            try {
+                if (!api.hasImage(sha)) {
+                    // The photo was replaced meanwhile: nothing left to send
+                    val bytes = store.imageBytes(sha)
+                    if (bytes == null) {
+                        refusedImages.remove(sha)
+                        continue
+                    }
+                    api.putImage(sha, bytes)
+                }
+                refusedImages.remove(sha)
+            } catch (e: ApiException) {
+                if (!isImageRefusal(e)) throw e
+                refusedImages.remove(sha)
+                refusedImages[sha] = e.problemType
+            }
+        }
+        _status.update {
+            it.copy(imagesNotSent = refusedImages.size, imageProblemType = refusedImages.values.lastOrNull { type -> type != null })
+        }
     }
 
     /** [startEpoch]: the data set of the rows on the phone, null when unknown or for a full pull. */
@@ -397,6 +447,10 @@ private class LeftServer : Exception()
 /** The server replaced its data set since this phone pulled it. */
 internal fun isDatasetReset(e: Exception): Boolean =
     e is DatasetEpochChanged || (e is ApiException && e.problemType == ProblemTypes.DATASET_RESET)
+
+/** A refusal of this one photo (413, 415, 422, 404, 409): the rows are pushed without it. Anything else fails the cycle. */
+internal fun isImageRefusal(e: ApiException): Boolean =
+    e.error == ApiError.INVALID || e.error == ApiError.NOT_FOUND || e.error == ApiError.CONFLICT
 
 internal fun syncErrorOf(e: ApiException, localNetworkMissing: Boolean = false): SyncError = when (e.error) {
     ApiError.NETWORK -> if (localNetworkMissing) SyncError.LOCAL_NETWORK_DENIED else SyncError.NETWORK

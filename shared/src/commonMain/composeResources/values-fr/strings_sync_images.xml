@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Photos refusées par le serveur pendant une synchronisation (les modifications sont envoyées sans elles) -->
+    <string name="sync_images_not_sent">Photos non envoyées : %1$d. Vos modifications ont été synchronisées sans elles ; les photos sont renvoyées à chaque synchronisation.</string>
+    <string name="problem_image_quota_exceeded">Le serveur n’a plus de place pour les photos. Demandez à un Admin de libérer de l’espace ou d’augmenter le quota de photos.</string>
+</resources>

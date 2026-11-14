@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fotos, die der Server bei einer Synchronisierung abgelehnt hat (die Änderungen wurden ohne sie gesendet) -->
+    <string name="sync_images_not_sent">Nicht gesendete Fotos: %1$d. Ihre Änderungen wurden ohne sie synchronisiert; die Fotos werden bei jeder Synchronisierung erneut gesendet.</string>
+    <string name="problem_image_quota_exceeded">Der Server hat keinen Platz mehr für Fotos. Bitten Sie einen Admin, Platz freizugeben oder das Foto-Kontingent zu erhöhen.</string>
+</resources>

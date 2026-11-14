@@ -86,6 +86,7 @@ object ProblemTypes {
     const val RESET_USED = "reset-used"
     const val PROMOTION_EXPIRED = "promotion-expired"
     const val IMAGE_TOO_LARGE = "image-too-large"
+    const val IMAGE_QUOTA_EXCEEDED = "image-quota-exceeded"
     const val BATCH_TOO_LARGE = "batch-too-large"
     const val BACKUP_TOO_LARGE = "backup-too-large"
     const val UNSUPPORTED_MEDIA_TYPE = "unsupported-media-type"
@@ -128,6 +129,7 @@ object ProblemTypes {
         RESET_USED,
         PROMOTION_EXPIRED,
         IMAGE_TOO_LARGE,
+        IMAGE_QUOTA_EXCEEDED,
         BATCH_TOO_LARGE,
         BACKUP_TOO_LARGE,
         UNSUPPORTED_MEDIA_TYPE,

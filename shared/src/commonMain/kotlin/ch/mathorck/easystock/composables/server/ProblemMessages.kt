@@ -21,6 +21,7 @@ import easystock.shared.generated.resources.problem_batch_reused
 import easystock.shared.generated.resources.problem_batch_too_large
 import easystock.shared.generated.resources.problem_dataset_reset
 import easystock.shared.generated.resources.problem_hash_mismatch
+import easystock.shared.generated.resources.problem_image_quota_exceeded
 import easystock.shared.generated.resources.problem_image_too_large
 import easystock.shared.generated.resources.problem_not_a_backup
 import easystock.shared.generated.resources.problem_not_a_jpeg
@@ -73,6 +74,7 @@ internal fun problemMessage(type: String?): StringResource? = when (type) {
     ProblemTypes.INVITE_EXPIRED, ProblemTypes.RESET_EXPIRED, ProblemTypes.PROMOTION_EXPIRED -> Res.string.server_error_code_expired
     ProblemTypes.INVITE_USED, ProblemTypes.RESET_USED -> Res.string.server_error_code_used
     ProblemTypes.IMAGE_TOO_LARGE -> Res.string.problem_image_too_large
+    ProblemTypes.IMAGE_QUOTA_EXCEEDED -> Res.string.problem_image_quota_exceeded
     ProblemTypes.BATCH_TOO_LARGE -> Res.string.problem_batch_too_large
     ProblemTypes.BACKUP_TOO_LARGE -> Res.string.admin_error_backup_too_large
     ProblemTypes.UNSUPPORTED_MEDIA_TYPE -> Res.string.problem_unsupported_media

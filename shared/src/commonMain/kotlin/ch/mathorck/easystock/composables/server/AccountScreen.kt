@@ -140,6 +140,7 @@ import easystock.shared.generated.resources.local_network_settings_hint
 import easystock.shared.generated.resources.sync_error_network
 import easystock.shared.generated.resources.sync_error_server
 import easystock.shared.generated.resources.sync_full_pull
+import easystock.shared.generated.resources.sync_images_not_sent
 import easystock.shared.generated.resources.sync_never
 import easystock.shared.generated.resources.sync_now
 import easystock.shared.generated.resources.sync_running
@@ -493,6 +494,11 @@ private fun SyncRow(
                         ),
                         color = MaterialTheme.colorScheme.error,
                     )
+                }
+                // Not a failed sync: the rows went through, only the photos wait
+                if (!status.running && status.imagesNotSent > 0) {
+                    Text(stringResource(Res.string.sync_images_not_sent, status.imagesNotSent))
+                    problemMessage(status.imageProblemType)?.let { Text(stringResource(it)) }
                 }
             }
         },

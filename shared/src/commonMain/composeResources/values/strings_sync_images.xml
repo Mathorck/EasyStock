@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Photos the server refused during a sync (the changes were sent without them) -->
+    <string name="sync_images_not_sent">Photos not sent: %1$d. Your changes were synced without them; the photos are sent again at each sync.</string>
+    <string name="problem_image_quota_exceeded">The server has no room left for photos. Ask an Admin to free space or raise the photo quota.</string>
+</resources>

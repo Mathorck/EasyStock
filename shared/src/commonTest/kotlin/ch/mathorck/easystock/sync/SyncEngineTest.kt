@@ -9,6 +9,7 @@ import ch.mathorck.easystock.data.model.SyncState
 import ch.mathorck.easystock.server.ClientVersions
 import ch.mathorck.easystock.server.KtorAccountApi
 import ch.mathorck.easystock.server.ServerConnection
+import ch.mathorck.easystock.server.ProblemTypes
 import ch.mathorck.easystock.server.createServerClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -555,6 +556,65 @@ class SyncEngineTest {
         assertEquals(listOf("images/$unknown"), puts.map { it.path })
         // Photos go up before the rows that point to them
         assertTrue(seen.indexOfFirst { it.method == HttpMethod.Put } < seen.indexOfFirst { it.path == "sync/push" })
+    }
+
+    @Test
+    fun aPhotoTheServerRefusesNeverBlocksTheRowsAndIsSentAgainLater() = runTest {
+        val store = FakeSyncStore(state())
+        val refused = "c".repeat(64)
+        val fine = "d".repeat(64)
+        store.put(SyncTable.ARTICLE, row("a1", "imageSha256" to refused))
+        store.put(SyncTable.ARTICLE, row("a2", "imageSha256" to fine))
+        store.images[refused] = byteArrayOf(1)
+        store.images[fine] = byteArrayOf(2)
+        var quotaFull = true
+        val engine = engine(store) { request ->
+            when {
+                request.method == HttpMethod.Head -> respond("", HttpStatusCode.NotFound)
+                request.method == HttpMethod.Put && request.path == "images/$refused" && quotaFull ->
+                    respond("""{"type":"image-quota-exceeded","status":413}""", HttpStatusCode.PayloadTooLarge, headersOf(HttpHeaders.ContentType, "application/problem+json"))
+                request.method == HttpMethod.Put -> respond("", HttpStatusCode.Created)
+                else -> defaults(request, """{"results":[{"table":"article","id":"a1","status":"accepted"},{"table":"article","id":"a2","status":"accepted"}]}""")
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        // The rows went anyway, the other photo too
+        assertEquals(1, seen.count { it.path == "sync/push" })
+        assertTrue(seen.any { it.method == HttpMethod.Put && it.path == "images/$fine" })
+        assertTrue(store.outbox(10).isEmpty())
+        val status = engine.status.value
+        assertNull(status.error)
+        assertEquals(1, status.imagesNotSent)
+        assertEquals(ProblemTypes.IMAGE_QUOTA_EXCEEDED, status.imageProblemType)
+
+        // Next cycle: nothing to push, but the refused photo is tried again; accepted once there is room
+        quotaFull = false
+        seen.clear()
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(listOf("images/$refused"), seen.filter { it.method == HttpMethod.Put }.map { it.path })
+        assertEquals(0, engine.status.value.imagesNotSent)
+        assertNull(engine.status.value.imageProblemType)
+    }
+
+    @Test
+    fun aPhotoUploadWithoutAnswerFailsTheCycleBeforeAnyPush() = runTest {
+        val store = FakeSyncStore(state())
+        val sha = "e".repeat(64)
+        store.put(SyncTable.ARTICLE, row("a1", "imageSha256" to sha))
+        store.images[sha] = byteArrayOf(1)
+        val engine = engine(store) { request ->
+            when (request.method) {
+                HttpMethod.Head -> respond("", HttpStatusCode.NotFound)
+                HttpMethod.Put -> throw IOException("connection reset")
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.FAILED, engine.sync())
+        assertEquals(SyncError.NETWORK, engine.status.value.error)
+        assertTrue(seen.none { it.path == "sync/push" })
+        // The row waits for its photo
+        assertEquals(1, store.outbox(10).size)
+        assertEquals(0, engine.status.value.imagesNotSent)
     }
 
     @Test

@@ -23,8 +23,8 @@ class ProblemMessagesTest {
     fun everyProblemTypeOfTheServerHasAMessage() {
         ProblemTypes.ALL.forEach { type -> assertNotNull(problemMessage(type), type) }
         assertEquals(ProblemTypes.ALL.size, ProblemTypes.ALL.toSet().size)
-        // The 39 types of the server's ProblemTypesHelper
-        assertEquals(39, ProblemTypes.ALL.size)
+        // The 40 types of the server's ProblemTypesHelper
+        assertEquals(40, ProblemTypes.ALL.size)
     }
 
     @Test
