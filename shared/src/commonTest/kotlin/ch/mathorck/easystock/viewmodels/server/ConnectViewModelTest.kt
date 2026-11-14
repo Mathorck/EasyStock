@@ -73,6 +73,9 @@ class ConnectViewModelTest {
     private val committed = mutableListOf<Pair<ServerConnection, TokenAnswer>>()
     private var commitResult = true
 
+    /** Android 17 blocks the local network: the permission is not granted. */
+    private var localNetworkMissing = false
+
     private fun vm() = ConnectViewModel(
         joinApi = { FakeJoinApi(it).also(setUpApi).also(apis::add) },
         isPhoneEmpty = { empty },
@@ -86,6 +89,7 @@ class ConnectViewModelTest {
         },
         deviceName = "Pixel",
         appVersion = "1.0.0",
+        localNetworkMissing = { localNetworkMissing },
     )
 
     private val api get() = apis.last()
@@ -459,5 +463,185 @@ class ConnectViewModelTest {
         vm.cancel()
         assertEquals(ConnectStep.Choose, vm.state.value.step)
         assertTrue(apis.isEmpty())
+    }
+
+    // ---------- Local network permission (Android 17+) ----------
+
+    @Test
+    fun aTypedAddressAsksForTheLocalNetworkBeforeAnyCall() {
+        localNetworkMissing = true
+        val vm = vm()
+        vm.addressChanged("https://nas.example")
+        vm.submitAddress()
+
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+        assertTrue(apis.isEmpty())
+
+        localNetworkMissing = false
+        vm.localNetworkAnswered(granted = true)
+        assertEquals(FormMode.LOGIN, assertIs<ConnectStep.Form>(vm.state.value.step).mode)
+    }
+
+    @Test
+    fun aScannedCodeAsksForTheLocalNetworkBeforeAnyCall() {
+        localNetworkMissing = true
+        val vm = vm()
+        vm.startScan()
+        vm.scanned("easystock://setup?server=http%3A%2F%2F10.0.2.2%3A8080&token=tok")
+        // Plain HTTP: the warning first, then the permission, then the call
+        assertIs<ConnectStep.HttpWarning>(vm.state.value.step)
+        vm.acceptHttp()
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+        assertTrue(apis.isEmpty())
+    }
+
+    @Test
+    fun anHttpCodeAsksForTheLocalNetworkAfterTheWarning() {
+        localNetworkMissing = true
+        val vm = vm()
+        vm.start(code(JoinKind.INVITE, url = "http://192.168.1.20:8080"))
+        assertIs<ConnectStep.HttpWarning>(vm.state.value.step)
+
+        vm.acceptHttp()
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+        assertTrue(apis.isEmpty())
+
+        localNetworkMissing = false
+        vm.localNetworkAnswered(granted = true)
+        assertEquals(FormMode.INVITE, assertIs<ConnectStep.Form>(vm.state.value.step).mode)
+    }
+
+    @Test
+    fun aCodeOfferedByTheBackupScreenAsksAfterTheConfirmation() {
+        localNetworkMissing = true
+        val vm = vm()
+        vm.offer(code(JoinKind.INVITE))
+        assertIs<ConnectStep.ConfirmCode>(vm.state.value.step)
+
+        vm.confirmCode()
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+        assertTrue(apis.isEmpty())
+    }
+
+    @Test
+    fun nothingIsAskedWhenTheLocalNetworkIsAllowed() {
+        val vm = vm()
+        vm.start(code(JoinKind.INVITE))
+        assertIs<ConnectStep.Form>(vm.state.value.step)
+    }
+
+    @Test
+    fun aDeniedPrivateAddressFailsAtOnceWithoutACall() {
+        localNetworkMissing = true
+        val vm = vm()
+        vm.start(code(JoinKind.SETUP, url = "http://10.0.2.2:8080"))
+        vm.acceptHttp()
+        vm.localNetworkAnswered(granted = false)
+
+        assertEquals(ConnectError.LOCAL_NETWORK_DENIED, vm.state.value.error)
+        assertEquals(ConnectStep.Choose, vm.state.value.step)
+        assertTrue(apis.isEmpty())
+    }
+
+    @Test
+    fun aDeniedHostNameIsStillTriedAndAPublicServerAnswers() {
+        localNetworkMissing = true
+        val vm = vm()
+        vm.start(code(JoinKind.INVITE))
+        vm.localNetworkAnswered(granted = false)
+
+        assertEquals(FormMode.INVITE, assertIs<ConnectStep.Form>(vm.state.value.step).mode)
+        assertNull(vm.state.value.error)
+    }
+
+    @Test
+    fun noAnswerWithoutTheLocalNetworkIsTheDeniedErrorNotTheHttpFallback() {
+        localNetworkMissing = true
+        setUpApi = { it.infoError = ApiException(ApiError.NETWORK) }
+        val vm = vm()
+        vm.addressChanged("nas.lan:8080")
+        vm.submitAddress()
+        vm.localNetworkAnswered(granted = false)
+
+        assertEquals(ConnectError.LOCAL_NETWORK_DENIED, vm.state.value.error)
+        assertEquals(ConnectStep.Choose, vm.state.value.step)
+    }
+
+    @Test
+    fun theLocalNetworkIsAskedOnlyOncePerAttempt() {
+        localNetworkMissing = true
+        setUpApi = { if (it.connection.isHttps) it.infoError = ApiException(ApiError.SERVER, 502) }
+        val vm = vm()
+        vm.addressChanged("nas.lan")
+        vm.submitAddress()
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+        vm.localNetworkAnswered(granted = false)
+        // An answer, but not EasyStock: the attempt ends; a new attempt may ask again
+        assertEquals(ConnectError.NOT_A_SERVER, vm.state.value.error)
+
+        vm.dismissError()
+        vm.submitAddress()
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+    }
+
+    @Test
+    fun theHttpFallbackAfterAGrantDoesNotAskAgain() {
+        localNetworkMissing = true
+        setUpApi = { if (it.connection.isHttps) it.infoError = ApiException(ApiError.NETWORK) }
+        val vm = vm()
+        vm.addressChanged("192.168.1.20:8080")
+        vm.submitAddress()
+        assertIs<ConnectStep.LocalNetwork>(vm.state.value.step)
+
+        localNetworkMissing = false
+        vm.localNetworkAnswered(granted = true)
+        assertIs<ConnectStep.HttpsFailed>(vm.state.value.step)
+        vm.tryHttp()
+        vm.acceptHttp()
+        assertIs<ConnectStep.Form>(vm.state.value.step)
+        assertEquals(ServerConnection("http://192.168.1.20:8080"), api.connection)
+    }
+
+    @Test
+    fun allowingAfterTheDenialTriesTheSameServerAgain() {
+        localNetworkMissing = true
+        setUpApi = { it.info = it.info.copy(setupDone = false) }
+        val vm = vm()
+        vm.start(code(JoinKind.SETUP, url = "http://192.168.1.20:8080"))
+        vm.acceptHttp()
+        vm.localNetworkAnswered(granted = false)
+        assertEquals(ConnectError.LOCAL_NETWORK_DENIED, vm.state.value.error)
+
+        // Still denied: nothing happens
+        vm.localNetworkGranted()
+        assertEquals(ConnectError.LOCAL_NETWORK_DENIED, vm.state.value.error)
+
+        localNetworkMissing = false
+        vm.localNetworkGranted()
+        assertNull(vm.state.value.error)
+        assertEquals(FormMode.SETUP, assertIs<ConnectStep.Form>(vm.state.value.step).mode)
+        assertEquals(ServerConnection("http://192.168.1.20:8080"), api.connection)
+    }
+
+    @Test
+    fun aFormCallWithoutAnswerAndWithoutTheLocalNetworkIsTheDeniedError() {
+        val vm = vm()
+        vm.start(code(JoinKind.INVITE))
+        assertIs<ConnectStep.Form>(vm.state.value.step)
+        api.authError = ApiException(ApiError.NETWORK)
+        // Revoked in the system settings meanwhile
+        localNetworkMissing = true
+        vm.fill()
+        vm.submitForm()
+
+        assertEquals(ConnectError.LOCAL_NETWORK_DENIED, vm.state.value.error)
+        val form = assertIs<ConnectStep.Form>(vm.state.value.step)
+        assertEquals(false, form.busy)
+
+        // Allowed again: the form stays for the user to send again
+        localNetworkMissing = false
+        vm.localNetworkGranted()
+        assertNull(vm.state.value.error)
+        assertIs<ConnectStep.Form>(vm.state.value.step)
     }
 }

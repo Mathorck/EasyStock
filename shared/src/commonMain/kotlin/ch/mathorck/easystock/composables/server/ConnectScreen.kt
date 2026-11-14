@@ -27,7 +27,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,6 +44,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
@@ -48,7 +52,9 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.backup.QrScanner
 import ch.mathorck.easystock.composables.settings.ResetDataDialog
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
+import ch.mathorck.easystock.server.ConnectError
 import ch.mathorck.easystock.server.ServerConnection
+import ch.mathorck.easystock.server.rememberLocalNetworkAccess
 import ch.mathorck.easystock.server.ServerInfo
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.server.ConnectStep
@@ -63,6 +69,9 @@ import easystock.shared.generated.resources.ic_qr_code_scanner
 import easystock.shared.generated.resources.ic_visibility
 import easystock.shared.generated.resources.ic_visibility_off
 import easystock.shared.generated.resources.ic_warning
+import easystock.shared.generated.resources.local_network_allow
+import easystock.shared.generated.resources.local_network_open_settings
+import easystock.shared.generated.resources.local_network_settings_hint
 import easystock.shared.generated.resources.server_cancel
 import easystock.shared.generated.resources.server_confirm_code_message
 import easystock.shared.generated.resources.server_confirm_code_title
@@ -139,6 +148,8 @@ internal class ConnectActions(
     val passwordChanged: (String) -> Unit = {},
     val submitForm: () -> Unit = {},
     val dismissError: () -> Unit = {},
+    /** After [ConnectError.LOCAL_NETWORK_DENIED]: asks again, or opens the app settings when Android won't ask any more. */
+    val allowLocalNetwork: () -> Unit = {},
 )
 
 /**
@@ -148,6 +159,35 @@ internal class ConnectActions(
 @Composable
 fun ConnectScreen(vm: ConnectViewModel, onBack: () -> Unit, onOpenBackup: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
+    // Changes after each denial and return to the app: the dialog offers the settings once Android won't ask any more
+    var localNetworkTick by remember { mutableIntStateOf(0) }
+    val localNetwork = rememberLocalNetworkAccess { granted ->
+        when {
+            vm.state.value.step is ConnectStep.LocalNetwork -> vm.localNetworkAnswered(granted)
+            granted -> vm.localNetworkGranted()
+            else -> localNetworkTick++
+        }
+    }
+    // The system dialog before the first call, once per step (not again after the activity was recreated)
+    val askingLocalNetwork = state.step is ConnectStep.LocalNetwork
+    var localNetworkAsked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(askingLocalNetwork) {
+        if (!askingLocalNetwork) {
+            localNetworkAsked = false
+        } else if (!localNetworkAsked) {
+            localNetworkAsked = true
+            localNetwork.request()
+        }
+    }
+    // Back from the app settings: allowed there, the blocked server is tried again
+    LifecycleResumeEffect(localNetwork) {
+        if (!localNetwork.isMissing()) vm.localNetworkGranted()
+        localNetworkTick++
+        onPauseOrDispose {}
+    }
+    val localNetworkSettings = remember(state.error, localNetworkTick) {
+        state.error == ConnectError.LOCAL_NETWORK_DENIED && localNetwork.mustOpenSettings()
+    }
     val actions = ConnectActions(
         startScan = vm::startScan,
         scanned = vm::scanned,
@@ -168,6 +208,7 @@ fun ConnectScreen(vm: ConnectViewModel, onBack: () -> Unit, onOpenBackup: () -> 
         passwordChanged = vm::passwordChanged,
         submitForm = vm::submitForm,
         dismissError = vm::dismissError,
+        allowLocalNetwork = { if (localNetwork.mustOpenSettings()) localNetwork.openSettings() else localNetwork.request() },
     )
     val step = state.step
     // A running erase or join call is not interrupted by back
@@ -185,6 +226,7 @@ fun ConnectScreen(vm: ConnectViewModel, onBack: () -> Unit, onOpenBackup: () -> 
         state = state,
         actions = actions,
         onBack = back,
+        localNetworkSettings = localNetworkSettings,
         // The erase dialog closes: back on the screen, the export is one tap away
         onOpenBackup = {
             vm.cancelErase()
@@ -194,7 +236,14 @@ fun ConnectScreen(vm: ConnectViewModel, onBack: () -> Unit, onOpenBackup: () -> 
 }
 
 @Composable
-internal fun ConnectContent(state: ConnectUiState, actions: ConnectActions, onBack: () -> Unit, onOpenBackup: () -> Unit) {
+internal fun ConnectContent(
+    state: ConnectUiState,
+    actions: ConnectActions,
+    onBack: () -> Unit,
+    onOpenBackup: () -> Unit,
+    /** Android won't show the local network dialog any more: the error offers the app settings. */
+    localNetworkSettings: Boolean = false,
+) {
     SettingsSubpage(title = stringResource(Res.string.server_connect_title), onBack = onBack) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -204,6 +253,8 @@ internal fun ConnectContent(state: ConnectUiState, actions: ConnectActions, onBa
                 ConnectStep.Choose -> ChooseStep(state, actions)
                 ConnectStep.Scanning -> ScanStep(actions)
                 is ConnectStep.Checking -> CheckingStep(step.target.connection, actions.cancel)
+                // The system dialog asks; behind it, the server about to be reached
+                is ConnectStep.LocalNetwork -> CheckingStep(step.target.connection, actions.cancel, running = false)
                 // The dialog below asks; behind it, the server being reached
                 is ConnectStep.HttpsFailed -> CheckingStep(step.target.connection, actions.cancel, running = false)
                 is ConnectStep.HttpWarning -> CheckingStep(step.target.connection, actions.cancel, running = false)
@@ -258,6 +309,25 @@ internal fun ConnectContent(state: ConnectUiState, actions: ConnectActions, onBa
     }
 
     state.error?.let { error ->
+        if (error == ConnectError.LOCAL_NETWORK_DENIED) {
+            AlertDialog(
+                onDismissRequest = actions.dismissError,
+                title = { Text(stringResource(Res.string.server_error_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(error.message()))
+                        if (localNetworkSettings) Text(stringResource(Res.string.local_network_settings_hint))
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = actions.allowLocalNetwork) {
+                        Text(stringResource(if (localNetworkSettings) Res.string.local_network_open_settings else Res.string.local_network_allow))
+                    }
+                },
+                dismissButton = { TextButton(onClick = actions.dismissError) { Text(stringResource(Res.string.server_cancel)) } },
+            )
+            return
+        }
         AlertDialog(
             onDismissRequest = actions.dismissError,
             title = { Text(stringResource(Res.string.server_error_title)) },

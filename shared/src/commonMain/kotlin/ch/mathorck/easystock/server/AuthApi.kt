@@ -114,6 +114,9 @@ enum class ConnectError {
     /** No answer: offline, wrong address, server down, certificate refused. */
     NETWORK,
 
+    /** No answer while Android blocks the local network for this app (Android 17+, permission not granted). */
+    LOCAL_NETWORK_DENIED,
+
     /** The address answers, but not as an EasyStock server (no `/server-info`). */
     NOT_A_SERVER,
 
@@ -186,6 +189,13 @@ fun connectErrorOf(e: ApiException): ConnectError = when (e.problemType) {
         ApiError.SERVER -> ConnectError.SERVER
     }
 }
+
+/**
+ * A call without answer while the system blocks the local network for this app ([localNetworkMissing],
+ * see [LocalNetworkAccess]): the missing permission is the likely cause, not the server.
+ */
+fun ConnectError.withLocalNetwork(localNetworkMissing: Boolean): ConnectError =
+    if (this == ConnectError.NETWORK && localNetworkMissing) ConnectError.LOCAL_NETWORK_DENIED else this
 
 /**
  * Checks the `/server-info` answer: null when the app can talk to this server, else why not.

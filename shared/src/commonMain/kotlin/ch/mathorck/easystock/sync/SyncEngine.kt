@@ -36,6 +36,12 @@ enum class SyncError {
     /** No answer: offline or server down. Retried at the next trigger. */
     NETWORK,
 
+    /**
+     * No answer while Android blocks the local network for this app (Android 17+, permission not granted).
+     * Only the user can fix it (server/LocalNetworkAccess): the screens ask for it.
+     */
+    LOCAL_NETWORK_DENIED,
+
     /** 426: the server needs a newer app. Sync is paused until the app is updated (restarted). */
     APP_TOO_OLD,
 
@@ -96,6 +102,8 @@ class SyncEngine(
     private val backupBeforeReset: suspend () -> String? = { null },
     /** Keeps the reset notice until the user dismisses it, also across a restart. */
     private val resetNotices: ResetNoticeStore = InMemoryResetNoticeStore(),
+    /** True while the system blocks the local network for this app (Android 17+): a failed call is then blamed on it. */
+    private val localNetworkMissing: () -> Boolean = { false },
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -185,7 +193,7 @@ class SyncEngine(
         } catch (e: LeftServer) {
             SyncResult.NOT_CONNECTED
         } catch (e: ApiException) {
-            val error = syncErrorOf(e)
+            val error = syncErrorOf(e, localNetworkMissing())
             if (error == SyncError.APP_TOO_OLD) pausedFor = state.serverUrl
             _status.update { it.copy(error = error, problemType = e.problemType, paused = error == SyncError.APP_TOO_OLD) }
             if (error == SyncError.APP_TOO_OLD) SyncResult.PAUSED else SyncResult.FAILED
@@ -390,8 +398,8 @@ private class LeftServer : Exception()
 internal fun isDatasetReset(e: Exception): Boolean =
     e is DatasetEpochChanged || (e is ApiException && e.problemType == ProblemTypes.DATASET_RESET)
 
-internal fun syncErrorOf(e: ApiException): SyncError = when (e.error) {
-    ApiError.NETWORK -> SyncError.NETWORK
+internal fun syncErrorOf(e: ApiException, localNetworkMissing: Boolean = false): SyncError = when (e.error) {
+    ApiError.NETWORK -> if (localNetworkMissing) SyncError.LOCAL_NETWORK_DENIED else SyncError.NETWORK
     ApiError.APP_TOO_OLD -> SyncError.APP_TOO_OLD
     ApiError.SESSION_REVOKED -> SyncError.SESSION_REVOKED
     ApiError.FORBIDDEN -> SyncError.FORBIDDEN

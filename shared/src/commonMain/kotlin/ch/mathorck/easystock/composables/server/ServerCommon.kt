@@ -37,6 +37,7 @@ import easystock.shared.generated.resources.server_error_username_taken
 import easystock.shared.generated.resources.server_error_wrong_credentials
 import easystock.shared.generated.resources.server_guest_off
 import easystock.shared.generated.resources.server_pinned
+import easystock.shared.generated.resources.server_error_local_network
 import easystock.shared.generated.resources.server_secured
 import easystock.shared.generated.resources.server_unsecured
 import org.jetbrains.compose.resources.StringResource
@@ -48,6 +49,7 @@ internal fun ServerConnection.host(): String = serverUrl.removePrefix("https://"
 
 internal fun ConnectError.message(): StringResource = when (this) {
     ConnectError.NETWORK -> Res.string.server_error_network
+    ConnectError.LOCAL_NETWORK_DENIED -> Res.string.server_error_local_network
     ConnectError.NOT_A_SERVER -> Res.string.server_error_not_a_server
     ConnectError.API_UNSUPPORTED -> Res.string.server_error_api_unsupported
     ConnectError.APP_TOO_OLD -> Res.string.server_error_app_too_old

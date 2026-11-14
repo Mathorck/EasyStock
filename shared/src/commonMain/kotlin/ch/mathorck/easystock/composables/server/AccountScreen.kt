@@ -27,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
@@ -62,6 +64,7 @@ import ch.mathorck.easystock.server.KtorAccountApi
 import ch.mathorck.easystock.server.MeAnswer
 import ch.mathorck.easystock.server.ServerConnection
 import ch.mathorck.easystock.server.WireRole
+import ch.mathorck.easystock.server.rememberLocalNetworkAccess
 import ch.mathorck.easystock.server.rememberServerClient
 import ch.mathorck.easystock.sync.SyncError
 import ch.mathorck.easystock.sync.SyncStatus
@@ -130,6 +133,10 @@ import easystock.shared.generated.resources.rejected_summary
 import easystock.shared.generated.resources.rejected_title
 import easystock.shared.generated.resources.sync_error_app_too_old
 import easystock.shared.generated.resources.sync_error_forbidden
+import easystock.shared.generated.resources.sync_error_local_network
+import easystock.shared.generated.resources.local_network_allow
+import easystock.shared.generated.resources.local_network_open_settings
+import easystock.shared.generated.resources.local_network_settings_hint
 import easystock.shared.generated.resources.sync_error_network
 import easystock.shared.generated.resources.sync_error_server
 import easystock.shared.generated.resources.sync_full_pull
@@ -153,6 +160,8 @@ internal class AccountActions(
     val confirmLogout: () -> Unit = {},
     val syncThenLogout: () -> Unit = {},
     val syncNow: () -> Unit = {},
+    /** After [SyncError.LOCAL_NETWORK_DENIED]: asks for the permission, or opens the app settings. */
+    val allowLocalNetwork: () -> Unit = {},
     val openRejected: () -> Unit = {},
     val logoutOffline: () -> Unit = {},
     val stayConnected: () -> Unit = {},
@@ -232,6 +241,16 @@ fun AccountScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val statusFlow = remember(engine) { engine?.status ?: MutableStateFlow(SyncStatus()) }
     val syncStatus by statusFlow.collectAsStateWithLifecycle()
+    // Changes after each denial and return to the app: the row offers the settings once Android won't ask any more
+    var localNetworkTick by remember { mutableIntStateOf(0) }
+    val localNetwork = rememberLocalNetworkAccess { granted -> if (granted) engine?.requestSync() else localNetworkTick++ }
+    LifecycleResumeEffect(localNetwork) {
+        localNetworkTick++
+        onPauseOrDispose {}
+    }
+    val localNetworkSettings = remember(syncStatus.error, localNetworkTick) {
+        syncStatus.error == SyncError.LOCAL_NETWORK_DENIED && localNetwork.mustOpenSettings()
+    }
     val syncDao = remember(db) { db.syncDao() }
     val rejectedFlow = remember(syncDao) { syncDao.observeRejectedChanges() }
     val rejected by rejectedFlow.collectAsStateWithLifecycle(emptyList())
@@ -249,6 +268,7 @@ fun AccountScreen(
         storedName = storedName,
         lastSyncAt = syncState.lastSyncAt,
         syncStatus = syncStatus,
+        localNetworkSettings = localNetworkSettings,
         rejected = rejected.size,
         unseenRejected = rejected.count { it.seenAt == null },
         state = state,
@@ -259,6 +279,7 @@ fun AccountScreen(
             confirmLogout = vm::confirmLogout,
             syncThenLogout = vm::syncThenLogout,
             syncNow = { engine?.requestSync() },
+            allowLocalNetwork = { if (localNetwork.mustOpenSettings()) localNetwork.openSettings() else localNetwork.request() },
             openRejected = { showRejected = true },
             logoutOffline = vm::logoutOffline,
             stayConnected = vm::stayConnected,
@@ -300,6 +321,8 @@ internal fun AccountContent(
     onBack: () -> Unit,
     actions: AccountActions,
     syncStatus: SyncStatus = SyncStatus(),
+    /** Android won't show the local network dialog any more: the sync row offers the app settings. */
+    localNetworkSettings: Boolean = false,
     rejected: Int = 0,
     unseenRejected: Int = 0,
     pushRow: @Composable () -> Unit = {},
@@ -330,7 +353,7 @@ internal fun AccountContent(
             InfoRow(stringResource(Res.string.server_account_role), role?.let { stringResource(it.label()) } ?: "")
             val shortCode = me?.shortCode
             if (role == Role.GUEST && !shortCode.isNullOrBlank()) ShortCodeCard(shortCode)
-            SyncRow(lastSyncAt, syncStatus, actions.syncNow)
+            SyncRow(lastSyncAt, syncStatus, actions.syncNow, actions.allowLocalNetwork, localNetworkSettings)
             pushRow()
             if (canChooseAlerts(role)) {
                 AlertsRow(
@@ -427,7 +450,13 @@ private fun AlertsRow(checked: Boolean, enabled: Boolean, offline: Boolean, onCh
 
 /** Last sync, the running sync (with the full pull progress) or why the last one failed, and "Sync now". */
 @Composable
-private fun SyncRow(lastSyncAt: Long?, status: SyncStatus, onSyncNow: () -> Unit) {
+private fun SyncRow(
+    lastSyncAt: Long?,
+    status: SyncStatus,
+    onSyncNow: () -> Unit,
+    onAllowLocalNetwork: () -> Unit,
+    localNetworkSettings: Boolean,
+) {
     ListItem(
         overlineContent = { Text(stringResource(Res.string.server_account_last_sync)) },
         headlineContent = {
@@ -444,6 +473,14 @@ private fun SyncRow(lastSyncAt: Long?, status: SyncStatus, onSyncNow: () -> Unit
                         val rows = status.fullPullRows
                         Text(if (rows != null) stringResource(Res.string.sync_full_pull, rows) else stringResource(Res.string.sync_running))
                         LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
+                    }
+                    // The cause and the way out: only the user can allow the local network
+                    error == SyncError.LOCAL_NETWORK_DENIED -> {
+                        Text(stringResource(Res.string.sync_error_local_network), color = MaterialTheme.colorScheme.error)
+                        if (localNetworkSettings) Text(stringResource(Res.string.local_network_settings_hint))
+                        TextButton(onClick = onAllowLocalNetwork) {
+                            Text(stringResource(if (localNetworkSettings) Res.string.local_network_open_settings else Res.string.local_network_allow))
+                        }
                     }
                     error != null && error != SyncError.SESSION_REVOKED -> Text(
                         stringResource(

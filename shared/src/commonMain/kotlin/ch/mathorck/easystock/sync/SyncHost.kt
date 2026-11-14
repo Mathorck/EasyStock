@@ -37,4 +37,5 @@ fun SyncHost(connected: Boolean) {
             .collect { engine.requestSync() }
     }
     DatasetResetDialog(engine)
+    LocalNetworkPrompt(engine)
 }

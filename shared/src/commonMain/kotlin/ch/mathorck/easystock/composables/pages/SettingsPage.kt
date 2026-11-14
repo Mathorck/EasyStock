@@ -52,6 +52,7 @@ import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.SyncState
 import ch.mathorck.easystock.reset.rememberDataReset
 import ch.mathorck.easystock.server.ServerConnection
+import ch.mathorck.easystock.server.rememberLocalNetworkAccess
 import ch.mathorck.easystock.viewmodels.server.ConnectStep
 import ch.mathorck.easystock.viewmodels.server.ConnectViewModel
 import kotlinx.coroutines.flow.map
@@ -150,6 +151,7 @@ fun SettingsPage(
     // Built without any network call: the connect screen calls only after a scan or a typed address
     val joinPlatform = rememberJoinPlatform()
     val dataReset = rememberDataReset()
+    val localNetwork = rememberLocalNetworkAccess()
     val connect = viewModel(key = "settings-connect") {
         ConnectViewModel(
             joinApi = joinPlatform.joinApi,
@@ -162,6 +164,7 @@ fun SettingsPage(
             commit = joinPlatform.join::commit,
             deviceName = joinPlatform.deviceName,
             appVersion = joinPlatform.appVersion,
+            localNetworkMissing = localNetwork::isMissing,
         )
     }
     // Joined: sync_state is written, the account screen shows; the connect screen starts afresh next time

@@ -40,7 +40,8 @@ fun backgroundOutcome(result: SyncResult, error: SyncError?): BackgroundOutcome 
     SyncResult.FAILED -> when (error) {
         SyncError.NETWORK -> BackgroundOutcome.RETRY
         SyncError.SESSION_REVOKED -> BackgroundOutcome.STOP
-        // Refused or unreadable: the next period tries again
+        // Refused or unreadable, or the local network not allowed (only the user can fix it, a retry
+        // would back off for nothing): the next period tries again
         else -> BackgroundOutcome.SUCCESS
     }
 }

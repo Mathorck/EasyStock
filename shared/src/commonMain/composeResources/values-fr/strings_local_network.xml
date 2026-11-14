@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Local network permission (Android 17+): needed to reach a server on the local network -->
+    <string name="local_network_title">Accès au réseau local</string>
+    <string name="local_network_allow">Autoriser</string>
+    <string name="local_network_open_settings">Ouvrir les paramètres</string>
+    <string name="local_network_not_now">Plus tard</string>
+    <string name="local_network_settings_hint">Android ne le demandera plus : dans les paramètres de l’app, ouvrez Autorisations et autorisez l’accès au réseau local.</string>
+    <string name="local_network_prompt_message">Ce téléphone se synchronise avec un serveur. Si le serveur est sur votre réseau local, Android a besoin de votre autorisation pour qu’EasyStock puisse le joindre, sinon la synchronisation s’arrête.</string>
+    <string name="server_error_local_network">EasyStock n’est pas autorisé à joindre les appareils du réseau local, le serveur est donc injoignable. Autorisez l’accès au réseau local, puis réessayez.</string>
+    <string name="sync_error_local_network">La dernière synchronisation a échoué : EasyStock n’est pas autorisé à joindre les appareils du réseau local. Autorisez l’accès au réseau local pour synchroniser à nouveau.</string>
+</resources>

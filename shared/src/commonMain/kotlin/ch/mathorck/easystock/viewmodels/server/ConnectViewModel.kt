@@ -20,7 +20,9 @@ import ch.mathorck.easystock.server.TokenAnswer
 import ch.mathorck.easystock.server.TypedAddress
 import ch.mathorck.easystock.server.checkServerInfo
 import ch.mathorck.easystock.server.connectErrorOf
+import ch.mathorck.easystock.server.isLocalNetworkAddress
 import ch.mathorck.easystock.server.parseTypedAddress
+import ch.mathorck.easystock.server.withLocalNetwork
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +48,12 @@ sealed interface ConnectStep {
     data object Choose : ConnectStep
 
     data object Scanning : ConnectStep
+
+    /**
+     * Before the first call: the system dialog asks for the local network permission (Android 17+), the
+     * screen answers with [ConnectViewModel.localNetworkAnswered].
+     */
+    data class LocalNetwork(val target: ConnectTarget) : ConnectStep
 
     /** Asking `/server-info`. */
     data class Checking(val target: ConnectTarget) : ConnectStep
@@ -126,6 +134,8 @@ class ConnectViewModel(
     private val commit: suspend (ServerConnection, TokenAnswer) -> Boolean,
     private val deviceName: String,
     private val appVersion: String,
+    /** True while the system blocks the local network for this app (Android 17+, see LocalNetworkAccess). */
+    private val localNetworkMissing: () -> Boolean = { false },
 ) : ViewModel() {
     private val _state = MutableStateFlow(ConnectUiState())
     val state: StateFlow<ConnectUiState> = _state.asStateFlow()
@@ -133,6 +143,12 @@ class ConnectViewModel(
     private var job: Job? = null
     private var api: JoinApi? = null
     private var apiConnection: ServerConnection? = null
+
+    /** The local network permission was asked in this attempt: once only, a second denial is final on Android 11+. */
+    private var localNetworkAsked = false
+
+    /** The server the missing local network permission blocked: tried again once the user allows it. */
+    private var deniedTarget: ConnectTarget? = null
 
     private fun go(step: ConnectStep) = _state.update { it.copy(step = step) }
 
@@ -167,6 +183,7 @@ class ConnectViewModel(
     fun cancel() {
         job?.cancel()
         closeApi()
+        newAttempt()
         _state.value = ConnectUiState(address = _state.value.address)
     }
 
@@ -185,6 +202,7 @@ class ConnectViewModel(
 
     /** The address field: a typed address (login) or a pasted join link. */
     fun submitAddress() {
+        newAttempt()
         when (val typed = parseTypedAddress(_state.value.address)) {
             TypedAddress.Invalid -> _state.update { it.copy(addressInvalid = true) }
             is TypedAddress.Code -> start(typed.code)
@@ -194,6 +212,7 @@ class ConnectViewModel(
 
     /** A join code, scanned here or in the backup screen. */
     fun start(code: JoinCode) {
+        newAttempt()
         _state.update { ConnectUiState(address = it.address) }
         open(ConnectTarget(ServerConnection(code.serverUrl, code.fingerprint), code))
     }
@@ -203,6 +222,7 @@ class ConnectViewModel(
      * [confirmCode] (HTTP codes wait in the HTTP warning) before any call.
      */
     fun offer(code: JoinCode) {
+        newAttempt()
         _state.update { ConnectUiState(address = it.address) }
         val target = ConnectTarget(ServerConnection(code.serverUrl, code.fingerprint), code)
         go(if (target.connection.isHttps) ConnectStep.ConfirmCode(target) else ConnectStep.HttpWarning(target))
@@ -232,9 +252,55 @@ class ConnectViewModel(
         check(step.target)
     }
 
+    private fun newAttempt() {
+        localNetworkAsked = false
+        deniedTarget = null
+    }
+
+    // ---------- Local network permission (Android 17+) ----------
+
+    /** The answer of the system dialog of [ConnectStep.LocalNetwork]. */
+    fun localNetworkAnswered(granted: Boolean) {
+        val step = _state.value.step as? ConnectStep.LocalNetwork ?: return
+        // A private address can't answer without it: no need to wait for the connect timeout.
+        // Anything else is tried (a public server needs no permission).
+        if (!granted && isLocalNetworkAddress(step.target.connection.serverUrl)) {
+            localNetworkDenied(step.target)
+        } else {
+            callServerInfo(step.target)
+        }
+    }
+
+    private fun localNetworkDenied(target: ConnectTarget) {
+        deniedTarget = target
+        fail(ConnectError.LOCAL_NETWORK_DENIED)
+    }
+
+    /**
+     * The user allowed the local network after [ConnectError.LOCAL_NETWORK_DENIED] (from the error dialog or
+     * the app settings): the blocked server is tried again; a form stays for the user to send again.
+     */
+    fun localNetworkGranted() {
+        if (_state.value.error != ConnectError.LOCAL_NETWORK_DENIED || localNetworkMissing()) return
+        val target = deniedTarget
+        deniedTarget = null
+        dismissError()
+        if (target != null && _state.value.step == ConnectStep.Choose) check(target)
+    }
+
     // ---------- Server info and empty phone ----------
 
+    /** Every way to a server goes through here: the local network permission is asked before the first call. */
     private fun check(target: ConnectTarget) {
+        if (!localNetworkAsked && localNetworkMissing()) {
+            localNetworkAsked = true
+            go(ConnectStep.LocalNetwork(target))
+            return
+        }
+        callServerInfo(target)
+    }
+
+    private fun callServerInfo(target: ConnectTarget) {
         go(ConnectStep.Checking(target))
         launch {
             val info = try {
@@ -244,6 +310,8 @@ class ConnectViewModel(
             } catch (e: ApiException) {
                 val fallback = target.httpFallback
                 when {
+                    // Before the HTTP fallback: plain HTTP would be blocked the same way
+                    e.error == ApiError.NETWORK && localNetworkMissing() -> localNetworkDenied(target)
                     e.error == ApiError.NETWORK && fallback != null -> go(ConnectStep.HttpsFailed(target, fallback))
                     e.error == ApiError.NETWORK -> fail(ConnectError.NETWORK)
                     // An answer, but no /server-info: not an EasyStock server
@@ -251,7 +319,7 @@ class ConnectViewModel(
                 }
                 return@launch
             } catch (e: Exception) {
-                fail(ConnectError.NETWORK)
+                if (localNetworkMissing()) localNetworkDenied(target) else fail(ConnectError.NETWORK)
                 return@launch
             }
             val problem = checkServerInfo(info, appVersion) ?: when {
@@ -363,12 +431,12 @@ class ConnectViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
-                val error = connectErrorOf(e)
+                val error = connectErrorOf(e).withLocalNetwork(localNetworkMissing())
                 // The code can't be used: back to the start. Otherwise the form stays to fix it.
                 fail(error, if (error in CODE_FATAL) ConnectStep.Choose else step)
                 return@launch
             } catch (e: Exception) {
-                fail(ConnectError.NETWORK, step)
+                fail(ConnectError.NETWORK.withLocalNetwork(localNetworkMissing()), step)
                 return@launch
             }
             val joined = try {

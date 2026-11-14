@@ -191,6 +191,7 @@ class SyncEngineTest {
         onDatasetReset: () -> Unit = {},
         backupBeforeReset: suspend () -> String? = { null },
         notices: ResetNoticeStore = InMemoryResetNoticeStore(),
+        localNetworkMissing: () -> Boolean = { false },
         handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData,
     ): SyncEngine {
         session.accessToken = "access-1"
@@ -205,7 +206,7 @@ class SyncEngineTest {
         val remote = SyncRemote(KtorSyncApi(client), KtorAccountApi(client))
         return SyncEngine(store, { remote }, backgroundScope, clock, newBatchId = { "batch-${++batchIds}" },
             afterPull = afterPull, onDatasetReset = onDatasetReset, epochs = epochs,
-            backupBeforeReset = backupBeforeReset, resetNotices = notices)
+            backupBeforeReset = backupBeforeReset, resetNotices = notices, localNetworkMissing = localNetworkMissing)
     }
 
     private fun MockRequestHandleScope.ok(body: String) = respond(body, HttpStatusCode.OK, json)
@@ -263,6 +264,24 @@ class SyncEngineTest {
         assertNull(store.pending)
         assertEquals(1_000, store.state!!.lastSyncAt)
         assertEquals("Ann", store.users["u1"])
+    }
+
+    @Test
+    fun noAnswerWithoutTheLocalNetworkShowsTheCauseUntilItIsAllowed() = runTest {
+        val store = FakeSyncStore(state())
+        var missing = true
+        var blocked = true
+        val engine = engine(store, localNetworkMissing = { missing }) { request ->
+            if (blocked) throw IOException("connect timed out")
+            defaults(request)
+        }
+        assertEquals(SyncResult.FAILED, engine.sync())
+        assertEquals(SyncError.LOCAL_NETWORK_DENIED, engine.status.value.error)
+
+        missing = false
+        blocked = false
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertNull(engine.status.value.error)
     }
 
     @Test

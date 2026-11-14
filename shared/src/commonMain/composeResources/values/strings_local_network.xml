@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Local network permission (Android 17+): needed to reach a server on the local network -->
+    <string name="local_network_title">Local network access</string>
+    <string name="local_network_allow">Allow</string>
+    <string name="local_network_open_settings">Open settings</string>
+    <string name="local_network_not_now">Not now</string>
+    <string name="local_network_settings_hint">Android won’t ask again: in the app settings, open Permissions and allow local network access.</string>
+    <string name="local_network_prompt_message">This phone syncs with a server. If the server is on your local network, Android needs your permission for EasyStock to reach it, otherwise sync stops.</string>
+    <string name="server_error_local_network">EasyStock is not allowed to reach devices on the local network, so the server can’t be reached. Allow local network access, then try again.</string>
+    <string name="sync_error_local_network">The last sync failed: EasyStock is not allowed to reach devices on the local network. Allow local network access to sync again.</string>
+</resources>

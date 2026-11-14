@@ -4,6 +4,9 @@
 
     <!-- Backup transfer over the local Wi-Fi network only (sockets to local addresses, see backup/LanTransfer.kt) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 17+: reaching a server on the local network (192.168.x, 10.x...). Asked at runtime, only before
+         connecting to a server or when a connected phone can't reach its server (server/LocalNetworkAccess.kt) -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <!-- Finds the Wi-Fi address of this phone for the transfer -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Scans the backup QR code. Asked at runtime, only on the backup screen and before taking a photo -->

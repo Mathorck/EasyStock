@@ -13,6 +13,7 @@ import ch.mathorck.easystock.images.isValidImagePath
 import ch.mathorck.easystock.server.KtorAccountApi
 import ch.mathorck.easystock.server.ServerConnection
 import ch.mathorck.easystock.server.serverClientFor
+import ch.mathorck.easystock.server.isLocalNetworkAccessMissing
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +92,7 @@ fun syncEngine(context: Context): SyncEngine = engine ?: synchronized(SyncEngine
             epochs = AndroidDatasetEpochStore(app),
             backupBeforeReset = AndroidAutoBackups(autoBackupDir(app), backupService(app))::create,
             resetNotices = AndroidResetNoticeStore(app),
+            localNetworkMissing = { isLocalNetworkAccessMissing(app) },
         ).also { engine = it }
     }
 }

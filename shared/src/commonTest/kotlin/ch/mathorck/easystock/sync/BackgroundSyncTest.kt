@@ -29,5 +29,7 @@ class BackgroundSyncTest {
         assertEquals(BackgroundOutcome.STOP, backgroundOutcome(SyncResult.FAILED, SyncError.SESSION_REVOKED))
         assertEquals(BackgroundOutcome.SUCCESS, backgroundOutcome(SyncResult.FAILED, SyncError.SERVER))
         assertEquals(BackgroundOutcome.SUCCESS, backgroundOutcome(SyncResult.FAILED, SyncError.FORBIDDEN))
+        // Only the user can allow the local network: no retry backoff for nothing
+        assertEquals(BackgroundOutcome.SUCCESS, backgroundOutcome(SyncResult.FAILED, SyncError.LOCAL_NETWORK_DENIED))
     }
 }
