@@ -14,6 +14,7 @@ import ch.mathorck.easystock.composables.attributes.MeasureUnits
 import ch.mathorck.easystock.composables.attributes.MeasureValue
 import ch.mathorck.easystock.composables.attributes.readMeasure
 import ch.mathorck.easystock.data.model.AttributeDataType
+import ch.mathorck.easystock.data.model.Tracking
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlin.test.Test
@@ -366,6 +367,118 @@ class BackupMergeTest {
 
         assertEquals(first, second)
         assertEquals(mapOf("c3" to "a (2)", "c4" to "A (3)", "c5" to "B (2)"), first.inserts.categories.associate { it.id to it.name })
+    }
+
+    @Test
+    fun skusSwappedByNewerRowsAreKeptWithoutSuffix() {
+        val local = BackupData(articles = listOf(article("a1", sku = "X"), article("a2", sku = "Y")))
+        val incoming = BackupData(articles = listOf(article("a1", sku = "Y", at = 20), article("a2", sku = "X", at = 20)))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertEquals(mapOf("a1" to "Y", "a2" to "X"), plan.result.articles.associate { it.id to it.sku })
+        assertEquals(2, plan.updates.articles.size)
+    }
+
+    @Test
+    fun categoryNamesSwappedByNewerRowsAreKeptWithoutSuffix() {
+        val local = BackupData(categories = listOf(category("c1", "Tools"), category("c2", "Parts")))
+        val incoming = BackupData(categories = listOf(category("c1", "Parts", at = 20), category("c2", "Tools", at = 20)))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertEquals(mapOf("c1" to "Parts", "c2" to "Tools"), plan.result.categories.associate { it.id to it.name })
+    }
+
+    @Test
+    fun serialsSwappedByNewerRowsAreKeptWithoutSuffix() {
+        val base = BackupData(articles = listOf(article("a", tracking = Tracking.SERIAL)))
+        val local = base.copy(items = listOf(item("i1", "a", serial = "S1"), item("i2", "a", serial = "S2")))
+        val incoming = BackupData(items = listOf(item("i1", "a", serial = "S2", at = 20), item("i2", "a", serial = "S1", at = 20)))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertEquals(mapOf("i1" to "S2", "i2" to "S1"), plan.result.items.associate { it.id to it.serialNumber })
+    }
+
+    @Test
+    fun aValueFreedByANewerRowIsTakenByALowerId() {
+        // a1 takes the SKU a2 moves away from, although a2 is processed after it
+        val local = BackupData(articles = listOf(article("a1", sku = "A"), article("a2", sku = "B")))
+        val incoming = BackupData(articles = listOf(article("a1", sku = "B", at = 20), article("a2", sku = "C", at = 20)))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertEquals(listOf("B", "C"), plan.result.articles.sortedBy { it.id }.map { it.sku })
+    }
+
+    @Test
+    fun categoryAttributePairsSwappedByNewerLinksAreBothKept() {
+        val local = BackupData(
+            categories = listOf(category("c1"), category("c2")),
+            attributeDefinitions = listOf(attribute("a1")),
+            categoryAttributes = listOf(link("l1", "c1", "a1"), link("l2", "c2", "a1")),
+        )
+        val incoming = BackupData(categoryAttributes = listOf(link("l1", "c2", "a1", at = 20), link("l2", "c1", "a1", at = 20)))
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertEquals(mapOf("l1" to "c2", "l2" to "c1"), plan.result.categoryAttributes.associate { it.id to it.categoryId })
+    }
+
+    @Test
+    fun aSkippedLinkKeepsItsLocalPairEvenWhenAnotherLinkWantedIt() {
+        // l2 moves to c3's pair, held by l3: skipped, it keeps c2's pair, so l1 can't move there either and keeps c1's
+        val local = BackupData(
+            categories = listOf(category("c1"), category("c2"), category("c3")),
+            attributeDefinitions = listOf(attribute("a1")),
+            categoryAttributes = listOf(link("l1", "c1", "a1"), link("l2", "c2", "a1"), link("l3", "c3", "a1")),
+        )
+        val incoming = BackupData(categoryAttributes = listOf(link("l1", "c2", "a1", at = 20), link("l2", "c3", "a1", at = 20)))
+
+        val plan = planMerge(local, incoming)
+
+        assertEquals(listOf("l1", "l2"), plan.conflicts.map { it.rowId }.sorted())
+        assertTrue(plan.conflicts.all { it.type == ConflictType.CATEGORY_ATTRIBUTE_SKIPPED })
+        assertEquals(local.categoryAttributes, plan.result.categoryAttributes.sortedBy { it.id })
+        assertTrue(plan.isEmpty)
+    }
+
+    @Test
+    fun namesDifferingOnlyInCaseClash() {
+        val local = BackupData(categories = listOf(category("c1", "Milk")))
+        val incoming = BackupData(categories = listOf(category("c2", "milk")))
+
+        val plan = planMerge(local, incoming)
+
+        assertEquals(MergeConflict(ConflictType.CATEGORY_RENAMED, BackupTable.CATEGORY, "c2", "milk", "milk (2)"), plan.conflicts.single())
+    }
+
+    @Test
+    fun localCaseVariantsBothHoldTheirValue() {
+        // The database allows "Milk" and "milk": when one moves away, the other still holds the name
+        val local = BackupData(categories = listOf(category("c1", "Milk"), category("c2", "milk")))
+        val incoming = BackupData(categories = listOf(category("c2", "Dairy", at = 20), category("c3", "MILK")))
+
+        val plan = planMerge(local, incoming)
+
+        assertEquals("MILK (2)", plan.result.categories.single { it.id == "c3" }.name)
+        assertEquals(listOf(ConflictType.CATEGORY_RENAMED), conflictTypes(plan))
+    }
+
+    @Test
+    fun suffixesContinueAfterTheTakenOnes() {
+        val local = BackupData(categories = listOf(category("c1", "Tools"), category("c2", "Tools (2)"), category("c3", "Tools (4)")))
+        val incoming = BackupData(categories = listOf(category("c4", "Tools"), category("c5", "Tools"), category("c6", "tools")))
+
+        val plan = planMerge(local, incoming)
+
+        assertEquals(listOf("Tools (3)", "Tools (5)", "tools (6)"), plan.inserts.categories.sortedBy { it.id }.map { it.name })
     }
 
     // ---------- Locations ----------

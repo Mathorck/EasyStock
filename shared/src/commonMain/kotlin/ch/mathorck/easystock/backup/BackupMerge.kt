@@ -78,7 +78,8 @@ data class MergePlan(
  * - a row on one side only is added;
  * - a row on both sides: the newer `updated_at` wins (a soft delete is an update), the local one on a tie;
  * - `stock_movement` is append-only: missing ids are added, existing ones never changed;
- * - unique columns are resolved deterministically (rows sorted by id) and reported in [MergePlan.conflicts];
+ * - unique columns are resolved deterministically (values of replaced local rows released first, then rows
+ *   sorted by id) and reported in [MergePlan.conflicts];
  * - `item.location_id` is recomputed from the merged movements;
  * - stock reviews and their lines merge like the other rows (newer wins). A finished review never adds
  *   movements here: its corrections are movements already, merged with the others.
@@ -107,19 +108,58 @@ private class Merger(private val local: BackupData, private val incoming: Backup
         }
     }
 
-    /** Owner id of each value of a unique column, in the merged state. */
+    /**
+     * Owner ids of each value of a unique column, in the merged state. Values are compared after [normalize] (names,
+     * SKUs and serial numbers are unique ignoring case, like the forms and the server push). Several owners per value:
+     * rows that differ only in case can already exist (the database indexes are case-sensitive).
+     */
     private class UniqueIndex<T>(rows: Collection<T>, private val id: (T) -> String, private val value: (T) -> String?, private val normalize: (String) -> String) {
-        private val owners = HashMap<String, String>().apply { rows.forEach { row -> value(row)?.let { put(normalize(it), id(row)) } } }
+        private val owners = HashMap<String, MutableSet<String>>()
+        private val nextSuffix = HashMap<String, Int>()
 
-        /** Owner of [candidate] other than [selfId], or null when free. */
-        fun takenBy(candidate: String, selfId: String): String? = owners[normalize(candidate)]?.takeIf { it != selfId }
+        init {
+            rows.forEach(::claim)
+        }
+
+        /** Owner of [candidate] other than [selfId] (lowest id when several), or null when free. */
+        fun takenBy(candidate: String, selfId: String): String? = owners[normalize(candidate)]?.filter { it != selfId }?.minOrNull()
 
         fun isFree(candidate: String, selfId: String): Boolean = takenBy(candidate, selfId) == null
 
-        /** Moves [selfId] from its previous value to the new one. */
+        fun claim(row: T) {
+            value(row)?.let { owners.getOrPut(normalize(it)) { HashSet() }.add(id(row)) }
+        }
+
+        fun release(row: T) {
+            val key = value(row)?.let(normalize) ?: return
+            val ids = owners[key] ?: return
+            ids.remove(id(row))
+            if (ids.isEmpty()) owners.remove(key)
+        }
+
+        /** Moves the row from its previous value to the new one. */
         fun replace(previous: T?, next: T) {
-            previous?.let(value)?.let { if (owners[normalize(it)] == id(next)) owners.remove(normalize(it)) }
-            value(next)?.let { owners[normalize(it)] = id(next) }
+            previous?.let(::release)
+            claim(next)
+        }
+
+        /**
+         * "value (2)", "value (3)"... the first free one, cut to [maxLength]. The next suffix to try is remembered per
+         * value: once replaced rows are released up front, claiming only takes values, never frees one, so a suffix
+         * found taken stays taken.
+         */
+        fun suffixed(value: String, selfId: String, maxLength: Int): String {
+            val key = normalize(value)
+            var n = nextSuffix[key] ?: 2
+            while (true) {
+                val suffix = " ($n)"
+                val candidate = value.take(maxLength - suffix.length).trimEnd() + suffix
+                if (isFree(candidate, selfId)) {
+                    nextSuffix[key] = n + 1
+                    return candidate
+                }
+                n++
+            }
         }
     }
 
@@ -154,14 +194,14 @@ private class Merger(private val local: BackupData, private val incoming: Backup
         return true
     }
 
-    /** "value (2)", "value (3)"... the first free one, cut to [maxLength]. */
-    private fun suffixed(value: String, selfId: String, maxLength: Int, index: UniqueIndex<*>): String {
-        var n = 2
-        while (true) {
-            val suffix = " ($n)"
-            val candidate = value.take(maxLength - suffix.length).trimEnd() + suffix
-            if (index.isFree(candidate, selfId)) return candidate
-            n++
+    /**
+     * Releases the unique values of local rows that a newer incoming row replaces, before any is claimed (like
+     * [tagOwners]): rows swapping values ("A: X, B: Y" to "A: Y, B: X") don't collide.
+     */
+    private fun <T> releaseReplaced(incomingRows: List<T>, table: Table<T>, index: UniqueIndex<T>, updatedAt: (T) -> Long) {
+        for (row in incomingRows) {
+            val previous = table.local[table.id(row)] ?: continue
+            if (newer(row, previous, updatedAt)) index.release(previous)
         }
     }
 
@@ -251,12 +291,13 @@ private class Merger(private val local: BackupData, private val incoming: Backup
     private fun mergeCategories(): Table<Category> {
         val table = Table(local.categories) { it.id }
         val names = UniqueIndex(table.final.values, { it.id }, { it.name }, String::lowercase)
+        releaseReplaced(incoming.categories, table, names, Category::updatedAt)
         for (row in ordered(incoming.categories, table)) {
             val previous = table.final[row.id]
             if (!newer(row, previous, Category::updatedAt)) continue
             var candidate = row
             if (!names.isFree(row.name, row.id)) {
-                candidate = row.copy(name = suffixed(row.name, row.id, MAX_CATEGORY_NAME_LENGTH, names))
+                candidate = row.copy(name = names.suffixed(row.name, row.id, MAX_CATEGORY_NAME_LENGTH))
                 conflicts += MergeConflict(ConflictType.CATEGORY_RENAMED, BackupTable.CATEGORY, row.id, row.name, candidate.name)
             }
             names.replace(previous, candidate)
@@ -286,7 +327,7 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             }
             val owner = keys.takenBy(row.key, row.id)
             if (owner == null) {
-                keys.replace(null, row)
+                keys.claim(row)
                 table.insert(row)
                 continue
             }
@@ -318,22 +359,43 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             winner
         }
 
+    /**
+     * A link whose new pair is taken is skipped and keeps its local pair. Pairs of replaced links are released up
+     * front (swaps don't collide); when a skipped link's local pair was meanwhile taken by another, the merge is
+     * redone with that link's pair held from the start.
+     */
     private fun mergeCategoryAttributes(attributeIds: Map<String, String>): Table<CategoryAttribute> {
-        val table = Table(local.categoryAttributes) { it.id }
         fun pair(row: CategoryAttribute) = "${row.categoryId}/${row.attributeId}"
-        val pairs = UniqueIndex(table.final.values, { it.id }, ::pair) { it }
         val rows = incoming.categoryAttributes.map { row -> attributeIds[row.attributeId]?.let { row.copy(attributeId = it) } ?: row }
-        for (row in ordered(rows, table)) {
-            val previous = table.final[row.id]
-            if (!newer(row, previous, CategoryAttribute::updatedAt)) continue
-            if (!pairs.isFree(pair(row), row.id)) {
-                conflicts += MergeConflict(ConflictType.CATEGORY_ATTRIBUTE_SKIPPED, BackupTable.CATEGORY_ATTRIBUTE, row.id)
-                continue
+        val held = HashSet<String>()
+        while (true) {
+            val table = Table(local.categoryAttributes) { it.id }
+            val pairs = UniqueIndex(table.final.values, { it.id }, ::pair) { it }
+            releaseReplaced(rows.filter { it.id !in held }, table, pairs, CategoryAttribute::updatedAt)
+            val skipped = ArrayList<MergeConflict>()
+            var redo = false
+            for (row in ordered(rows, table)) {
+                val previous = table.final[row.id]
+                if (!newer(row, previous, CategoryAttribute::updatedAt)) continue
+                if (!pairs.isFree(pair(row), row.id)) {
+                    skipped += MergeConflict(ConflictType.CATEGORY_ATTRIBUTE_SKIPPED, BackupTable.CATEGORY_ATTRIBUTE, row.id)
+                    if (previous != null && row.id !in held) {
+                        if (!pairs.isFree(pair(previous), row.id)) {
+                            held += row.id
+                            redo = true
+                            break
+                        }
+                        pairs.claim(previous)
+                    }
+                    continue
+                }
+                pairs.replace(previous, row)
+                if (previous == null) table.insert(row) else table.update(row)
             }
-            pairs.replace(previous, row)
-            if (previous == null) table.insert(row) else table.update(row)
+            if (redo) continue
+            conflicts += skipped
+            return table
         }
-        return table
     }
 
     private fun mergeLocations(): Table<Location> {
@@ -367,13 +429,14 @@ private class Merger(private val local: BackupData, private val incoming: Backup
     private fun mergeArticles(): Table<Article> {
         val table = Table(local.articles) { it.id }
         val skus = UniqueIndex(table.final.values, { it.id }, { it.sku }, String::lowercase)
+        releaseReplaced(incoming.articles, table, skus, Article::updatedAt)
         for (row in ordered(incoming.articles, table)) {
             val previous = table.final[row.id]
             if (!newer(row, previous, Article::updatedAt)) continue
             var candidate = row
             row.sku?.let { sku ->
                 if (!skus.isFree(sku, row.id)) {
-                    candidate = candidate.copy(sku = suffixed(sku, row.id, MAX_SKU_LENGTH, skus))
+                    candidate = candidate.copy(sku = skus.suffixed(sku, row.id, MAX_SKU_LENGTH))
                     conflicts += MergeConflict(ConflictType.SKU_RENAMED, BackupTable.ARTICLE, row.id, sku, candidate.sku)
                 }
             }
@@ -392,13 +455,14 @@ private class Merger(private val local: BackupData, private val incoming: Backup
     private fun mergeItems(): Table<Item> {
         val table = Table(local.items) { it.id }
         val serials = UniqueIndex(table.final.values, { it.id }, { it.serialNumber }, String::lowercase)
+        releaseReplaced(incoming.items, table, serials, Item::updatedAt)
         for (row in ordered(incoming.items, table)) {
             val previous = table.final[row.id]
             if (!newer(row, previous, Item::updatedAt)) continue
             var candidate = row
             row.serialNumber?.let { serial ->
                 if (!serials.isFree(serial, row.id)) {
-                    candidate = row.copy(serialNumber = suffixed(serial, row.id, MAX_SERIAL_LENGTH, serials))
+                    candidate = row.copy(serialNumber = serials.suffixed(serial, row.id, MAX_SERIAL_LENGTH))
                     conflicts += MergeConflict(ConflictType.SERIAL_RENAMED, BackupTable.ITEM, row.id, serial, candidate.serialNumber)
                 }
             }
