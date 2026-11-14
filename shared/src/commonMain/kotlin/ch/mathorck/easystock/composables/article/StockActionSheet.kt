@@ -48,6 +48,7 @@ import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.viewmodels.LocationChoice
+import ch.mathorck.easystock.viewmodels.SerialIndex
 import ch.mathorck.easystock.viewmodels.StockActionContext
 import ch.mathorck.easystock.viewmodels.StockActionError
 import ch.mathorck.easystock.viewmodels.StockActionForm
@@ -401,7 +402,7 @@ private val previewLocations = listOf(
 @Composable
 private fun StockActionMovePreview() {
     val form = StockActionForm(kind = StockActionKind.MOVE, sourceLocationId = "l2", quantity = "50", targetLocationId = "l3")
-    val context = StockActionContext(mapOf("l2" to 40_000L), setOf("l1", "l2", "l3"), emptyList(), emptyList())
+    val context = StockActionContext(mapOf("l2" to 40_000L), setOf("l1", "l2", "l3"), SerialIndex.EMPTY, emptyList())
     EasyStockTheme {
         Surface {
             StockActionContent(
@@ -431,7 +432,7 @@ private fun StockActionRemovePreview() {
             StockActionContent(
                 state = StockActionUiState(
                     form = form,
-                    errors = form.validate(StockActionContext(mapOf("l3" to 2_500L), setOf("l3"), emptyList(), emptyList())),
+                    errors = form.validate(StockActionContext(mapOf("l3" to 2_500L), setOf("l3"), SerialIndex.EMPTY, emptyList())),
                     locations = previewLocations.toLocationTree(),
                     sourcePath = "Van",
                     availableMilli = 2_500,

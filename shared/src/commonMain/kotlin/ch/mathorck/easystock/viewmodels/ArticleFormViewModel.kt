@@ -130,6 +130,19 @@ data class ArticleFormErrors(
 }
 
 /**
+ * SKUs of all articles (soft-deleted ones included) indexed ignoring case, built once per database change
+ * so the check on every keystroke is a lookup.
+ */
+class SkuIndex(owners: List<SkuOwner>) {
+    private val ids: Map<String, List<String>> = owners
+        .mapNotNull { owner -> owner.sku?.let { it.foldCase() to owner.id } }
+        .groupBy({ it.first }, { it.second })
+
+    /** True when an article other than [selfId] has [sku], ignoring case. */
+    fun isTaken(sku: String, selfId: String?): Boolean = ids[sku.foldCase()]?.any { it != selfId } == true
+}
+
+/**
  * Checks the form, for a new article ([selfId] null) or an existing one.
  * [currentCategoryId]: stored category of the edited article, it stays valid even if soft-deleted meanwhile.
  * [skus]: SKUs of all articles, soft-deleted ones included. [categories]: active categories.
@@ -138,7 +151,7 @@ data class ArticleFormErrors(
 fun ArticleForm.validate(
     selfId: String?,
     currentCategoryId: String?,
-    skus: List<SkuOwner>,
+    skus: SkuIndex,
     categories: List<Category>,
     rejectedSku: String? = null,
     rejectedCategoryName: String? = null,
@@ -150,7 +163,7 @@ fun ArticleForm.validate(
         sku = when {
             skuValue.isEmpty() -> null
             skuValue.length > MAX_SKU_LENGTH -> FieldError.TOO_LONG
-            skus.any { it.id != selfId && it.sku.equals(skuValue, ignoreCase = true) } -> FieldError.DUPLICATE
+            skus.isTaken(skuValue, selfId) -> FieldError.DUPLICATE
             rejectedSku != null && rejectedSku.equals(skuValue, ignoreCase = true) -> FieldError.DUPLICATE
             else -> null
         },
@@ -178,7 +191,7 @@ fun ArticleForm.validate(
 /** Checks the edit form of [article]. */
 fun ArticleForm.validate(
     article: Article,
-    skus: List<SkuOwner>,
+    skus: SkuIndex,
     categories: List<Category>,
     rejectedSku: String? = null,
     rejectedCategoryName: String? = null,
@@ -386,7 +399,7 @@ class NewArticleViewModel(
     val state: StateFlow<ArticleFormUiState?> = combine(
         form,
         categoryDao.observeAll(),
-        dao.observeSkus(),
+        dao.observeSkus().map(::SkuIndex),
         status,
         formAttributes(form, attributeDao),
     ) { form, categories, skus, status, attributes ->

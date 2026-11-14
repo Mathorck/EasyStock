@@ -54,6 +54,7 @@ import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.ArticleForm
 import ch.mathorck.easystock.viewmodels.ArticleFormMode
 import ch.mathorck.easystock.viewmodels.ArticleFormUiState
+import ch.mathorck.easystock.viewmodels.SkuIndex
 import ch.mathorck.easystock.viewmodels.CategoryMode
 import ch.mathorck.easystock.viewmodels.FieldError
 import ch.mathorck.easystock.viewmodels.toForm
@@ -493,9 +494,9 @@ private fun previewState(mode: ArticleFormMode, form: ArticleForm) = ArticleForm
     categories = previewCategories,
     currentCategoryName = if (mode == ArticleFormMode.EDIT) "Hardware" else null,
     errors = if (mode == ArticleFormMode.EDIT) {
-        form.validate(previewArticle, emptyList(), previewCategories, rejectedSku = "TAKEN")
+        form.validate(previewArticle, SkuIndex(emptyList()), previewCategories, rejectedSku = "TAKEN")
     } else {
-        form.validate(null, null, emptyList(), previewCategories)
+        form.validate(null, null, SkuIndex(emptyList()), previewCategories)
     },
 )
 

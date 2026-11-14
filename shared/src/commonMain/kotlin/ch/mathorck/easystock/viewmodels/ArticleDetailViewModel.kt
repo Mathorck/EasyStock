@@ -314,7 +314,7 @@ class ArticleDetailViewModel(
         combine(form, formAttributes(form, attributeDao)) { form, attributes -> form to attributes },
         state,
         categoryDao.observeAll(),
-        dao.observeSkus(),
+        dao.observeSkus().map(::SkuIndex),
         status,
     ) { (form, attributes), detail, categories, skus, status ->
         val article = detail.article

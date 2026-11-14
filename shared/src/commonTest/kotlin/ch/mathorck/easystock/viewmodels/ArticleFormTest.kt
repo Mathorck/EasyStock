@@ -28,7 +28,7 @@ class ArticleFormTest {
         Category(id = "c1", name = "Hardware", createdAt = 0, updatedAt = 0),
         Category(id = "c2", name = "Tools", createdAt = 0, updatedAt = 0),
     )
-    private val skus = listOf(SkuOwner("a1", "BLT-8"), SkuOwner("a2", "CT-200"), SkuOwner("deleted", "OLD-1"))
+    private val skus = SkuIndex(listOf(SkuOwner("a1", "BLT-8"), SkuOwner("a2", "CT-200"), SkuOwner("deleted", "OLD-1")))
 
     private fun ArticleForm.errors(rejectedSku: String? = null, rejectedCategoryName: String? = null) =
         validate(article, skus, categories, rejectedSku, rejectedCategoryName)

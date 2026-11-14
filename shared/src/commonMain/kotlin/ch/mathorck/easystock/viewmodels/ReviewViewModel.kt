@@ -374,7 +374,7 @@ class ReviewViewModel(
         val context = StockActionContext(
             stockByLocation = emptyMap(),
             activeLocationIds = setOf(draft.locationId),
-            serials = draft.serials + pendingSerials,
+            serials = SerialIndex(draft.serials + pendingSerials),
             items = emptyList(),
             itemAttributes = draft.itemAttributes,
         )

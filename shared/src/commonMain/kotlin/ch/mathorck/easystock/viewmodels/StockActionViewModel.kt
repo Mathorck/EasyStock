@@ -124,13 +124,40 @@ fun validateQuantity(text: String, availableMilli: Long?): StockActionError? {
     }
 }
 
-/** Optional serial number: max length, unique ignoring case among [existing] (deleted items included). */
-fun validateSerial(text: String, existing: List<String>): StockActionError? {
+/**
+ * Serial numbers indexed ignoring case, built once per database change so a check per keystroke is a lookup.
+ * Duplicates are counted (a unit keeping its own serial removes one).
+ */
+class SerialIndex(serials: Collection<String>) {
+    private val counts: Map<String, Int> = serials.groupingBy { it.foldCase() }.eachCount()
+
+    /** True when [value] is taken (ignoring case), [ownSerial] (the edited unit's stored serial) counted once less. */
+    fun isTaken(value: String, ownSerial: String? = null): Boolean {
+        val key = value.foldCase()
+        val own = if (ownSerial != null && ownSerial.foldCase() == key) 1 else 0
+        return (counts[key] ?: 0) - own > 0
+    }
+
+    companion object {
+        val EMPTY = SerialIndex(emptyList())
+    }
+}
+
+/** Case folding with the same result as `equals(ignoreCase = true)`: equal when the folded strings are equal. */
+internal fun String.foldCase(): String = buildString(length) {
+    for (c in this@foldCase) append(c.uppercaseChar().lowercaseChar())
+}
+
+/**
+ * Optional serial number: max length, unique ignoring case among [existing] (deleted items included).
+ * [ownSerial]: the stored serial of the edited unit, it may keep it. [rejected]: refused by the database.
+ */
+fun validateSerial(text: String, existing: SerialIndex, ownSerial: String? = null, rejected: String? = null): StockActionError? {
     val value = text.trim()
     return when {
         value.isEmpty() -> null
         value.length > MAX_SERIAL_LENGTH -> StockActionError.TOO_LONG
-        existing.any { it.equals(value, ignoreCase = true) } -> StockActionError.DUPLICATE_SERIAL
+        existing.isTaken(value, ownSerial) || rejected?.equals(value, ignoreCase = true) == true -> StockActionError.DUPLICATE_SERIAL
         else -> null
     }
 }
@@ -164,7 +191,7 @@ data class StockActionContext(
     val stockByLocation: Map<String, Long>,
     val activeLocationIds: Set<String>,
     /** All serial numbers, deleted items included. */
-    val serials: List<String>,
+    val serials: SerialIndex,
     val items: List<Item>,
     /** Attributes of the article category, for the unit attribute values. */
     val itemAttributes: List<CategoryAttributeWithDefinition> = emptyList(),
@@ -199,9 +226,9 @@ fun StockActionForm.validate(context: StockActionContext, rejectedSerial: String
             else -> null
         },
         serial = when (kind) {
-            StockActionKind.ADD_UNIT -> validateSerial(serial, context.serials + listOfNotNull(rejectedSerial))
+            StockActionKind.ADD_UNIT -> validateSerial(serial, context.serials, rejected = rejectedSerial)
             // The unit may keep its own serial
-            StockActionKind.EDIT_UNIT -> validateSerial(serial, context.serials.withoutOne(item?.serialNumber) + listOfNotNull(rejectedSerial))
+            StockActionKind.EDIT_UNIT -> validateSerial(serial, context.serials, item?.serialNumber, rejectedSerial)
             else -> null
         },
         unit = when (kind) {
@@ -216,12 +243,6 @@ fun StockActionForm.validate(context: StockActionContext, rejectedSerial: String
         },
         attributes = if (hasUnitProperties) validateAttributes(itemAttributeOverrides(context.itemAttributes), itemAttributes) else emptyMap(),
     )
-}
-
-/** Copy without the first entry equal to [value] (ignoring case). */
-private fun List<String>.withoutOne(value: String?): List<String> {
-    val index = value?.let { v -> indexOfFirst { it.equals(v, ignoreCase = true) } } ?: -1
-    return if (index < 0) this else filterIndexed { i, _ -> i != index }
 }
 
 /** The new location typed in the form, or null when an existing one is picked. Call only on a valid form. */
@@ -303,7 +324,7 @@ private data class ActionData(
     val stock: Map<String, Long>,
     val active: List<Location>,
     val all: List<Location>,
-    val serials: List<String>,
+    val serials: SerialIndex,
     val items: List<Item>,
     val itemAttributes: List<CategoryAttributeWithDefinition> = emptyList(),
     val inheritedAttributes: JsonObject? = null,
@@ -337,7 +358,8 @@ class StockActionViewModel(
             detailDao.observeStockByLocation(articleId),
             stockDao.observeLocations(),
             detailDao.observeAllLocations(),
-            detailDao.observeSerials(),
+            // Indexed once per change: the form checks the typed serial on every keystroke
+            detailDao.observeSerials().map(::SerialIndex),
             detailDao.observeItems(articleId),
         ) { stock, active, all, serials, items ->
             ActionData(stock.associate { it.locationId to it.stockMilli }, active, all, serials, items)

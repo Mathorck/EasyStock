@@ -27,7 +27,7 @@ class StockActionFormTest {
     private val context = StockActionContext(
         stockByLocation = mapOf("shelf" to 10_000L, "van" to 500L),
         activeLocationIds = setOf("shelf", "van"),
-        serials = listOf("SN-1"),
+        serials = SerialIndex(listOf("SN-1")),
         items = listOf(
             Item(id = "i1", articleId = "a", serialNumber = "SN-1", locationId = "shelf", createdAt = 0, updatedAt = 0),
             Item(id = "i2", articleId = "a", status = ItemStatus.LENT, createdAt = 0, updatedAt = 0),
@@ -116,11 +116,11 @@ class StockActionFormTest {
 
     @Test
     fun serialIsOptionalLimitedAndUniqueIgnoringCase() {
-        assertNull(validateSerial("  ", listOf("SN-1")))
-        assertNull(validateSerial("SN-2", listOf("SN-1")))
-        assertEquals(StockActionError.DUPLICATE_SERIAL, validateSerial(" sn-1 ", listOf("SN-1")))
-        assertEquals(StockActionError.TOO_LONG, validateSerial("x".repeat(101), emptyList()))
-        assertNull(validateSerial("x".repeat(100), emptyList()))
+        assertNull(validateSerial("  ", SerialIndex(listOf("SN-1"))))
+        assertNull(validateSerial("SN-2", SerialIndex(listOf("SN-1"))))
+        assertEquals(StockActionError.DUPLICATE_SERIAL, validateSerial(" sn-1 ", SerialIndex(listOf("SN-1"))))
+        assertEquals(StockActionError.TOO_LONG, validateSerial("x".repeat(101), SerialIndex.EMPTY))
+        assertNull(validateSerial("x".repeat(100), SerialIndex.EMPTY))
     }
 
     @Test
@@ -207,7 +207,7 @@ class StockActionFormTest {
 
     @Test
     fun editedUnitMayKeepItsOwnSerialButNotTakeAnother() {
-        val other = context.copy(serials = listOf("SN-1", "SN-2"))
+        val other = context.copy(serials = SerialIndex(listOf("SN-1", "SN-2")))
         fun edit(serial: String) = StockActionForm(kind = StockActionKind.EDIT_UNIT, itemId = "i1", serial = serial)
         assertTrue(edit("sn-1").validate(other).isValid)
         assertEquals(StockActionError.DUPLICATE_SERIAL, edit(" SN-2 ").validate(other).serial)
