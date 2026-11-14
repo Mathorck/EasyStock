@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Article detail › History: loads older movements -->
+    <string name="history_show_more">Show more</string>
+</resources>

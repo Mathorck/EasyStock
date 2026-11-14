@@ -169,7 +169,7 @@ class LocationDaoTest {
         assertEquals(1, dao.softDeleteLocation("bin", 20))
         assertEquals(20, all().getValue("bin").deletedAt)
         // The movements stay untouched
-        assertEquals(2, db.articleDetailDao().observeMovements("bolt").first().size)
+        assertEquals(2, db.articleDetailDao().observeMovements("bolt", Int.MAX_VALUE).first().size)
     }
 
     @Test

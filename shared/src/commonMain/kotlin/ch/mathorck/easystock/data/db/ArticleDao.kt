@@ -43,6 +43,10 @@ abstract class ArticleDao {
     )
     abstract fun observeStock(): Flow<List<ArticleStock>>
 
+    /** Number of rows of [observeStock] (active, non-archived articles), without summing the movements. */
+    @Query("SELECT COUNT(*) FROM article WHERE deleted_at IS NULL AND archived = 0")
+    abstract fun observeActiveCount(): Flow<Int>
+
     /**
      * Active, non-archived articles with their stock at [locationId] and all its descendants.
      * Only articles with at least one movement there are listed (their stock can be 0).

@@ -106,7 +106,10 @@ abstract class ArticleDetailDao {
     )
     abstract fun observeStockByLocation(articleId: String): Flow<List<LocationStock>>
 
-    /** Movements of the article, newest first, with their author's name. Soft-deleted locations are included. */
+    /**
+     * The newest [limit] movements of the article, newest first, with their author's name.
+     * Soft-deleted locations are included.
+     */
     @Query(
         """
         SELECT stock_movement.*, location.name AS location_name, server_user.display_name AS author_name
@@ -115,9 +118,10 @@ abstract class ArticleDetailDao {
         LEFT JOIN server_user ON server_user.user_id = stock_movement.created_by
         WHERE stock_movement.article_id = :articleId
         ORDER BY stock_movement.occurred_at DESC, stock_movement.created_at DESC, stock_movement.id DESC
+        LIMIT :limit
         """,
     )
-    abstract fun observeMovements(articleId: String): Flow<List<MovementWithLocation>>
+    abstract fun observeMovements(articleId: String, limit: Int): Flow<List<MovementWithLocation>>
 
     /**
      * Lines of the article flagged "info to fix" in a finished review, fixed ones included (for the history).

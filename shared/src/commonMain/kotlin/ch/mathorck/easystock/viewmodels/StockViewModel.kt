@@ -17,6 +17,8 @@ import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Location
 import ch.mathorck.easystock.data.model.Tracking
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -188,15 +191,29 @@ private data class StockLookups(
     val locations: List<StockLocationNode>,
     val categories: List<Category>,
     val definitions: List<AttributeDefinition>,
-    val catalog: AttributeCatalog,
 )
 
+/**
+ * The articles of the selected location (or all, [locationId] null) with their formatted attributes.
+ * Formatted once per database change, not on every search keystroke.
+ */
+private data class FormattedStock(
+    val locationId: String?,
+    val items: List<ArticleStock>,
+    val attributes: Map<String, List<AttributeText>>,
+    val attributeLines: Map<String, String>,
+)
+
+/**
+ * [computeDispatcher] runs the formatting and filtering off the main thread (tests pass their own).
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class StockViewModel(
     articleDao: ArticleDao,
     stockDao: StockDao,
     categoryDao: CategoryDao,
     attributeDao: AttributeDao,
+    computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -218,42 +235,49 @@ class StockViewModel(
 
     /**
      * Stock at the selected location, or the total stock without a location filter,
-     * tagged with the location id it was queried for.
+     * tagged with the location id it was queried for, with the attributes formatted.
      */
-    private val source: Flow<Pair<String?, List<ArticleStock>>> = effectiveFilters
-        .map { it.locationId }
-        .distinctUntilChanged()
-        .flatMapLatest { id ->
-            (if (id == null) articleDao.observeStock() else articleDao.observeStockAt(id)).map { id to it }
-        }
+    private val source: Flow<FormattedStock> = combine(
+        effectiveFilters
+            .map { it.locationId }
+            .distinctUntilChanged()
+            .flatMapLatest { id ->
+                (if (id == null) articleDao.observeStock() else articleDao.observeStockAt(id)).map { id to it }
+            },
+        attributeCatalog,
+    ) { (id, items), catalog ->
+        val formatted = items.associate { it.article.id to catalog.format(it.article) }
+        val lines = formatted.mapNotNull { (articleId, texts) -> texts.takeIf { it.isNotEmpty() }?.let { articleId to it.summaryLine() } }.toMap()
+        FormattedStock(id, items, formatted, lines)
+    }.flowOn(computeDispatcher)
 
     val state: StateFlow<StockUiState> = combine(
-        articleDao.observeStock(),
+        // A cheap COUNT: the stock sums are only read for the shown location
+        articleDao.observeActiveCount(),
         source,
         _query,
         effectiveFilters,
-        combine(locations, categories, definitions, attributeCatalog, ::StockLookups),
-    ) { all, (sourceLocationId, items), q, filters, (locs, cats, defs, catalog) ->
+        combine(locations, categories, definitions, ::StockLookups),
+    ) { total, stock, q, filters, (locs, cats, defs) ->
         // Right after a location change, the list can still be the previous location's: never show it.
-        val upToDate = sourceLocationId == filters.locationId
-        // Formatted once per emission, used by the search and by the rows.
-        val formatted = items.associate { it.article.id to catalog.format(it.article) }
-        val attributes = { item: ArticleStock -> formatted[item.article.id].orEmpty() }
+        val upToDate = stock.locationId == filters.locationId
+        val attributes = { item: ArticleStock -> stock.attributes[item.article.id].orEmpty() }
         StockUiState(
             loading = !upToDate,
             items = if (upToDate) {
-                items.filterStock(q, filters, defs.firstOrNull { it.id == filters.attributeId }, attributes)
+                stock.items.filterStock(q, filters, defs.firstOrNull { it.id == filters.attributeId }, attributes)
             } else {
                 emptyList()
             },
-            totalCount = all.size,
+            totalCount = total,
             locations = locs,
             categories = cats,
             attributeDefinitions = defs,
             filters = filters,
-            attributeLines = if (upToDate) formatted.mapNotNull { (id, texts) -> texts.takeIf { it.isNotEmpty() }?.let { id to it.summaryLine() } }.toMap() else emptyMap(),
+            attributeLines = if (upToDate) stock.attributeLines else emptyMap(),
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StockUiState())
+    }.flowOn(computeDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StockUiState())
 
     fun onQueryChange(query: String) {
         _query.value = query

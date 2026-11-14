@@ -57,7 +57,7 @@ class StockActionDaoTest {
 
     private suspend fun stockAt(location: String, article: String = "bolt") = actions.stockAt(article, location)
     private suspend fun movementCount() = movements("bolt").size + movements("drill").size
-    private suspend fun movements(article: String) = detail.observeMovements(article).first().map { it.movement }
+    private suspend fun movements(article: String) = detail.observeMovements(article, Int.MAX_VALUE).first().map { it.movement }
     private suspend fun item(id: String) = detail.observeItems("drill").first().single { it.id == id }
 
     // ---------- Quantity ----------

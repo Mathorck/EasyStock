@@ -108,6 +108,7 @@ import easystock.shared.generated.resources.article_reason_purchase
 import easystock.shared.generated.resources.article_reason_return
 import easystock.shared.generated.resources.article_reason_transfer
 import easystock.shared.generated.resources.article_section_history
+import easystock.shared.generated.resources.history_show_more
 import easystock.shared.generated.resources.article_section_locations
 import easystock.shared.generated.resources.article_section_properties
 import easystock.shared.generated.resources.article_sku_label
@@ -167,6 +168,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         onLinkTag = tagLink::start,
         onRemoveTag = tagLink::removeTag,
         onMarkInfoFixed = viewModel::markInfoFixed,
+        onShowMoreHistory = viewModel::showMoreHistory,
         modifier = modifier,
         gates = gates,
     )
@@ -222,6 +224,7 @@ fun ArticleDetailContent(
     onLinkTag: () -> Unit = {},
     onRemoveTag: () -> Unit = {},
     onMarkInfoFixed: (lineId: String) -> Unit = {},
+    onShowMoreHistory: () -> Unit = {},
     /** What the role can see and do, everything in standalone mode. */
     gates: ArticleDetailGates = ArticleDetailGates.of(AppPermissions.Standalone),
 ) {
@@ -345,6 +348,13 @@ fun ArticleDetailContent(
                             is HistoryRow.InfoFixed -> InfoHistoryItem(row.at, row.flag, fixed = true)
                         }
                         HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                    }
+                    if (state.hasMoreHistory) {
+                        item(key = "history-more") {
+                            TextButton(onClick = onShowMoreHistory, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                Text(stringResource(Res.string.history_show_more))
+                            }
+                        }
                     }
                 }
             }

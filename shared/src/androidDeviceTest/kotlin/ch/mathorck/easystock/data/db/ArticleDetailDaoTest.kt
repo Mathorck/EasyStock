@@ -142,7 +142,7 @@ class ArticleDetailDaoTest {
         article("a2")
         move("a2", 9_000, "shelf", occurredAt = 400)
 
-        val result = detail.observeMovements("a1").first()
+        val result = detail.observeMovements("a1", Int.MAX_VALUE).first()
         assertEquals(listOf(newest, middleLate, middleEarly, oldest), result.map { it.movement.id })
         assertEquals(listOf("Old bin", "Van", "Van", "Shelf"), result.map { it.locationName })
     }
@@ -155,7 +155,7 @@ class ArticleDetailDaoTest {
         val unknownUser = move("a1", 1_000, occurredAt = 200, createdBy = "u2")
         val standalone = move("a1", 1_000, occurredAt = 100)
 
-        val result = detail.observeMovements("a1").first()
+        val result = detail.observeMovements("a1", Int.MAX_VALUE).first()
         assertEquals(listOf(known, unknownUser, standalone), result.map { it.movement.id })
         assertEquals(listOf("Anna", null, null), result.map { it.authorName })
     }

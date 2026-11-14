@@ -6,10 +6,17 @@ import ch.mathorck.easystock.data.db.LocationDao
 import ch.mathorck.easystock.data.db.LocationException
 import ch.mathorck.easystock.data.model.Location
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -72,12 +79,23 @@ private data class LocationDialogInput(
     val failed: Boolean = false,
 )
 
-/** Settings > Locations: tree list, create (also under a parent), rename, move and soft delete. */
+/** The active locations, indexed once per database change (not on every dialog keystroke). */
+private class LocationIndex(val locations: List<Location>) {
+    val byId: Map<String, Location> = locations.associateBy { it.id }
+    val children: Map<String?, List<Location>> = locations.groupBy { it.parentId }
+    val tree: List<StockLocationNode> = locations.toLocationTree()
+}
+
+/**
+ * Settings > Locations: tree list, create (also under a parent), rename, move and soft delete.
+ * [computeDispatcher] builds the tree off the main thread (tests pass their own).
+ */
 @OptIn(ExperimentalUuidApi::class)
 class LocationListViewModel(
     private val dao: LocationDao,
     private val clock: Clock = Clock.System,
     private val newId: () -> String = { Uuid.random().toString() },
+    computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val dialog = MutableStateFlow<LocationDialogInput?>(null)
     private val pendingDelete = MutableStateFlow<LocationDeleteRequest?>(null)
@@ -87,25 +105,46 @@ class LocationListViewModel(
     /** ID of the location just created, until [consumeCreated] (the Scan page opens it). */
     val created: StateFlow<String?> = _created
 
-    val state: StateFlow<LocationListUiState> = combine(
-        combine(dao.observeLocations(), dao.observeArticleCounts()) { l, c -> l to c },
-        dialog, pendingDelete, message,
-    ) { (locations, counts), input, pending, message ->
+    private val index: Flow<LocationIndex> = dao.observeLocations()
+        .map(::LocationIndex)
+        .flowOn(computeDispatcher)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+
+    private val rows: Flow<List<LocationRow>> = combine(index, dao.observeArticleCounts()) { index, counts ->
         val articleCounts = counts.associate { it.locationId to it.articleCount }
-        val childCounts = locations.groupingBy { it.parentId }.eachCount()
+        index.tree.map {
+            LocationRow(it.location, it.depth, articleCounts[it.location.id] ?: 0, index.children[it.location.id]?.size ?: 0)
+        }
+    }
+
+    /** Where the open dialog's location can go: rebuilt when the locations or the edited location change. */
+    private val parents: Flow<List<StockLocationNode>> = combine(
+        index,
+        // Null: no dialog; "": a new location
+        dialog.map { input -> input?.let { it.editing?.id ?: "" } }.distinctUntilChanged(),
+    ) { index, editingId ->
+        when (editingId) {
+            null -> emptyList()
+            "" -> index.tree
+            else -> index.locations.validParentsFor(editingId).toLocationTree()
+        }
+    }
+
+    val state: StateFlow<LocationListUiState> = combine(
+        combine(index, rows, parents, ::Triple),
+        dialog, pendingDelete, message,
+    ) { (index, rows, parents), input, pending, message ->
         LocationListUiState(
             loading = false,
-            rows = locations.toLocationTree().map {
-                LocationRow(it.location, it.depth, articleCounts[it.location.id] ?: 0, childCounts[it.location.id] ?: 0)
-            },
+            rows = rows,
             dialog = input?.let {
-                val editing = it.editing?.let { e -> locations.firstOrNull { l -> l.id == e.id } ?: e }
+                val editing = it.editing?.let { e -> index.byId[e.id] ?: e }
                 LocationDialogState(
                     editing = editing,
                     form = it.form,
                     tagId = it.tagId,
-                    error = validateLocationName(it.form.name, locations.childrenOf(it.form.parentId), editing?.id),
-                    parents = (if (editing == null) locations else locations.validParentsFor(editing.id)).toLocationTree(),
+                    error = validateLocationName(it.form.name, index.children[it.form.parentId].orEmpty(), editing?.id),
+                    parents = parents,
                     saving = it.saving,
                     saveFailed = it.failed,
                 )
@@ -113,7 +152,8 @@ class LocationListViewModel(
             pendingDelete = pending,
             message = message,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LocationListUiState())
+    }.flowOn(computeDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LocationListUiState())
 
     /** New location at the top level, or under [parent] ("Add sub-location"), with the NFC tag [tagId] if any. */
     fun startCreate(parent: Location? = null, tagId: String? = null) {

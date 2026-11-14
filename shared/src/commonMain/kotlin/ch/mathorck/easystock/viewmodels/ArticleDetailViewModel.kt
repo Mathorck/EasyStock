@@ -21,10 +21,17 @@ import ch.mathorck.easystock.images.ArticleImageStore
 import ch.mathorck.easystock.images.StagedImages
 import ch.mathorck.easystock.util.formatQuantity
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -62,27 +69,36 @@ data class MovementRow(
 )
 
 /**
- * Rows for the locations holding a non-zero stock, sorted by path.
+ * Paths and tree order of [locations], built once and shared by the rows of one emission.
  * [locations] should include soft-deleted ones so every movement location has a path.
  */
-fun locationStockRows(stock: List<LocationStock>, locations: List<Location>): List<LocationStockRow> {
+class LocationPaths(locations: List<Location>) {
     // buildLocationOptions is already sorted by path (parents before children, ignoring case)
-    val options = buildLocationOptions(locations)
-    val order = options.withIndex().associate { (index, option) -> option.id to index }
-    val paths = options.associate { it.id to it.path }
-    val byId = locations.associateBy { it.id }
-    return stock
-        .filter { it.stockMilli != 0L }
-        .sortedBy { order[it.locationId] ?: Int.MAX_VALUE }
-        .map {
-            val location = byId[it.locationId]
-            LocationStockRow(it.locationId, paths[it.locationId] ?: it.locationId, it.stockMilli, location?.icon, location?.color)
-        }
+    private val options = buildLocationOptions(locations)
+    val order: Map<String, Int> = options.withIndex().associate { (index, option) -> option.id to index }
+    val paths: Map<String, String> = options.associate { it.id to it.path }
+    val byId: Map<String, Location> = locations.associateBy { it.id }
 }
 
+/** Rows for the locations holding a non-zero stock, sorted by path. */
+fun locationStockRows(stock: List<LocationStock>, locations: List<Location>): List<LocationStockRow> =
+    locationStockRows(stock, LocationPaths(locations))
+
+fun locationStockRows(stock: List<LocationStock>, locations: LocationPaths): List<LocationStockRow> =
+    stock
+        .filter { it.stockMilli != 0L }
+        .sortedBy { locations.order[it.locationId] ?: Int.MAX_VALUE }
+        .map {
+            val location = locations.byId[it.locationId]
+            LocationStockRow(it.locationId, locations.paths[it.locationId] ?: it.locationId, it.stockMilli, location?.icon, location?.color)
+        }
+
 /** History rows in the given order (the query sorts newest first). The location is shown with its path. */
-fun movementRows(movements: List<MovementWithLocation>, locations: List<Location>, timeZone: TimeZone): List<MovementRow> {
-    val paths = buildLocationOptions(locations).associate { it.id to it.path }
+fun movementRows(movements: List<MovementWithLocation>, locations: List<Location>, timeZone: TimeZone): List<MovementRow> =
+    movementRows(movements, LocationPaths(locations), timeZone)
+
+fun movementRows(movements: List<MovementWithLocation>, locations: LocationPaths, timeZone: TimeZone): List<MovementRow> {
+    val paths = locations.paths
     return movements.map { (movement, locationName, authorName) ->
         MovementRow(
             id = movement.id,
@@ -129,10 +145,11 @@ sealed interface HistoryRow {
 }
 
 /** Open flags (not fixed yet), in the given order (the query sorts the newest review first). */
-fun openInfoFlagRows(flags: List<InfoFlag>, locations: List<Location>, timeZone: TimeZone): List<InfoFlagRow> {
-    val paths = buildLocationOptions(locations).associate { it.id to it.path }
-    return flags.filter { it.fixedAt == null }.map { it.toRow(paths, timeZone) }
-}
+fun openInfoFlagRows(flags: List<InfoFlag>, locations: List<Location>, timeZone: TimeZone): List<InfoFlagRow> =
+    openInfoFlagRows(flags, LocationPaths(locations), timeZone)
+
+fun openInfoFlagRows(flags: List<InfoFlag>, locations: LocationPaths, timeZone: TimeZone): List<InfoFlagRow> =
+    flags.filter { it.fixedAt == null }.map { it.toRow(locations.paths, timeZone) }
 
 private fun InfoFlag.toRow(paths: Map<String, String>, timeZone: TimeZone) = InfoFlagRow(
     lineId = lineId,
@@ -145,14 +162,26 @@ private fun InfoFlag.toRow(paths: Map<String, String>, timeZone: TimeZone) = Inf
 /**
  * Movements and flag events merged, newest first. A flag gives a "flagged" entry at the review finish time and,
  * once fixed, a "fixed" entry. At the same time a movement comes before a flag event (the order is stable).
+ * [moreMovements]: [movements] are only the newest ones (see [HISTORY_PAGE_SIZE]); flag events older than the
+ * oldest movement shown are left out until more movements are loaded, so the history has no gap.
  */
 fun historyRows(
     movements: List<MovementWithLocation>,
     flags: List<InfoFlag>,
     locations: List<Location>,
     timeZone: TimeZone,
+    moreMovements: Boolean = false,
+): List<HistoryRow> = historyRows(movements, flags, LocationPaths(locations), timeZone, moreMovements)
+
+fun historyRows(
+    movements: List<MovementWithLocation>,
+    flags: List<InfoFlag>,
+    locations: LocationPaths,
+    timeZone: TimeZone,
+    moreMovements: Boolean = false,
 ): List<HistoryRow> {
-    val paths = buildLocationOptions(locations).associate { it.id to it.path }
+    val paths = locations.paths
+    val cutoff = if (moreMovements) movements.lastOrNull()?.movement?.occurredAt else null
     val movementEntries = movements.zip(movementRows(movements, locations, timeZone)) { raw, row ->
         raw.movement.occurredAt to HistoryRow.Movement(row)
     }
@@ -163,7 +192,8 @@ fun historyRows(
             flag.flaggedAt to HistoryRow.InfoFlagged(row, row.flaggedAt),
         )
     }
-    return (movementEntries + flagEntries).sortedByDescending { it.first }.map { it.second }
+    val shownFlags = if (cutoff == null) flagEntries else flagEntries.filter { it.first >= cutoff }
+    return (movementEntries + shownFlags).sortedByDescending { it.first }.map { it.second }
 }
 
 private val DATE_TIME_FORMAT = LocalDateTime.Format {
@@ -193,8 +223,10 @@ data class ArticleDetailUiState(
     val categoryName: String? = null,
     val totalMilli: Long = 0,
     val locations: List<LocationStockRow> = emptyList(),
-    /** Movements and "info to fix" events, newest first. */
+    /** Movements and "info to fix" events, newest first. Only the newest movements, see [hasMoreHistory]. */
     val history: List<HistoryRow> = emptyList(),
+    /** Older movements are not loaded yet: the screen offers to show more. */
+    val hasMoreHistory: Boolean = false,
     /** Open "info to fix" flags from finished reviews. */
     val infoFlags: List<InfoFlagRow> = emptyList(),
     /** Attribute values of the article, empty ones skipped, in the category order. */
@@ -206,8 +238,24 @@ data class ArticleDetailUiState(
     val isLowStock: Boolean get() = article?.isLowAt(totalMilli) ?: false
 }
 
-/** Detail of one article (stock per location, history) and its edit form. */
-@OptIn(ExperimentalUuidApi::class)
+/** Movements loaded at first, and added by each "show more". */
+const val HISTORY_PAGE_SIZE = 50
+
+/**
+ * The newest [limit] movements, read with one extra row ([limit] + 1) to know whether there are more.
+ */
+data class MovementPage(val movements: List<MovementWithLocation>, val hasMore: Boolean) {
+    companion object {
+        fun of(rows: List<MovementWithLocation>, limit: Int): MovementPage =
+            MovementPage(rows.take(limit), rows.size > limit)
+    }
+}
+
+/**
+ * Detail of one article (stock per location, history) and its edit form.
+ * [computeDispatcher] builds the rows off the main thread (tests pass their own).
+ */
+@OptIn(ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class)
 class ArticleDetailViewModel(
     private val articleId: String,
     private val dao: ArticleDetailDao,
@@ -217,25 +265,41 @@ class ArticleDetailViewModel(
     private val clock: Clock = Clock.System,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
     private val newId: () -> String = { Uuid.random().toString() },
+    computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
+    /** Number of movements shown, raised by [showMoreHistory]. */
+    private val historyLimit = MutableStateFlow(HISTORY_PAGE_SIZE)
+
+    private val movements: Flow<MovementPage> = historyLimit.flatMapLatest { limit ->
+        dao.observeMovements(articleId, limit + 1).map { MovementPage.of(it, limit) }
+    }
+
     val state: StateFlow<ArticleDetailUiState> = combine(
         dao.observeArticle(articleId),
         dao.observeStockByLocation(articleId),
-        combine(dao.observeMovements(articleId), dao.observeInfoFlags(articleId), ::Pair),
-        dao.observeAllLocations(),
+        combine(movements, dao.observeInfoFlags(articleId), ::Pair),
+        // Paths built once per location change, shared by all the rows
+        dao.observeAllLocations().map(::LocationPaths),
         combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
-    ) { article, stock, (movements, flags), locations, catalog ->
+    ) { article, stock, (page, flags), locations, catalog ->
         ArticleDetailUiState(
             loading = false,
             article = article?.article,
             categoryName = article?.categoryName,
             totalMilli = stock.sumOf { it.stockMilli },
             locations = locationStockRows(stock, locations),
-            history = historyRows(movements, flags, locations, timeZone),
+            history = historyRows(page.movements, flags, locations, timeZone, page.hasMore),
+            hasMoreHistory = page.hasMore,
             infoFlags = openInfoFlagRows(flags, locations, timeZone),
             properties = article?.article?.let { catalog.rows(it.categoryId, it.attributes) }.orEmpty(),
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleDetailUiState())
+    }.flowOn(computeDispatcher)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleDetailUiState())
+
+    /** Loads [HISTORY_PAGE_SIZE] older movements. */
+    fun showMoreHistory() {
+        historyLimit.update { it + HISTORY_PAGE_SIZE }
+    }
 
     /** Null when the edit form is closed. */
     private val form = MutableStateFlow<ArticleForm?>(null)
