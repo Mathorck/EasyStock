@@ -8,6 +8,9 @@ import ch.mathorck.easystock.server.LocalFile
 import ch.mathorck.easystock.server.ServerFileStore
 import ch.mathorck.easystock.server.ServerImportMode
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +51,8 @@ class ServerBackupViewModel(
     private val files: ServerFileStore,
     /** File name of a download, e.g. `easystock-server-2026-11-11.esbk`. */
     private val fileName: () -> String,
+    /** Runs the cache cleanup once the screen is gone ([viewModelScope] is cancelled by then). */
+    private val cleanupScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : ViewModel() {
     private val _state = MutableStateFlow(ServerBackupState())
     val state: StateFlow<ServerBackupState> = _state.asStateFlow()
@@ -69,7 +74,8 @@ class ServerBackupViewModel(
     }
 
     /** A file was picked: the Admin chooses merge or replace. */
-    fun picked(file: LocalFile) = _state.update { it.copy(import = ServerImportForm(file), message = null, failure = null) }
+    // The cache keeps one file at a time: the picked file replaced the downloaded one
+    fun picked(file: LocalFile) = _state.update { it.copy(import = ServerImportForm(file), downloaded = null, message = null, failure = null) }
 
     fun chooseMode(mode: ServerImportMode) = _state.update { it.copy(import = it.import?.copy(mode = mode, typed = "")) }
 
@@ -86,6 +92,8 @@ class ServerBackupViewModel(
             try {
                 api.importBackup(form.mode, form.file.size) { files.read(form.file) }
                 _state.update { it.copy(importing = false, import = null, message = ServerBackupMessage.IMPORTED) }
+                // The server has it: the copy of the backup leaves the phone cache
+                clearFiles()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -94,7 +102,29 @@ class ServerBackupViewModel(
         }
     }
 
-    fun saved() = _state.update { it.copy(message = ServerBackupMessage.SAVED) }
+    /** Saved where the Admin chose: the copy in the cache is not needed any more. */
+    fun saved() {
+        _state.update { it.copy(downloaded = null, message = ServerBackupMessage.SAVED) }
+        viewModelScope.launch { clearFiles() }
+    }
+
+    /**
+     * The screen is closed: the full server backup and a picked file leave the cache. Not right after a
+     * share: the receiving app reads the file later.
+     */
+    override fun onCleared() {
+        cleanupScope.launch { clearFiles() }
+    }
+
+    private suspend fun clearFiles() {
+        try {
+            files.clear()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Cache only: a reset wipes it anyway
+        }
+    }
 
     fun fileFailed() = _state.update { it.copy(fileFailed = true) }
 

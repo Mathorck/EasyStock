@@ -48,6 +48,9 @@ import ch.mathorck.easystock.server.JoinKind
 import ch.mathorck.easystock.server.PublicInvite
 import ch.mathorck.easystock.server.ServerConnection
 import ch.mathorck.easystock.server.rememberServerFiles
+import ch.mathorck.easystock.server.clearLater
+import ch.mathorck.easystock.backup.rememberIsChangingConfigurations
+import androidx.compose.runtime.DisposableEffect
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.admin.Loaded
 import ch.mathorck.easystock.viewmodels.admin.PublicInviteViewModel
@@ -87,6 +90,12 @@ internal fun PublicInviteScreen(api: AdminApi, connection: ServerConnection, onB
     var fileFailed by remember { mutableStateOf(false) }
     var showQr by rememberSaveable { mutableStateOf(false) }
     val files = rememberServerFiles(onPicked = {}, onSaved = {}, onFailed = { fileFailed = true })
+    // The PDF holds a live invite token: dropped from the cache when the screen closes (kept while the
+    // share sheet's app may still read it, and across a rotation)
+    val isChangingConfigurations = rememberIsChangingConfigurations()
+    DisposableEffect(files) {
+        onDispose { if (!isChangingConfigurations()) files.clearLater() }
+    }
     LaunchedEffect(Unit) { viewModel.refresh() }
     NavigationBackHandler(state = rememberNavigationEventState(NavigationEventInfo.None), onBackCompleted = onBack)
 

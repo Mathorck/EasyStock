@@ -21,18 +21,22 @@ import java.io.File
  *   may have left behind, and `images.extracting` (photos of a backup being extracted);
  * - `cacheDir/camera`: a photo waiting for the crop screen;
  * - `cacheDir/backup`: exported or received backups, which hold the data being erased;
- * - `filesDir/auto-backups`: the automatic backups written before a server reset.
+ * - `cacheDir/server`: files of the admin screens (server backup, invite PDF with a live token);
+ * - `filesDir/auto-backups`: the automatic backups written before a server reset, unless
+ *   [keepAutoBackups] (the wipe after a revoked session keeps the backup of the unsent changes).
  */
-suspend fun wipeAppFiles(filesDir: File, cacheDir: File) = withContext(Dispatchers.IO) {
-    listOf(
+suspend fun wipeAppFiles(filesDir: File, cacheDir: File, keepAutoBackups: Boolean = false) = withContext(Dispatchers.IO) {
+    listOfNotNull(
         File(filesDir, IMAGE_DIR),
         File(filesDir, "$IMAGE_DIR.incoming"),
         File(filesDir, "$IMAGE_DIR.old"),
         File(filesDir, PHOTO_STAGING_DIR),
         File(cacheDir, "camera"),
         File(cacheDir, "backup"),
+        // Admin screens: a downloaded server backup, a picked import, the Guest invite PDF (live token)
+        File(cacheDir, "server"),
         // Automatic backups written before a server reset: they hold the data being erased
-        File(filesDir, "auto-backups"),
+        File(filesDir, "auto-backups").takeUnless { keepAutoBackups },
     ).forEach { it.deleteRecursively() }
 }
 

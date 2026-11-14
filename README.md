@@ -124,6 +124,7 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 ### Backup and transfer
 - Export to a file, a QR code, or over the local Wi-Fi.
 - Optional password. Merge into or replace the existing data.
+- Google cloud backup and phone-to-phone transfer never copy the app data (stock, photos, automatic backups, settings): it stays on the phone until you send a backup yourself.
 
 ### Settings and app info
 - Language: English, French, German.

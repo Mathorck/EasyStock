@@ -2,6 +2,10 @@ package ch.mathorck.easystock.server
 
 import androidx.compose.runtime.Composable
 import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** A file in the app cache (`cache/server/share`), made for the user to save or share. */
 data class LocalFile(val path: String, val name: String, val size: Long, val mimeType: String)
@@ -22,6 +26,11 @@ interface ServerFileStore {
 
     /** Drops the temporary files. */
     suspend fun clear()
+}
+
+/** [ServerFileStore.clear] outside any screen scope: for a screen that is closing. Errors are ignored. */
+fun ServerFileStore.clearLater() {
+    CoroutineScope(SupervisorJob() + Dispatchers.Default).launch { runCatching { clear() } }
 }
 
 /** Save, share and pick files with the system pickers. */
