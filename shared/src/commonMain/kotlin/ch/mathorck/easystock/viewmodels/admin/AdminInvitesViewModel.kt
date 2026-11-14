@@ -7,6 +7,7 @@ import ch.mathorck.easystock.server.AdminApi
 import ch.mathorck.easystock.server.Invite
 import ch.mathorck.easystock.server.PublicInvite
 import ch.mathorck.easystock.server.QrGrant
+import ch.mathorck.easystock.util.runCatchingCancellable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,8 +104,8 @@ class PublicInviteViewModel(private val api: AdminApi) : ViewModel() {
 
     private fun loadServerName() {
         viewModelScope.launch {
-            val name = runCatching { api.settings().serverName }.getOrNull()?.takeIf { it.isNotBlank() }
-                ?: runCatching { api.serverInfo().serverName }.getOrNull()?.takeIf { it.isNotBlank() }
+            val name = runCatchingCancellable { api.settings().serverName }.getOrNull()?.takeIf { it.isNotBlank() }
+                ?: runCatchingCancellable { api.serverInfo().serverName }.getOrNull()?.takeIf { it.isNotBlank() }
             _state.update { it.copy(serverName = name) }
         }
     }
