@@ -95,6 +95,36 @@ class SyncDaoTest {
         assertEquals(1, dao.outbox(100).size)
     }
 
+    private suspend fun categoryName(id: String) = (dao.wireRow(SyncTable.CATEGORY, id)!!["name"] as JsonPrimitive).content
+
+    @Test
+    fun aLocalRowRenamedByThePullIsQueued() = runBlocking {
+        dao.applyPull(pull(SyncTable.CATEGORY to toWire(SyncTable.CATEGORY, category("c2", "Tools"))), next = 42, fullPull = false, now = 99)
+        assertTrue(dao.outbox(100).isEmpty())
+
+        // c1 takes the name: c2 is renamed on the phone, and that rename must be pushed
+        dao.applyPull(pull(SyncTable.CATEGORY to toWire(SyncTable.CATEGORY, category("c1", "Tools"))), next = 43, fullPull = false, now = 100)
+        assertEquals(listOf("c2"), dao.outbox(100).map { it.rowId })
+        assertTrue(categoryName("c2") != "Tools")
+        assertEquals(false, dao.syncState()!!.applying)
+    }
+
+    @Test
+    fun aLocalRowRenamedByThePullIsNotQueuedWhenThePullBringsIt() = runBlocking {
+        dao.applyPull(pull(SyncTable.CATEGORY to toWire(SyncTable.CATEGORY, category("c2", "Tools"))), next = 42, fullPull = false, now = 99)
+
+        // c1 takes the name, then the same pull brings c2 with its new name: the server's version, nothing to push
+        val buffer = pull(
+            SyncTable.CATEGORY to toWire(SyncTable.CATEGORY, category("c1", "Tools", at = 20)),
+            SyncTable.CATEGORY to toWire(SyncTable.CATEGORY, category("c2", "Hammers", at = 20)),
+        )
+        dao.applyPull(buffer, next = 43, fullPull = false, now = 100)
+        assertTrue(dao.outbox(100).isEmpty())
+        assertEquals("Tools", categoryName("c1"))
+        assertEquals("Hammers", categoryName("c2"))
+        assertEquals(false, dao.syncState()!!.applying)
+    }
+
     @Test
     fun pushAnswersEmptyTheOutboxAndRecordRefusals() = runBlocking {
         listOf(article("a1", sku = "A"), article("a2", sku = "B"), article("a3", sku = "C")).forEach { db.articleDao().insert(it) }

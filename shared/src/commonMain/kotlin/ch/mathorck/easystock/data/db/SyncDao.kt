@@ -423,23 +423,27 @@ abstract class SyncDao {
     open suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean {
         if (syncState() == null) return false
         val touchedItems = HashSet<String>()
-        SyncTable.entries.forEach { table ->
-            val waiting = outboxIds(table.tableName).toSet()
-            val rows = buffer.rows(table).filter { it.rowId !in waiting }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
-            rows.forEach { row ->
-                applying { writeServerRow(table, row, updateMovements = false, now = now) }
-                // The version this phone now holds: the base of its next edit of the row
-                row.serverSeq?.let { setSeq(table, row.rowId!!, it) }
-                // A local row renamed to make room for an earlier row of this pull: this row is the server's
-                deleteOutbox(table.tableName, row.rowId!!)
-                when (table) {
-                    SyncTable.ITEM -> touchedItems += row.rowId!!
-                    SyncTable.STOCK_MOVEMENT -> fromWire<StockMovement>(table, row).itemId?.let { touchedItems += it }
-                    else -> Unit
+        // `applying` once for the whole pull: local{} turns it off around its own writes only
+        applying {
+            SyncTable.entries.forEach { table ->
+                val waiting = outboxIds(table.tableName).toSet()
+                localWrites = false
+                val rows = buffer.rows(table).filter { it.rowId !in waiting }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
+                rows.forEach { row ->
+                    val id = row.rowId!!
+                    writeServerRow(table, row, updateMovements = false, now = now)
+                    // The version this phone now holds: the base of its next edit of the row
+                    row.serverSeq?.let { setSeq(table, id, it) }
+                    // A local row renamed to make room for an earlier row of this pull: this row is the server's.
+                    // Only local{} writes outbox entries here (the ones before the table started are skipped above)
+                    if (localWrites) deleteOutbox(table.tableName, id)
+                    when (table) {
+                        SyncTable.ITEM -> touchedItems += id
+                        SyncTable.STOCK_MOVEMENT -> row.column("item_id")?.let { touchedItems += it }
+                        else -> Unit
+                    }
                 }
             }
-        }
-        applying {
             touchedItems.toList().chunked(IN_CHUNK).forEach { recomputeItemLocations(it) }
         }
         if (buffer.users.isNotEmpty()) insertServerUsers(buffer.users.values.map { ServerUser(it.id, it.displayName) })
@@ -464,8 +468,15 @@ abstract class SyncDao {
         }
     }
 
+    /**
+     * Set by [local]: a local row was written with `applying` off since [applyPull] started the table,
+     * so the outbox may hold rows of this pull. Only read inside a transaction.
+     */
+    private var localWrites = false
+
     /** With `applying` off: a local row changed to make room for a server row is pushed. */
     private suspend inline fun local(block: () -> Unit) {
+        localWrites = true
         setApplying(false)
         try {
             block()
