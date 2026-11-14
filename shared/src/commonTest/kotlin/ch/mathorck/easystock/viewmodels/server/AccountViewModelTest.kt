@@ -8,6 +8,7 @@ import ch.mathorck.easystock.server.ApiException
 import ch.mathorck.easystock.server.CompletePromotionRequest
 import ch.mathorck.easystock.server.ConnectError
 import ch.mathorck.easystock.server.MeAnswer
+import ch.mathorck.easystock.server.ProblemTypes
 import ch.mathorck.easystock.server.SessionUser
 import ch.mathorck.easystock.server.TokenAnswer
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +76,19 @@ private class FakeAccountApi : AccountApi {
         promotionError?.let { throw it }
         return promoted
     }
+
+    /** The passwords sent with `DELETE /me` (null: a Guest). */
+    val deletes = mutableListOf<String?>()
+    var deleteError: Exception? = null
+
+    /** Runs after a successful delete, as another call failing with 401 at that moment would. */
+    var afterDelete: () -> Unit = {}
+
+    override suspend fun deleteAccount(password: String?) {
+        deletes += password
+        deleteError?.let { throw it }
+        afterDelete()
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -107,7 +121,16 @@ class AccountViewModelTest {
             order += "beforeLogout:${api.logouts}"
             beforeLogoutError?.let { throw it }
         },
+        wipeAfterDelete = { backupUnsent ->
+            leavingDuringLogout = ServerSessionEvents.leaving
+            deleteWipes += backupUnsent
+            deleteWipeError?.let { throw it }
+        },
     )
+
+    /** The wipes after a delete, with their `backupUnsent`. */
+    private val deleteWipes = mutableListOf<Boolean>()
+    private var deleteWipeError: Exception? = null
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -448,5 +471,227 @@ class AccountViewModelTest {
         assertEquals(ConnectError.INVALID, vm.state.value.error)
         assertNotNull(vm.state.value.passwordForm)
         assertFalse(vm.state.value.passwordChanged)
+    }
+
+    // ---------- Delete my account ----------
+
+    private fun askDelete(guest: Boolean = false, password: String = "secret password"): AccountViewModel {
+        val vm = vm()
+        vm.askDelete(guest)
+        if (!guest) vm.deletePasswordChanged(password)
+        return vm
+    }
+
+    @Test
+    fun anAccountIsDeletedWithItsPasswordThenThePhoneIsWiped() {
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(listOf<String?>("secret password"), api.deletes)
+        assertEquals(listOf(false), deleteWipes)
+        assertTrue(leavingDuringLogout, "the revoke handler must stay quiet during the wipe")
+        assertFalse(ServerSessionEvents.leaving)
+        assertEquals(DeletePhase.DONE, vm.state.value.deleteForm?.phase)
+        assertNull(vm.state.value.error)
+        // Not a logout: no logout call, no logout wipe
+        assertEquals(0, api.logouts)
+        assertEquals(0, wipes)
+    }
+
+    @Test
+    fun noChangesNoSync() {
+        pending = 0
+        askDelete().confirmDelete()
+        assertEquals(0, syncs)
+    }
+
+    @Test
+    fun pendingChangesAreSentFirst() {
+        pending = 3
+        leftAfterSync = 0
+        askDelete().confirmDelete()
+        assertEquals(1, syncs)
+        assertEquals(1, api.deletes.size)
+        assertEquals(listOf(false), deleteWipes)
+    }
+
+    @Test
+    fun anEmptyPasswordIsNotSent() {
+        val vm = askDelete(password = "")
+        vm.confirmDelete()
+        assertTrue(vm.state.value.deleteForm!!.passwordEmpty)
+        assertEquals(DeletePhase.CONFIRM, vm.state.value.deleteForm?.phase)
+        assertTrue(api.deletes.isEmpty())
+    }
+
+    @Test
+    fun aWrongPasswordIsAFieldErrorAndKeepsEverything() {
+        api.deleteError = ApiException(ApiError.INVALID, 400, "invalid-credentials")
+        val vm = askDelete()
+        vm.confirmDelete()
+        val form = vm.state.value.deleteForm!!
+        assertTrue(form.wrongPassword)
+        assertEquals(DeletePhase.CONFIRM, form.phase)
+        assertNull(vm.state.value.error)
+        assertTrue(deleteWipes.isEmpty())
+        assertFalse(ServerSessionEvents.leaving)
+        // Typing again clears the error
+        vm.deletePasswordChanged("other")
+        assertFalse(vm.state.value.deleteForm!!.wrongPassword)
+    }
+
+    @Test
+    fun theLastAdminIsToldAndNothingIsWiped() {
+        api.deleteError = ApiException(ApiError.CONFLICT, 409, ProblemTypes.LAST_ADMIN)
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(ConnectError.LAST_ADMIN, vm.state.value.error)
+        assertNull(vm.state.value.deleteForm)
+        assertTrue(deleteWipes.isEmpty())
+        assertFalse(ServerSessionEvents.leaving)
+        assertFalse(ServerSessionEvents.revoked.value)
+    }
+
+    @Test
+    fun aLockedAccountIsRateLimitedAndKeepsTheForm() {
+        api.deleteError = ApiException(ApiError.RATE_LIMITED, 429, ProblemTypes.RATE_LIMITED)
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(ConnectError.RATE_LIMITED, vm.state.value.error)
+        assertEquals(DeletePhase.CONFIRM, vm.state.value.deleteForm?.phase)
+        assertEquals("secret password", vm.state.value.deleteForm?.password)
+        assertTrue(deleteWipes.isEmpty())
+    }
+
+    @Test
+    fun offlineNothingChanges() {
+        api.deleteError = ApiException(ApiError.NETWORK)
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(ConnectError.NETWORK, vm.state.value.error)
+        assertEquals(DeletePhase.CONFIRM, vm.state.value.deleteForm?.phase)
+        assertTrue(deleteWipes.isEmpty())
+        assertFalse(ServerSessionEvents.leaving)
+    }
+
+    @Test
+    fun aGuestSendsNoPassword() {
+        val vm = askDelete(guest = true)
+        vm.confirmDelete()
+        assertEquals(listOf<String?>(null), api.deletes)
+        assertEquals(listOf(false), deleteWipes)
+    }
+
+    @Test
+    fun aGuestPasswordTypedSomehowIsStillNotSent() {
+        val vm = vm()
+        vm.askDelete(guest = true)
+        vm.deletePasswordChanged("ignored")
+        vm.confirmDelete()
+        assertEquals(listOf<String?>(null), api.deletes)
+    }
+
+    @Test
+    fun syncFailedTheUserCanCancel() {
+        pending = 2
+        leftAfterSync = 2
+        val vm = askDelete()
+        vm.confirmDelete()
+        val form = vm.state.value.deleteForm!!
+        assertEquals(DeletePhase.SYNC_FAILED, form.phase)
+        assertEquals(2, form.pending)
+        assertTrue(api.deletes.isEmpty())
+        vm.cancelDelete()
+        assertNull(vm.state.value.deleteForm)
+        assertTrue(deleteWipes.isEmpty())
+    }
+
+    @Test
+    fun syncFailedThenDeleteAnywaySavesTheUnsentChangesFirst() {
+        pending = 2
+        leftAfterSync = 1
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(DeletePhase.SYNC_FAILED, vm.state.value.deleteForm?.phase)
+        vm.deleteAnyway()
+        // The password typed before the sync is kept
+        assertEquals(listOf<String?>("secret password"), api.deletes)
+        assertEquals(listOf(true), deleteWipes)
+        assertEquals(DeletePhase.DONE, vm.state.value.deleteForm?.phase)
+    }
+
+    @Test
+    fun aSyncThatThrowsAlsoLetsTheUserChoose() {
+        pending = 1
+        val vm = AccountViewModel(
+            api = api,
+            pendingChanges = { pending },
+            syncFirst = { throw ApiException(ApiError.NETWORK) },
+            onMe = {},
+            onPromoted = {},
+            wipe = { wipes++ },
+            wipeAfterDelete = { deleteWipes += it },
+        )
+        vm.askDelete(guest = true)
+        vm.confirmDelete()
+        assertEquals(DeletePhase.SYNC_FAILED, vm.state.value.deleteForm?.phase)
+        assertEquals(1, vm.state.value.deleteForm?.pending)
+        vm.deleteAnyway()
+        assertEquals(listOf(true), deleteWipes)
+    }
+
+    @Test
+    fun aRevokeReportedDuringTheDeleteDoesNotWipeASecondTime() {
+        // Another call answered 401 right after the delete: the client reports the session revoked
+        api.afterDelete = { ServerSessionEvents.sessionRevoked() }
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(listOf(false), deleteWipes)
+        assertFalse(ServerSessionEvents.revoked.value, "the revoke handler would wipe again")
+        assertEquals(0, wipes)
+        assertEquals(DeletePhase.DONE, vm.state.value.deleteForm?.phase)
+    }
+
+    @Test
+    fun aRevokedSessionDuringTheDeleteIsHandedToTheRevokeHandler() {
+        api.deleteError = ApiException(ApiError.SESSION_REVOKED, 401, ProblemTypes.SESSION_REVOKED)
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertTrue(deleteWipes.isEmpty())
+        assertNull(vm.state.value.deleteForm)
+        assertTrue(ServerSessionEvents.revoked.value)
+        assertFalse(ServerSessionEvents.leaving)
+    }
+
+    @Test
+    fun aFailedWipeAfterTheDeleteIsRetriedByTheRevokeHandler() {
+        deleteWipeError = IllegalStateException("disk")
+        val vm = askDelete()
+        vm.confirmDelete()
+        assertEquals(1, deleteWipes.size)
+        assertNull(vm.state.value.deleteForm)
+        assertTrue(ServerSessionEvents.revoked.value)
+        assertFalse(ServerSessionEvents.leaving)
+    }
+
+    @Test
+    fun aRunningDeleteCannotBeCancelled() {
+        pending = 1
+        val gate = kotlinx.coroutines.CompletableDeferred<Int>()
+        val vm = AccountViewModel(
+            api = api,
+            pendingChanges = { pending },
+            syncFirst = { gate.await() },
+            onMe = {},
+            onPromoted = {},
+            wipe = {},
+            wipeAfterDelete = { deleteWipes += it },
+        )
+        vm.askDelete(guest = true)
+        vm.confirmDelete()
+        assertEquals(DeletePhase.SYNCING, vm.state.value.deleteForm?.phase)
+        vm.cancelDelete()
+        assertNotNull(vm.state.value.deleteForm)
+        gate.complete(0)
+        assertEquals(listOf(false), deleteWipes)
     }
 }

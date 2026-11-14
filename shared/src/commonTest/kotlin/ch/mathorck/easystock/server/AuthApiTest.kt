@@ -11,6 +11,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
@@ -339,5 +341,88 @@ class AuthApiTest {
                 sessionEngine.coroutineContext[Job]!!.join()
             }
         }
+    }
+
+    // ---------- Delete my account, download my data ----------
+
+    private fun myData(handler: suspend MockRequestHandleScope.(Seen) -> HttpResponseData): MyDataApi = account(handler) as MyDataApi
+
+    @Test
+    fun deleteAccountSendsDeleteOnMeWithThePassword() = runTest {
+        session.accessToken = "acc"
+        account { respond("", HttpStatusCode.NoContent) }.deleteAccount("my password 1")
+        assertEquals(HttpMethod.Delete, seen.single().method)
+        assertEquals("/api/v1/me", seen.single().path)
+        assertEquals("""{"password":"my password 1"}""", seen.single().body)
+        assertEquals("Bearer acc", seen.single().headers[HttpHeaders.Authorization])
+        assertEquals(0, revokedCalls)
+    }
+
+    @Test
+    fun aGuestDeletesWithAnEmptyObject() = runTest {
+        session.accessToken = "acc"
+        account { respond("", HttpStatusCode.NoContent) }.deleteAccount(null)
+        assertEquals(HttpMethod.Delete, seen.single().method)
+        assertEquals("{}", seen.single().body)
+    }
+
+    @Test
+    fun deleteWithAWrongPasswordIsAFieldErrorNotARevoke() = runTest {
+        session.accessToken = "acc"
+        val e = assertFailsWith<ApiException> {
+            account { problem(HttpStatusCode.BadRequest, "invalid-credentials") }.deleteAccount("bad")
+        }
+        assertEquals(ConnectError.WRONG_CREDENTIALS, connectErrorOf(e))
+        assertEquals(0, revokedCalls)
+        assertEquals("acc", session.accessToken)
+    }
+
+    @Test
+    fun deletingTheLastAdminIsRefused() = runTest {
+        session.accessToken = "acc"
+        val e = assertFailsWith<ApiException> {
+            account { problem(HttpStatusCode.Conflict, "last-admin") }.deleteAccount("pw")
+        }
+        assertEquals(ApiError.CONFLICT, e.error)
+        assertEquals(ConnectError.LAST_ADMIN, connectErrorOf(e))
+    }
+
+    @Test
+    fun aLockedAccountIsRateLimited() = runTest {
+        session.accessToken = "acc"
+        val e = assertFailsWith<ApiException> {
+            account { problem(HttpStatusCode.TooManyRequests, "rate-limited") }.deleteAccount("pw")
+        }
+        assertEquals(ConnectError.RATE_LIMITED, connectErrorOf(e))
+    }
+
+    @Test
+    fun myDataIsAGetOnMeDataStreamedWhole() = runTest {
+        session.accessToken = "acc"
+        // ~1 MB: read as a stream, never parsed
+        val big = buildString {
+            append("{\"movements\":[")
+            repeat(20_000) { append("{\"q\":$it,\"note\":\"abcdefghijklmnopqrstuvwxyz0123\"},") }
+            append("{}]}")
+        }
+        var received = ""
+        myData {
+            respond(big, HttpStatusCode.OK, headersOf(HttpHeaders.ContentDisposition, "attachment; filename=easystock-my-data-2026-11-14.json"))
+        }.downloadMyData { received = it.readRemaining().readByteArray().decodeToString() }
+        assertEquals(big, received)
+        assertEquals(HttpMethod.Get, seen.single().method)
+        assertEquals("/api/v1/me/data", seen.single().path)
+        assertEquals("Bearer acc", seen.single().headers[HttpHeaders.Authorization])
+    }
+
+    @Test
+    fun myDataTooOftenIsRateLimited() = runTest {
+        session.accessToken = "acc"
+        var written = false
+        val e = assertFailsWith<ApiException> {
+            myData { problem(HttpStatusCode.TooManyRequests, "rate-limited") }.downloadMyData { written = true }
+        }
+        assertEquals(ApiError.RATE_LIMITED, e.error)
+        assertFalse(written, "an error answer is never written to the file")
     }
 }
