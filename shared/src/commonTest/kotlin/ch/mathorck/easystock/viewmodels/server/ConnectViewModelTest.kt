@@ -160,6 +160,18 @@ class ConnectViewModelTest {
     }
 
     @Test
+    fun aRefusedCertificateNeverOffersHttp() {
+        setUpApi = { if (it.connection.isHttps) it.infoError = ApiException(ApiError.NETWORK, tlsFailure = true) }
+        val vm = vm()
+        vm.addressChanged("192.168.1.20:8080")
+        vm.submitAddress()
+
+        assertEquals(ConnectError.TLS, vm.state.value.error)
+        assertEquals(ConnectStep.Choose, vm.state.value.step)
+        assertEquals(1, apis.size)
+    }
+
+    @Test
     fun aTypedHttpsAddressWithoutAnswerIsANetworkError() {
         setUpApi = { it.infoError = ApiException(ApiError.NETWORK) }
         val vm = vm()

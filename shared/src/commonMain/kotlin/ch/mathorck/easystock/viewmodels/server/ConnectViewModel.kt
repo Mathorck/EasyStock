@@ -310,6 +310,9 @@ class ConnectViewModel(
             } catch (e: ApiException) {
                 val fallback = target.httpFallback
                 when {
+                    // A certificate refused: something answered but can't prove it is the server.
+                    // Offering plain HTTP then would hand the connection to whoever answered
+                    e.tlsFailure -> fail(ConnectError.TLS)
                     // Before the HTTP fallback: plain HTTP would be blocked the same way
                     e.error == ApiError.NETWORK && localNetworkMissing() -> localNetworkDenied(target)
                     e.error == ApiError.NETWORK && fallback != null -> go(ConnectStep.HttpsFailed(target, fallback))

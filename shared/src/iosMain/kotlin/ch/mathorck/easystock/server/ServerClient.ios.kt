@@ -8,6 +8,8 @@ import io.ktor.client.engine.HttpClientEngine
 actual fun serverHttpEngine(fingerprint: String?): HttpClientEngine =
     throw UnsupportedOperationException("Server mode is not available on iOS yet")
 
+internal actual fun isTlsFailure(e: Throwable): Boolean = false
+
 @Composable
 actual fun rememberServerClient(state: SyncState?): ServerClient? = null
 

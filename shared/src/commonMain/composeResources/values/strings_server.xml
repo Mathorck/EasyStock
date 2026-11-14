@@ -69,6 +69,7 @@
     <!-- Errors -->
     <string name="server_error_title">Can’t connect</string>
     <string name="server_error_network">The server did not answer. Check the address, and that this phone is on the right network.</string>
+    <string name="server_error_tls">The server’s certificate is not trusted (unknown, expired or for another name). The app does not retry without encryption: check the address, or ask the server administrator.</string>
     <string name="server_error_not_a_server">This address answers, but it is not an EasyStock server.</string>
     <string name="server_error_api_unsupported">This server uses another version of EasyStock. Update the app or the server.</string>
     <string name="server_error_app_too_old">This server needs a newer version of the app. Update EasyStock.</string>

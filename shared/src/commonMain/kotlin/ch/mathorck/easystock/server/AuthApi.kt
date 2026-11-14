@@ -117,6 +117,9 @@ enum class ConnectError {
     /** No answer while Android blocks the local network for this app (Android 17+, permission not granted). */
     LOCAL_NETWORK_DENIED,
 
+    /** The server's certificate was refused ([ApiException.tlsFailure]): plain HTTP is never offered after it. */
+    TLS,
+
     /** The address answers, but not as an EasyStock server (no `/server-info`). */
     NOT_A_SERVER,
 
@@ -179,7 +182,7 @@ fun connectErrorOf(e: ApiException): ConnectError = when (e.problemType) {
     ProblemTypes.VALIDATION_FAILED -> ConnectError.INVALID
     ProblemTypes.RATE_LIMITED -> ConnectError.RATE_LIMITED
     else -> when (e.error) {
-        ApiError.NETWORK -> ConnectError.NETWORK
+        ApiError.NETWORK -> if (e.tlsFailure) ConnectError.TLS else ConnectError.NETWORK
         ApiError.APP_TOO_OLD -> ConnectError.APP_TOO_OLD
         ApiError.RATE_LIMITED -> ConnectError.RATE_LIMITED
         // Without a type: a 401 to a login is still a wrong password

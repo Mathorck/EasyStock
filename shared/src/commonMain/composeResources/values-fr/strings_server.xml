@@ -69,6 +69,7 @@
     <!-- Erreurs -->
     <string name="server_error_title">Connexion impossible</string>
     <string name="server_error_network">Le serveur n’a pas répondu. Vérifiez l’adresse, et que ce téléphone est sur le bon réseau.</string>
+    <string name="server_error_tls">Le certificat du serveur n’est pas reconnu (inconnu, expiré ou pour un autre nom). L’app ne réessaie pas sans chiffrement : vérifiez l’adresse, ou contactez l’administrateur du serveur.</string>
     <string name="server_error_not_a_server">Cette adresse répond, mais ce n’est pas un serveur EasyStock.</string>
     <string name="server_error_api_unsupported">Ce serveur utilise une autre version d’EasyStock. Mettez à jour l’app ou le serveur.</string>
     <string name="server_error_app_too_old">Ce serveur demande une version plus récente de l’app. Mettez EasyStock à jour.</string>

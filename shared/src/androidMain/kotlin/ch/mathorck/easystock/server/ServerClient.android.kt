@@ -10,8 +10,10 @@ import ch.mathorck.easystock.data.model.SyncState
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import java.security.SecureRandom
+import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLContext
 
 /**
@@ -36,6 +38,15 @@ internal fun pinnedHostnameVerifier(trust: FingerprintTrustManager) = HostnameVe
     val leaf = runCatching { session.peerCertificates.firstOrNull() as? X509Certificate }.getOrNull()
     leaf != null && trust.matches(leaf)
 }
+
+/**
+ * A refused certificate shows as an `SSLHandshakeException` caused by a `CertificateException` (untrusted,
+ * expired, wrong pin), a wrong host name as an `SSLPeerUnverifiedException`. Other SSL errors (a plain
+ * HTTP server on that port...) are not certificate refusals.
+ */
+internal actual fun isTlsFailure(e: Throwable): Boolean =
+    generateSequence(e) { it.cause.takeIf { cause -> cause !== it } }.take(10)
+        .any { it is CertificateException || it is SSLPeerUnverifiedException }
 
 private var holder: ServerClientHolder? = null
 

@@ -190,7 +190,7 @@ suspend fun <T> apiCall(block: suspend () -> T): T = try {
 } catch (e: ResponseException) {
     throw e.response.toApiException(e)
 } catch (e: IOException) {
-    throw ApiException(ApiError.NETWORK, cause = e)
+    throw ApiException(ApiError.NETWORK, cause = e, tlsFailure = isTlsFailure(e))
 } catch (e: SerializationException) {
     throw ApiException(ApiError.SERVER, cause = e)
 } catch (e: ContentConvertException) {
@@ -223,6 +223,13 @@ class ServerClientHolder(private val create: (ServerConnection) -> ServerClient)
         current = null
     }
 }
+
+/**
+ * True when [e] (or a cause) is a refused server certificate or host name: a TLS answer that could not
+ * be trusted. False for a refused connection, a timeout, an unknown host, and for a TLS protocol error
+ * such as a plain HTTP server on that port (the case the HTTP fallback of a schemeless address is for).
+ */
+internal expect fun isTlsFailure(e: Throwable): Boolean
 
 /** The platform HTTP engine: OkHttp on Android, pinned to [fingerprint] when there is one. */
 expect fun serverHttpEngine(fingerprint: String?): HttpClientEngine
