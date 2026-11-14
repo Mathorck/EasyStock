@@ -29,3 +29,7 @@ actual fun rememberBackupFiles(
 
 @Composable
 actual fun rememberIsChangingConfigurations(): () -> Boolean = { false }
+
+@Composable
+actual fun SecureScreen() {
+}

@@ -11,6 +11,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.util.Size
+import android.view.Window
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -70,6 +72,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import java.util.concurrent.Executors
+import java.util.WeakHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 // ---------- QR encode (ZXing) ----------
@@ -286,4 +289,27 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+/** How many [SecureScreen] are shown per window: the flag goes away only when the last one leaves. */
+private val secureCounts = WeakHashMap<Window, Int>()
+
+@Composable
+actual fun SecureScreen() {
+    if (LocalInspectionMode.current) return
+    val window = LocalContext.current.findActivity()?.window ?: return
+    DisposableEffect(window) {
+        val count = secureCounts[window] ?: 0
+        if (count == 0) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        secureCounts[window] = count + 1
+        onDispose {
+            val left = (secureCounts[window] ?: 1) - 1
+            if (left <= 0) {
+                secureCounts.remove(window)
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                secureCounts[window] = left
+            }
+        }
+    }
 }

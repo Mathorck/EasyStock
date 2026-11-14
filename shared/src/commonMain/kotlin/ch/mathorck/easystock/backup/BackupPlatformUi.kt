@@ -32,6 +32,8 @@ private const val QUIET_ZONE = 4
  */
 @Composable
 fun QrCodeImage(text: String, description: String, modifier: Modifier = Modifier) {
+    // Every QR shown holds a live token: keep it out of screenshots, recordings and the recent apps view
+    SecureScreen()
     val matrix = remember(text) { encodeQr(text) } ?: return
     Canvas(modifier.aspectRatio(1f).semantics { contentDescription = description }) {
         val total = matrix.size + 2 * QUIET_ZONE
@@ -89,3 +91,7 @@ expect fun rememberBackupFiles(
  */
 @Composable
 expect fun rememberIsChangingConfigurations(): () -> Boolean
+
+/** While in the composition, blocks screenshots and screen recording of the screen (Android FLAG_SECURE). */
+@Composable
+expect fun SecureScreen()
