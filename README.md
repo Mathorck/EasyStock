@@ -136,6 +136,7 @@ EasyStock is my TIP (2026-2027) at the [CPNE](https://www.cpne.ch), Centre de fo
 - Connect from Settings > Server: scan the QR code from an administrator, or type the server address. Plain HTTP shows a warning, a self-signed HTTPS certificate is accepted only when it matches the fingerprint in the QR code.
 - Roles: Admin, Editor, Viewer, Guest. The app hides what a role can't do. Guests only see the stock.
 - Account: display name, password change, log out (this erases the server data from the phone). A Guest can be promoted by an Admin.
+- Your personal data (nFADP, GDPR): "Download my data" saves or shares a JSON file with everything the server holds about you (account, devices, sessions, your movements), never other users' data. "Delete my account" erases your account and personal data from the server (your movements stay, shown as "Deleted user"), then disconnects the phone and erases its server data. Changes not sent yet are offered in an automatic backup first. The last Admin can't delete their account.
 - Administration (Admin only): users and roles, devices, invites, a printed QR code for Guests (PDF), server backup, server settings.
 - Sync with the server: when the app opens, a few seconds after a change, pull to refresh on the Stock page, every 15 minutes in the background, and on a [UnifiedPush](https://unifiedpush.org) message if a distributor app is installed (no Google services).
 - Movement history shows who made each movement.
