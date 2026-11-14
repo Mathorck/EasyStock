@@ -86,7 +86,10 @@ Session and tokens
 * The access token stays in memory only.
 * The refresh token is stored encrypted with an AES-GCM key from the Android Keystore, in a small DataStore file.
 * Do not use `EncryptedSharedPreferences`, which is deprecated.
-* Every request sends `X-EasyStock-App-Version` and `X-EasyStock-Schema-Version` headers.
+* Every request sends `X-EasyStock-App-Version` and `X-EasyStock-Schema-Version` headers. The schema header carries
+  `DATA_SCHEMA_VERSION` (`AppDatabase.kt`), not `DB_VERSION`: the latest DB version with the same synced tables. A
+  version that changes only indices or app-only tables (v12) keeps it, so existing servers keep syncing. Backups
+  write the same value in `schema_version`.
 * A 401 answered with "session revoked" triggers the wipe described under "Leaving a server".
 * A 426 "app too old" shows a message asking the user to update the app, and pauses sync.
 

@@ -29,8 +29,18 @@ import kotlinx.coroutines.IO
 
 const val DATABASE_NAME = "easystock.db"
 
-/** Current schema version. Also written in backups (see backup/BackupManifest). */
-const val DB_VERSION = 11
+/** Current schema version (Room). Backups and the server get [DATA_SCHEMA_VERSION] instead. */
+const val DB_VERSION = 12
+
+/**
+ * Version of the shared data: the latest [DB_VERSION] whose synced tables (columns of the 9 tables in a
+ * backup and in the sync) are the same as now. Sent to the server in `X-EasyStock-Schema-Version` (the
+ * server answers 426 to a version it does not list) and written in backups (the server and older apps
+ * refuse a newer one). A version that changes only indices or app-only tables keeps it, so it still
+ * syncs with the servers of the previous version. Set it to [DB_VERSION] when a synced table changes
+ * (the server must then list the new version).
+ */
+const val DATA_SCHEMA_VERSION = 11
 
 @Database(
     entities = [
@@ -73,6 +83,8 @@ const val DB_VERSION = 11
         // image_hash, pending_push (sync engine, app only)
         AutoMigration(from = 9, to = 10),
         // 10 to 11 (server_seq, then a full re-pull): manual, see MIGRATION_10_11
+        // stock_movement indices (covering stock sums, movement history)
+        AutoMigration(from = 11, to = 12),
     ],
     exportSchema = true,
 )

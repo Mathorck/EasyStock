@@ -140,9 +140,10 @@ Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or
   device_id uuid [note: 'Set by the server in server mode: the device that recorded it. Null in standalone mode and on Guest phones']
 
   indexes {
-    (article_id, location_id)
+    (article_id, location_id, quantity) [note: 'v12. Covering: the stock sums of an article (per location or in total) read only the index']
+    (location_id, article_id, quantity) [note: 'v12, replaces the location_id index (also backs the foreign key). Covering: the stock sums of a location read only the index']
+    (article_id, occurred_at, created_at, id) [note: 'v12. Movement history of an article, newest first, without a sort']
     item_id
-    location_id
     created_at
   }
 }

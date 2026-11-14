@@ -2,6 +2,7 @@ package ch.mathorck.easystock.server
 
 import androidx.compose.runtime.Composable
 import ch.mathorck.easystock.auth.SessionStore
+import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
 import ch.mathorck.easystock.data.db.DB_VERSION
 import ch.mathorck.easystock.data.model.SyncState
 import io.ktor.client.HttpClient
@@ -54,8 +55,8 @@ data class ServerConnection(
 data class ClientVersions(
     /** App version name, e.g. `1.4.0`. */
     val appVersion: String,
-    /** Database schema version of this app ([DB_VERSION]). */
-    val schemaVersion: Int = DB_VERSION,
+    /** Shared data version of this app ([DATA_SCHEMA_VERSION], not [DB_VERSION]: an index-only version keeps it). */
+    val schemaVersion: Int = DATA_SCHEMA_VERSION,
 ) {
     companion object {
         const val APP_HEADER = "X-EasyStock-App-Version"

@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.backup
 
+import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
 import ch.mathorck.easystock.data.db.DB_VERSION
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.AttributeDefinition
@@ -66,7 +67,8 @@ data class BackupManifest(
     val format: String = BACKUP_FORMAT,
     @SerialName("format_version") val formatVersion: Int = BACKUP_FORMAT_VERSION,
     @SerialName("app_version") val appVersion: String,
-    @SerialName("schema_version") val schemaVersion: Int = DB_VERSION,
+    /** [DATA_SCHEMA_VERSION]: the shape of the tables, so the server and older apps with the same tables can import it. */
+    @SerialName("schema_version") val schemaVersion: Int = DATA_SCHEMA_VERSION,
     /** ISO 8601, UTC ("2026-11-10T14:03:00Z"). */
     @SerialName("created_at") val createdAt: String,
     /** Rows per table name, plus "images". */

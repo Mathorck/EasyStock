@@ -85,9 +85,13 @@ data class Item(
         ForeignKey(entity = Location::class, parentColumns = ["id"], childColumns = ["location_id"]),
     ],
     indices = [
-        Index(value = ["article_id", "location_id"]),
+        // Covering: stock sums of an article (SUM(quantity) per location or in total) read only the index
+        Index(value = ["article_id", "location_id", "quantity"]),
+        // Covering: stock sums of a location (and the location_id foreign key)
+        Index(value = ["location_id", "article_id", "quantity"]),
+        // Movement history of an article, newest first (ArticleDetailDao.observeMovements), no sort
+        Index(value = ["article_id", "occurred_at", "created_at", "id"]),
         Index(value = ["item_id"]),
-        Index(value = ["location_id"]),
         Index(value = ["created_at"]),
     ],
 )

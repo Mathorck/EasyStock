@@ -6,6 +6,7 @@ import ch.mathorck.easystock.backup.BackupFixtures.full
 import ch.mathorck.easystock.backup.BackupFixtures.item
 import ch.mathorck.easystock.backup.BackupFixtures.location
 import ch.mathorck.easystock.backup.BackupFixtures.movement
+import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
 import ch.mathorck.easystock.data.db.DB_VERSION
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -279,8 +280,10 @@ class BackupFormatTest {
     @Test
     fun manifestOfCurrentVersionsIsAccepted() {
         BackupCodec.checkManifest(manifest)
-        assertEquals(DB_VERSION, manifest.schemaVersion)
-        assertEquals(11, DB_VERSION)
+        // v12 changes only indices: backups keep schema 11, so the server ([10, 11]) and v11 apps import them
+        assertEquals(DATA_SCHEMA_VERSION, manifest.schemaVersion)
+        assertEquals(11, DATA_SCHEMA_VERSION)
+        assertEquals(12, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
@@ -291,6 +294,13 @@ class BackupFormatTest {
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 7))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 8))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 9))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 10))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 11))
+    }
+
+    @Test
+    fun currentDbVersionIsAccepted() {
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = DB_VERSION))
     }
 
     @Test

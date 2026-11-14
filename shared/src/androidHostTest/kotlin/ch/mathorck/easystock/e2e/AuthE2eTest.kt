@@ -1,6 +1,6 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.data.db.DB_VERSION
+import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
 import ch.mathorck.easystock.server.ApiError
 import ch.mathorck.easystock.server.ApiException
 import ch.mathorck.easystock.server.ClientVersions
@@ -27,7 +27,7 @@ class AuthE2eTest {
         val fixture = E2eServer.fixture
         val info = E2eServer.joinApi().use { it.serverInfo() }
         assertNull(checkServerInfo(info, E2eServer.versions.appVersion))
-        assertTrue(DB_VERSION in info.supportedSchemaVersions, "schema $DB_VERSION in ${info.supportedSchemaVersions}")
+        assertTrue(DATA_SCHEMA_VERSION in info.supportedSchemaVersions, "schema $DATA_SCHEMA_VERSION in ${info.supportedSchemaVersions}")
         assertTrue(info.setupDone)
         // A call with the headers of this app
         assertEquals("admin", fixture.admin.account { it.me() }.role)
