@@ -279,24 +279,30 @@ class AccountViewModel(
         viewModelScope.launch {
             ServerSessionEvents.leaving = true
             try {
-                beforeLogout()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // The logout goes on: the server drops the address with the session
+                try {
+                    beforeLogout()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // The logout goes on: the server drops the address with the session
+                }
+                val told = try {
+                    api.logout()
+                    true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: ApiException) {
+                    // Already revoked on the server: nothing to tell, wipe anyway
+                    e.error == ApiError.SESSION_REVOKED
+                } catch (e: Exception) {
+                    false
+                }
+                if (told) finishLogout() else _state.update { it.copy(logout = LogoutStep.Offline) }
+            } finally {
+                // Also when cancelled (screen closed) or offline: until the user confirms, the session
+                // is kept, and a revoke by the server must be reported again
+                ServerSessionEvents.leaving = false
             }
-            val told = try {
-                api.logout()
-                true
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: ApiException) {
-                // Already revoked on the server: nothing to tell, wipe anyway
-                e.error == ApiError.SESSION_REVOKED
-            } catch (e: Exception) {
-                false
-            }
-            if (told) finishLogout() else _state.update { it.copy(logout = LogoutStep.Offline) }
         }
     }
 
@@ -304,7 +310,10 @@ class AccountViewModel(
     fun logoutOffline() {
         if (_state.value.logout != LogoutStep.Offline) return
         _state.update { it.copy(logout = LogoutStep.Working) }
-        viewModelScope.launch { finishLogout() }
+        viewModelScope.launch {
+            ServerSessionEvents.leaving = true
+            finishLogout()
+        }
     }
 
     /** [LogoutStep.Offline] closed: stays connected. */
@@ -312,6 +321,11 @@ class AccountViewModel(
         if (_state.value.logout != LogoutStep.Offline) return
         ServerSessionEvents.leaving = false
         _state.update { it.copy(logout = null) }
+    }
+
+    /** The screen is gone: a logout that did not finish must not hide a later revoke. */
+    override fun onCleared() {
+        ServerSessionEvents.leaving = false
     }
 
     private suspend fun finishLogout() {

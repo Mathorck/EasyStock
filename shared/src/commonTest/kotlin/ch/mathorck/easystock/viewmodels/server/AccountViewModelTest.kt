@@ -61,7 +61,11 @@ private class FakeAccountApi : AccountApi {
         passwordError?.let { throw it }
     }
 
+    /** When set, the logout call waits for it. */
+    var logoutGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     override suspend fun logout() {
+        logoutGate?.await()
         logouts++
         logoutError?.let { throw it }
     }
@@ -111,6 +115,7 @@ class AccountViewModelTest {
     @AfterTest
     fun tearDown() {
         ServerSessionEvents.leaving = false
+        ServerSessionEvents.revokedHandled()
         Dispatchers.resetMain()
     }
 
@@ -267,6 +272,39 @@ class AccountViewModelTest {
         vm.logoutOffline()
         assertEquals(1, wipes)
         assertEquals(LogoutStep.Done, vm.state.value.logout)
+    }
+
+    @Test
+    fun leavingIsResetWhileOfflineAndOnCancel() {
+        api.logoutError = ApiException(ApiError.NETWORK)
+        val vm = vm()
+        vm.askLogout(guest = false)
+        vm.confirmLogout()
+        assertEquals(LogoutStep.Offline, vm.state.value.logout)
+        // The user did not leave yet: a revoke meanwhile is reported
+        assertFalse(ServerSessionEvents.leaving)
+        vm.cancelLogout()
+        assertNull(vm.state.value.logout)
+        assertFalse(ServerSessionEvents.leaving)
+    }
+
+    @Test
+    fun leavingIsResetWhenTheScreenClosesDuringTheLogout() {
+        api.logoutGate = kotlinx.coroutines.CompletableDeferred()
+        val store = androidx.lifecycle.ViewModelStore()
+        val vm = vm()
+        store.put("account", vm)
+        vm.askLogout(guest = false)
+        vm.confirmLogout()
+        assertTrue(ServerSessionEvents.leaving)
+
+        store.clear()
+
+        assertFalse(ServerSessionEvents.leaving)
+        assertEquals(0, wipes)
+        // A later revoke is reported again
+        ServerSessionEvents.sessionRevoked()
+        assertTrue(ServerSessionEvents.revoked.value)
     }
 
     @Test
