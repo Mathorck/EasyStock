@@ -216,7 +216,7 @@ class ServerBackupViewModelTest {
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        vm = ServerBackupViewModel(api, files) { "backup.easystock" }
+        vm = ServerBackupViewModel(api, files, fileName = { "backup.easystock" })
     }
 
     @AfterTest
