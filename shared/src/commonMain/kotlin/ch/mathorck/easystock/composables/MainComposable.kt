@@ -42,6 +42,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import ch.mathorck.easystock.auth.ServerSessionEvents
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.unit.dp
+import ch.mathorck.easystock.sync.rememberAutoBackupSharer
+import easystock.shared.generated.resources.dataset_reset_backup_share
+import easystock.shared.generated.resources.privacy_retry
+import easystock.shared.generated.resources.privacy_revoke_backup_failed
+import easystock.shared.generated.resources.privacy_revoke_backup_saved
+import easystock.shared.generated.resources.privacy_session_lost_message
+import easystock.shared.generated.resources.privacy_session_lost_title
+import easystock.shared.generated.resources.privacy_wipe_failed_message
+import easystock.shared.generated.resources.privacy_wipe_failed_title
+import kotlinx.coroutines.CancellationException
 import ch.mathorck.easystock.auth.rememberJoinPlatform
 import ch.mathorck.easystock.reset.rememberDataReset
 import easystock.shared.generated.resources.server_joined
@@ -117,29 +130,65 @@ private fun MainContent() {
 
 /**
  * The server session outside any screen: at start, drops a token left by a join that stopped half way;
- * when the server revoked the session (the client reported it), wipes the phone like a logout and says so.
+ * when the session ended without a logout (revoked by the server, or a token this phone lost), saves the
+ * changes not sent yet in an automatic backup, wipes the phone like a logout and says so.
  */
 @Composable
 private fun ServerSessionWatcher(onWiped: () -> Unit) {
     val joinPlatform = rememberJoinPlatform()
     val dataReset = rememberDataReset()
+    val share = rememberAutoBackupSharer()
     // Local only: reads sync_state and the session file, no network
     LaunchedEffect(joinPlatform) { runCatching { joinPlatform.join.forgetOrphanSession() } }
     val revoked by ServerSessionEvents.revoked.collectAsStateWithLifecycle()
     var showRevoked by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(revoked) {
+    var lostLocally by rememberSaveable { mutableStateOf(false) }
+    var backupFile by rememberSaveable { mutableStateOf<String?>(null) }
+    var backupFailed by rememberSaveable { mutableStateOf(false) }
+    var wipeFailed by rememberSaveable { mutableStateOf(false) }
+    var attempt by remember { mutableStateOf(0) }
+    LaunchedEffect(revoked, attempt) {
         if (!revoked) return@LaunchedEffect
-        // A failed wipe is tried again at the next refused call
-        runCatching { dataReset.run() }
+        wipeFailed = false
+        val local = ServerSessionEvents.lostLocally
+        val backup = try {
+            dataReset.runAfterRevoke()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Not erased: the user is told and tries again, never told the data is gone
+            wipeFailed = true
+            return@LaunchedEffect
+        }
         ServerSessionEvents.revokedHandled()
+        lostLocally = local
+        backupFile = backup.backupFile
+        backupFailed = backup.backupFailed
         showRevoked = true
         onWiped()
+    }
+    if (wipeFailed) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(Res.string.privacy_wipe_failed_title)) },
+            text = { Text(stringResource(Res.string.privacy_wipe_failed_message)) },
+            confirmButton = { TextButton(onClick = { wipeFailed = false; attempt++ }) { Text(stringResource(Res.string.privacy_retry)) } },
+        )
     }
     if (showRevoked) {
         AlertDialog(
             onDismissRequest = { showRevoked = false },
-            title = { Text(stringResource(Res.string.server_revoked_title)) },
-            text = { Text(stringResource(Res.string.server_revoked_message)) },
+            title = { Text(stringResource(if (lostLocally) Res.string.privacy_session_lost_title else Res.string.server_revoked_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(if (lostLocally) Res.string.privacy_session_lost_message else Res.string.server_revoked_message))
+                    if (backupFile != null) Text(stringResource(Res.string.privacy_revoke_backup_saved))
+                    if (backupFailed) Text(stringResource(Res.string.privacy_revoke_backup_failed))
+                }
+            },
+            dismissButton = backupFile?.let { file ->
+                { TextButton(onClick = { share(file) }) { Text(stringResource(Res.string.dataset_reset_backup_share)) } }
+            },
             confirmButton = { TextButton(onClick = { showRevoked = false }) { Text(stringResource(Res.string.server_ok)) } },
         )
     }

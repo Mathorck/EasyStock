@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="privacy_wifi_local_network_message">Eine WLAN-Übertragung läuft über Ihr lokales Netzwerk. Android braucht Ihre Erlaubnis, damit EasyStock das andere Telefon erreicht.</string>
+    <string name="privacy_session_lost_title">Erneut anmelden</string>
+    <string name="privacy_session_lost_message">Dieses Telefon kann seine Serversitzung nicht mehr lesen. Es wurde getrennt und seine Daten wurden gelöscht. Treten Sie dem Server erneut bei, um weiterzuarbeiten.</string>
+    <string name="privacy_revoke_backup_saved">Noch nicht an den Server gesendete Änderungen wurden zuerst in einer automatischen Sicherung gespeichert. Importieren Sie sie nach dem erneuten Verbinden mit Zusammenführen, um sie zu senden. Sie können sie auch sich selbst oder an eine andere App senden.</string>
+    <string name="privacy_revoke_backup_failed">Einige Änderungen waren noch nicht an den Server gesendet, und es konnte keine Sicherung davon gespeichert werden.</string>
+    <string name="privacy_wipe_failed_title">Daten nicht gelöscht</string>
+    <string name="privacy_wipe_failed_message">Ihre Serversitzung ist beendet, aber die Daten dieses Telefons konnten nicht gelöscht werden. Versuchen Sie es erneut.</string>
+    <string name="privacy_retry">Erneut versuchen</string>
 </resources>

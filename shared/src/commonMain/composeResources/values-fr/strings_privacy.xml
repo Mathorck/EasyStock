@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="privacy_wifi_local_network_message">Un transfert Wi-Fi passe par votre réseau local. Android a besoin de votre autorisation pour qu’EasyStock atteigne l’autre téléphone.</string>
+    <string name="privacy_session_lost_title">Reconnectez-vous</string>
+    <string name="privacy_session_lost_message">Ce téléphone ne peut plus lire sa session serveur. Il a été déconnecté et ses données ont été effacées. Rejoignez à nouveau le serveur pour continuer.</string>
+    <string name="privacy_revoke_backup_saved">Les modifications pas encore envoyées au serveur ont d’abord été enregistrées dans une sauvegarde automatique. Une fois reconnecté, importez-la avec Fusionner pour les envoyer. Vous pouvez aussi vous l’envoyer ou l’envoyer à une autre app.</string>
+    <string name="privacy_revoke_backup_failed">Des modifications n’avaient pas encore été envoyées au serveur, et aucune sauvegarde n’a pu en être faite.</string>
+    <string name="privacy_wipe_failed_title">Données non effacées</string>
+    <string name="privacy_wipe_failed_message">Votre session serveur a pris fin, mais les données de ce téléphone n’ont pas pu être effacées. Réessayez.</string>
+    <string name="privacy_retry">Réessayer</string>
 </resources>

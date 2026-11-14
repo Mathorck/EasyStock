@@ -5,6 +5,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.auth.sessionStore
 import ch.mathorck.easystock.backup.PHOTO_STAGING_DIR
+import ch.mathorck.easystock.backup.backupService
+import ch.mathorck.easystock.sync.AndroidAutoBackups
+import ch.mathorck.easystock.sync.autoBackupDir
 import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.images.IMAGE_DIR
 import ch.mathorck.easystock.push.pushRegistrar
@@ -46,7 +49,9 @@ actual fun rememberDataReset(): DataReset {
     return remember(context) {
         DataReset(
             db = appDatabase(context),
-            wipeFiles = { wipeAppFiles(context.filesDir, context.cacheDir) },
+            wipeFiles = { keepAutoBackups -> wipeAppFiles(context.filesDir, context.cacheDir, keepAutoBackups) },
+            pendingChanges = { appDatabase(context).sessionDao().outboxCount() },
+            autoBackup = AndroidAutoBackups(autoBackupDir(context), backupService(context))::create,
             clearSession = {
                 // The distributor forgets this app (no network: the session may be revoked already)
                 pushRegistrar(context).forget()

@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class EncryptedSessionStoreTest {
     private val dir: File = Files.createTempDirectory("session").toFile()
@@ -72,6 +73,20 @@ class EncryptedSessionStoreTest {
         assertNull(open(FakeCipher(2)).refreshToken())
         // Deleted, not just unreadable
         assertNull(open(FakeCipher(1)).refreshToken())
+    }
+
+    @Test
+    fun aMissingOrUnreadableTokenIsALocalLoss() = runBlocking {
+        val store = open(FakeCipher(1))
+        assertNull(store.refreshToken())
+        assertTrue(store.refreshTokenMissing)
+        store.saveRefreshToken("r")
+        assertEquals("r", store.refreshToken())
+        assertFalse(store.refreshTokenMissing)
+
+        val other = open(FakeCipher(2))
+        assertNull(other.refreshToken())
+        assertTrue(other.refreshTokenMissing)
     }
 
     @Test

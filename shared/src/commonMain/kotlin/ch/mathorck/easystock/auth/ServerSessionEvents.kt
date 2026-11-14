@@ -20,11 +20,24 @@ object ServerSessionEvents {
     @Volatile
     var leaving: Boolean = false
 
-    fun sessionRevoked() {
-        if (!leaving) _revoked.value = true
+    /**
+     * Why the last session ended: true when this phone lost its own token (unreadable or missing), not a
+     * revoke by the server. The user then logs in again; the wipe is the same.
+     */
+    @Volatile
+    var lostLocally: Boolean = false
+        private set
+
+    /** [lostLocally]: the token was missing or unreadable on this phone, no server answer. */
+    fun sessionRevoked(lostLocally: Boolean = false) {
+        if (leaving) return
+        // Once the server revoked it, a later read of the (now cleared) token doesn't change the cause
+        if (!_revoked.value) this.lostLocally = lostLocally
+        _revoked.value = true
     }
 
     fun revokedHandled() {
         _revoked.value = false
+        lostLocally = false
     }
 }

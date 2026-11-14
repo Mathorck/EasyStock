@@ -6,6 +6,7 @@ import androidx.room.useWriterConnection
 import ch.mathorck.easystock.data.db.AppDatabase
 import ch.mathorck.easystock.data.db.BackupDao
 import ch.mathorck.easystock.sync.SyncCoordinator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
@@ -23,7 +24,12 @@ class DataReset(
     private val db: AppDatabase,
     /** Closes the server client and forgets the tokens. First: no call can run on the wiped data. */
     private val clearSession: suspend () -> Unit = {},
-    private val wipeFiles: suspend () -> Unit,
+    /** [keepAutoBackups]: the automatic backups stay (the wipe after a revoked session). */
+    private val wipeFiles: suspend (keepAutoBackups: Boolean) -> Unit,
+    /** Local changes not sent to the server yet (the outbox). */
+    private val pendingChanges: suspend () -> Int = { 0 },
+    /** Writes an automatic backup of the phone ([ch.mathorck.easystock.sync.AutoBackups]), returns its file name. */
+    private val autoBackup: (suspend () -> String)? = null,
 ) {
     /**
      * Database first: if the files then fail, only orphan files are left, never an article
@@ -31,10 +37,23 @@ class DataReset(
      */
     suspend fun run() = withContext(NonCancellable) {
         // Stops a running sync cycle first: no pulled row is written after the wipe
-        SyncCoordinator.stopAndLock { wipe() }
+        SyncCoordinator.stopAndLock { wipe(keepAutoBackups = false) }
     }
 
-    private suspend fun wipe() {
+    /**
+     * The wipe after the session ended without a logout (revoked by the server, or a token this phone
+     * can't read any more). The user did not choose it: changes not sent yet are first saved in an
+     * automatic backup ([backupUnsentChanges]), which the wipe keeps. Not cancellable, like [run].
+     */
+    suspend fun runAfterRevoke(): RevokeBackup = withContext(NonCancellable) {
+        SyncCoordinator.stopAndLock {
+            val backup = backupUnsentChanges(pendingChanges, autoBackup)
+            wipe(keepAutoBackups = true)
+            backup
+        }
+    }
+
+    private suspend fun wipe(keepAutoBackups: Boolean) {
         clearSession()
         db.backupDao().wipeEverything()
         // Deleted rows can stay readable in unused pages and in the write-ahead log: VACUUM
@@ -43,7 +62,38 @@ class DataReset(
             connection.execSQL("VACUUM")
             connection.execSQL("PRAGMA wal_checkpoint(TRUNCATE)")
         }
-        wipeFiles()
+        wipeFiles(keepAutoBackups)
+    }
+}
+
+/**
+ * What [DataReset.runAfterRevoke] saved before the wipe. [unsentChanges]: local changes not sent to the
+ * server. [backupFile]: the automatic backup that holds them, null when none was written.
+ * [backupFailed]: the backup was tried and failed (the wipe went on: the session is gone either way).
+ */
+data class RevokeBackup(val unsentChanges: Int, val backupFile: String? = null, val backupFailed: Boolean = false)
+
+/**
+ * Writes an automatic backup when there are changes not sent yet. When they can't be counted, the
+ * backup is written anyway: better a backup too many than lost changes.
+ */
+internal suspend fun backupUnsentChanges(pendingChanges: suspend () -> Int, autoBackup: (suspend () -> String)?): RevokeBackup {
+    val pending = try {
+        pendingChanges()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+    if (pending == 0) return RevokeBackup(0)
+    val count = pending ?: 0
+    if (autoBackup == null) return RevokeBackup(count)
+    return try {
+        RevokeBackup(count, backupFile = autoBackup())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        RevokeBackup(count, backupFailed = true)
     }
 }
 

@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="privacy_wifi_local_network_message">A Wi-Fi transfer goes over your local network. Android needs your permission for EasyStock to reach the other phone.</string>
+    <string name="privacy_session_lost_title">Log in again</string>
+    <string name="privacy_session_lost_message">This phone can no longer read its server session. It was disconnected and the data on it was erased. Join the server again to keep working.</string>
+    <string name="privacy_revoke_backup_saved">Changes not sent to the server yet were saved first in an automatic backup. Once connected again, import it with Merge to send them. You can also send it to yourself or to another app.</string>
+    <string name="privacy_revoke_backup_failed">Some changes were not sent to the server yet, and no backup of them could be saved.</string>
+    <string name="privacy_wipe_failed_title">Data not erased</string>
+    <string name="privacy_wipe_failed_message">Your server session has ended, but the data of this phone could not be erased. Try again.</string>
+    <string name="privacy_retry">Try again</string>
 </resources>

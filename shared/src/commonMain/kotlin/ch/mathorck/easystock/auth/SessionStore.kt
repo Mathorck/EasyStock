@@ -22,6 +22,13 @@ interface SessionStore {
 
     suspend fun refreshToken(): String?
 
+    /**
+     * True when the last [refreshToken] read found no usable token on this phone (never stored, or
+     * stored but unreadable, e.g. the Keystore key was lost). A session that ends then was lost locally,
+     * not revoked by the server: the user is told to log in again.
+     */
+    val refreshTokenMissing: Boolean get() = false
+
     suspend fun saveRefreshToken(token: String)
 
     /** Logout, leaving the server, or reset of all data: forgets both tokens. */
@@ -47,14 +54,24 @@ class EncryptedSessionStore(
     @Volatile
     override var accessToken: String? = null
 
+    @Volatile
+    override var refreshTokenMissing: Boolean = false
+        private set
+
     override suspend fun refreshToken(): String? {
-        val stored = dataStore.data.first()[REFRESH_TOKEN] ?: return null
+        val stored = dataStore.data.first()[REFRESH_TOKEN]
+        if (stored == null) {
+            refreshTokenMissing = true
+            return null
+        }
         val token = runCatching { cipher.decrypt(Base64.decode(stored)).decodeToString(throwOnInvalidSequence = true) }
             .getOrNull()
         if (token.isNullOrEmpty()) {
             dataStore.edit { it.remove(REFRESH_TOKEN) }
+            refreshTokenMissing = true
             return null
         }
+        refreshTokenMissing = false
         return token
     }
 

@@ -44,13 +44,15 @@ private fun holder(context: Context): ServerClientHolder = holder ?: run {
     val app = context.applicationContext
     val versions = ClientVersions(appVersion = appVersionName(app))
     ServerClientHolder { connection ->
+        val session = sessionStore(app)
         createServerClient(
             connection = connection,
             engine = serverHttpEngine(connection.fingerprint),
-            session = sessionStore(app),
+            session = session,
             versions = versions,
-            // The wipe runs outside this client (MainComposable): it closes the client
-            onSessionRevoked = { ServerSessionEvents.sessionRevoked() },
+            // The wipe runs outside this client (MainComposable): it closes the client. A token missing
+            // or unreadable on this phone is a local loss (log in again), not a revoke by the server
+            onSessionRevoked = { ServerSessionEvents.sessionRevoked(lostLocally = session.refreshTokenMissing) },
         )
     }.also { holder = it }
 }

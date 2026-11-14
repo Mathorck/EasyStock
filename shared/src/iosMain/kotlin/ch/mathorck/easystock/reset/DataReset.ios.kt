@@ -10,5 +10,5 @@ import ch.mathorck.easystock.data.db.rememberAppDatabase
 actual fun rememberDataReset(): DataReset {
     val db = rememberAppDatabase()
     val session = rememberSessionStore()
-    return remember(db) { DataReset(db, wipeFiles = {}, clearSession = { session.clear() }) }
+    return remember(db) { DataReset(db, wipeFiles = { _ -> }, clearSession = { session.clear() }) }
 }
