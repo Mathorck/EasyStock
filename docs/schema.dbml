@@ -59,6 +59,7 @@ Table category_attribute [headercolor: #175e7a] {
 
   indexes {
     (category_id, attribute_id) [unique]
+    attribute_id
     updated_at
   }
 }
@@ -141,6 +142,7 @@ Table stock_movement [headercolor: #b26a00, note: 'Append-only: never updated or
   indexes {
     (article_id, location_id)
     item_id
+    location_id
     created_at
   }
 }
