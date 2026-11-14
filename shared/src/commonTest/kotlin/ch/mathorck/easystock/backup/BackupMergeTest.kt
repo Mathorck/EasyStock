@@ -167,6 +167,22 @@ class BackupMergeTest {
     }
 
     @Test
+    fun sameMovementWithoutItsServerAuthorIsNotAConflict() {
+        val base = BackupData(articles = listOf(article("a")), locations = listOf(location("shelf")))
+        val authored = movement("m1", "a", "shelf", 1000).copy(createdBy = "user-1", deviceId = "device-1")
+        val local = base.copy(movements = listOf(authored))
+        // An import clears the authors before the merge
+        val incoming = base.copy(movements = listOf(authored)).withoutServerAuthors()
+
+        val plan = planMerge(local, incoming)
+
+        assertTrue(plan.conflicts.isEmpty())
+        assertTrue(plan.inserts.movements.isEmpty())
+        assertTrue(plan.updates.movements.isEmpty())
+        assertEquals(authored, plan.result.movements.single())
+    }
+
+    @Test
     fun localMovementsMissingFromTheBackupStay() {
         val base = BackupData(articles = listOf(article("a")), locations = listOf(location("shelf")))
         val local = base.copy(movements = listOf(movement("m1", "a", "shelf", 1000)))

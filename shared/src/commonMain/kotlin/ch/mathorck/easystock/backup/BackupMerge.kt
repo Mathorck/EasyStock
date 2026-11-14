@@ -490,13 +490,20 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             val existing = table.local[row.id]
             if (existing == null) {
                 table.insert(row)
-            } else if (existing != row) {
+            } else if (existing.withoutAuthor() != row.withoutAuthor()) {
                 conflicts += MergeConflict(ConflictType.MOVEMENT_KEPT, BackupTable.STOCK_MOVEMENT, row.id)
             }
         }
         return table
     }
 }
+
+/**
+ * The movement without `created_by` and `device_id`: the server sets them after the push, and an import
+ * clears them ([withoutServerAuthors]). The same movement with or without its author is not a conflict.
+ */
+private fun StockMovement.withoutAuthor(): StockMovement =
+    if (createdBy == null && deviceId == null) this else copy(createdBy = null, deviceId = null)
 
 private fun <T> Sequence<T>.takeWhileDistinct(): Sequence<T> {
     val seen = HashSet<T>()
