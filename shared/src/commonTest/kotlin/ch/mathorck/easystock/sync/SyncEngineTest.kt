@@ -1083,4 +1083,33 @@ class SyncEngineTest {
         assertEquals(SyncResult.NOT_CONNECTED, engine.sync())
         assertNull(refusedStore.load())
     }
+
+    @Test
+    fun rejoiningTheSameServerAfterAWipeStartsWithNoRefusedPhoto() = runTest {
+        val refusedStore = InMemoryRefusedImageStore()
+        val sha = "e".repeat(64)
+        refusedStore.save(RefusedImages(base, mapOf(sha to null)).encode())
+        val store = FakeSyncStore(state())
+        store.images[sha] = byteArrayOf(1)
+        val engine = engine(store, refused = refusedStore) { request ->
+            when (request.method) {
+                HttpMethod.Head -> respond("", HttpStatusCode.NotFound)
+                HttpMethod.Put -> respond("""{"type":"image-too-large","status":413}""", HttpStatusCode.PayloadTooLarge, headersOf(HttpHeaders.ContentType, "application/problem+json"))
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(1, engine.status.value.imagesNotSent)
+
+        // The wipe of a logout (DataReset), with no cycle in between, then the same server is joined again
+        store.state = null
+        engine.forgetServer()
+        assertNull(refusedStore.load())
+        assertEquals(0, engine.status.value.imagesNotSent)
+        store.state = state()
+        seen.clear()
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertTrue(seen.none { it.path.startsWith("images/") })
+        assertEquals(0, engine.status.value.imagesNotSent)
+    }
 }

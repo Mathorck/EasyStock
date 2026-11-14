@@ -170,6 +170,20 @@ class SyncEngine(
         scope.launch { sync() }
     }
 
+    /**
+     * Forgets what this engine keeps of the server session: the refused photos (also their saved copy) and
+     * the 426 pause. Called by the wipe of a logout, a revoked session or a deleted account
+     * ([ch.mathorck.easystock.reset.DataReset]), under the [SyncCoordinator] lock: no cycle runs meanwhile.
+     * Rejoining the same server then starts with an empty list.
+     */
+    suspend fun forgetServer() {
+        pausedFor = null
+        refusedImages.clear()
+        refusedImagesOf = null
+        saveRefusedImages()
+        _status.value = SyncStatus()
+    }
+
     private suspend fun cycle(): SyncResult {
         val state = store.syncState() ?: run {
             // Left the server: nothing of that session is shown any more

@@ -8,6 +8,7 @@ import ch.mathorck.easystock.backup.PHOTO_STAGING_DIR
 import ch.mathorck.easystock.backup.backupService
 import ch.mathorck.easystock.sync.AndroidAutoBackups
 import ch.mathorck.easystock.sync.autoBackupDir
+import ch.mathorck.easystock.sync.syncEngine
 import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.images.IMAGE_DIR
 import ch.mathorck.easystock.push.pushRegistrar
@@ -58,6 +59,7 @@ actual fun rememberDataReset(): DataReset {
                 withContext(Dispatchers.Main) { releaseServerClient() }
                 sessionStore(context).clear()
             },
+            forgetSync = { syncEngine(context).forgetServer() },
         )
     }
 }

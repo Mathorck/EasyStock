@@ -30,6 +30,8 @@ class DataReset(
     private val pendingChanges: suspend () -> Int = { 0 },
     /** Writes an automatic backup of the phone ([ch.mathorck.easystock.sync.AutoBackups]), returns its file name. */
     private val autoBackup: (suspend () -> String)? = null,
+    /** Forgets what the sync engine keeps of the session (refused photos, [ch.mathorck.easystock.sync.SyncEngine.forgetServer]). */
+    private val forgetSync: suspend () -> Unit = {},
 ) {
     /**
      * Database first: if the files then fail, only orphan files are left, never an article
@@ -55,6 +57,7 @@ class DataReset(
 
     private suspend fun wipe(keepAutoBackups: Boolean) {
         clearSession()
+        forgetSync()
         db.backupDao().wipeEverything()
         // Deleted rows can stay readable in unused pages and in the write-ahead log: VACUUM
         // (outside a transaction) rebuilds the file, the checkpoint then writes back and empties the log
