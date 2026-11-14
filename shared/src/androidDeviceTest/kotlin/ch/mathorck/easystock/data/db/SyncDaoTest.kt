@@ -114,7 +114,7 @@ class SyncDaoTest {
             next = 41, fullPull = true, now = 1,
         )
         db.stockDao().insertMovement(movement("m1", "a1", "l1", 3000))
-        val server = toWire(SyncTable.STOCK_MOVEMENT, movement("m1", "a1", "l1", 2000).copy(createdBy = "u2"))
+        val server = withAuthor(toWire(SyncTable.STOCK_MOVEMENT, movement("m1", "a1", "l1", 2000)), "u2", null)
         dao.applyPull(pull(SyncTable.STOCK_MOVEMENT to server), next = 42, fullPull = false, now = 99, localWins = false)
         val stored = db.backupDao().snapshot().movements.single()
         assertEquals(3000, stored.quantityMilli)
