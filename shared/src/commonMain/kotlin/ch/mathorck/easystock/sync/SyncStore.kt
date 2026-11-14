@@ -112,6 +112,12 @@ object SyncCoordinator {
         }
     }
 
+    /**
+     * Runs [block] alone, after the running cycle, without cancelling it. For a sync state change outside
+     * a cycle (a promotion resets `since`): a cycle running meanwhile would save its own `since` over it.
+     */
+    suspend fun <T> afterCycle(block: suspend () -> T): T = cycle(null, block)
+
     /** Cancels the running cycle, then runs [block] alone. For the wipes. */
     suspend fun <T> stopAndLock(block: suspend () -> T): T {
         running?.cancel()

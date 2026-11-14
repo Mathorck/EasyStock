@@ -66,6 +66,7 @@ import ch.mathorck.easystock.server.ServerConnection
 import ch.mathorck.easystock.server.WireRole
 import ch.mathorck.easystock.server.rememberLocalNetworkAccess
 import ch.mathorck.easystock.server.rememberServerClient
+import ch.mathorck.easystock.sync.SyncCoordinator
 import ch.mathorck.easystock.sync.SyncError
 import ch.mathorck.easystock.sync.SyncStatus
 import ch.mathorck.easystock.sync.rememberSyncEngine
@@ -225,8 +226,11 @@ fun AccountScreen(
                 session.saveRefreshToken(answer.refreshToken)
                 session.accessToken = answer.accessToken
                 answer.user?.let { user ->
-                    dao.promoted(storedRoleOf(user.role))
-                    dao.upsertServerUser(ServerUser(user.id, user.displayName))
+                    // Not during a cycle: its pull would save its `since` over the 0
+                    SyncCoordinator.afterCycle {
+                        dao.promoted(storedRoleOf(user.role))
+                        dao.upsertServerUser(ServerUser(user.id, user.displayName))
+                    }
                 }
                 // promoted() set since to 0: the full pull of what the new role can see
                 engine?.requestSync()
