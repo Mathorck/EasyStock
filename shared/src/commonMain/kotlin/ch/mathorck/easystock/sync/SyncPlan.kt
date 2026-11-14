@@ -24,8 +24,9 @@ sealed interface PushDecision {
 
     /**
      * `MOVEMENT_KEPT`: the server already had a movement with this id and kept its own ([server]).
-     * Write [server] (the server never accepted the phone's movement, so it is not a synced row) and
-     * record the phone's version [phone] in a `rejected_change`, until the user chooses (sync/MovementKept).
+     * Movements are append-only, on the phone too: the local movement ([phone]) is never overwritten.
+     * Only its author fields are set; when [server] differs in another column, both versions are
+     * recorded in a `rejected_change` (sync/MovementDiffers).
      */
     data class MovementKept(val server: JsonObject, val phone: JsonObject) : PushDecision
 

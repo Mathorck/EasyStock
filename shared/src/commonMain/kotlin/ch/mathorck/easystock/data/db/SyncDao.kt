@@ -29,6 +29,7 @@ import ch.mathorck.easystock.data.model.StockReviewLine
 import ch.mathorck.easystock.data.model.SyncState
 import ch.mathorck.easystock.images.newImagePath
 import ch.mathorck.easystock.sync.KeepMineBlock
+import ch.mathorck.easystock.sync.MovementDiffers
 import ch.mathorck.easystock.sync.MovementKept
 import ch.mathorck.easystock.sync.MovementKeptDetails
 import ch.mathorck.easystock.sync.PullBuffer
@@ -47,6 +48,7 @@ import ch.mathorck.easystock.sync.keepMineMovement
 import ch.mathorck.easystock.sync.imageSha256
 import ch.mathorck.easystock.sync.hasServerSeq
 import ch.mathorck.easystock.sync.rowId
+import ch.mathorck.easystock.sync.sameMovementContent
 import ch.mathorck.easystock.sync.seqUpdates
 import ch.mathorck.easystock.sync.serverSeq
 import ch.mathorck.easystock.sync.suffixedValue
@@ -282,7 +284,6 @@ abstract class SyncDao {
     @Upsert protected abstract suspend fun upsertLocation(row: Location)
     @Upsert protected abstract suspend fun upsertArticle(row: Article)
     @Upsert protected abstract suspend fun upsertItem(row: Item)
-    @Upsert protected abstract suspend fun upsertMovement(row: StockMovement)
     @Upsert protected abstract suspend fun upsertReview(row: StockReview)
     @Upsert protected abstract suspend fun upsertReviewLine(row: StockReviewLine)
 
@@ -352,7 +353,8 @@ abstract class SyncDao {
                 PushDecision.Keep -> Unit
                 is PushDecision.Conflict -> {
                     // Keep theirs until the user chooses: the server's row, with its seq (below)
-                    applying { writeServerRow(table, decision.server, updateMovements = true, now = now) }
+                    // Never a movement (no server seq): writeServerRow could not write it anyway
+                    applying { writeServerRow(table, decision.server, now = now) }
                     deleteOutbox(table.tableName, result.id)
                     insertRejectedChange(
                         RejectedChange(
@@ -370,8 +372,12 @@ abstract class SyncDao {
                     deleteOutbox(table.tableName, result.id)
                 }
                 is PushDecision.Write -> {
-                    applying { writeServerRow(table, decision.row, updateMovements = true, now = now) }
+                    val differs = applying { writeServerRow(table, decision.row, now = now) }
                     deleteOutbox(table.tableName, result.id)
+                    // A refused movement is already listed below, with the server's reason
+                    if (differs && result.status != PushStatus.REJECTED) {
+                        insertMovementDiffers(table, result.id, sentRow!!, decision.row, now)
+                    }
                 }
                 is PushDecision.MergeAttribute -> {
                     applying { mergeAttribute(decision.fromId, decision.row, now) }
@@ -382,21 +388,10 @@ abstract class SyncDao {
                     deleteOutbox(table.tableName, result.id)
                 }
                 is PushDecision.MovementKept -> {
-                    applying {
-                        writeServerRow(table, decision.server, updateMovements = true, now = now)
-                        listOfNotNull(decision.server.column("item_id"), decision.phone.column("item_id")).distinct()
-                            .takeIf { it.isNotEmpty() }?.let { recomputeItemLocations(it) }
-                    }
+                    // Append-only: the phone keeps its movement, only its author is set. Other values: reported
+                    val differs = applying { writeServerRow(table, decision.server, now = now) }
                     deleteOutbox(table.tableName, result.id)
-                    insertRejectedChange(
-                        RejectedChange(
-                            id = Uuid.random().toString(),
-                            tableName = table.tableName,
-                            rowId = result.id,
-                            reason = MovementKept.reasonOf(decision.phone),
-                            rejectedAt = now,
-                        ),
-                    )
+                    if (differs) insertMovementDiffers(table, result.id, decision.phone, decision.server, now)
                 }
             }
             seqUpdates(result, decision).forEach { (id, seq) -> setSeq(table, id, seq) }
@@ -422,7 +417,7 @@ abstract class SyncDao {
      * the touched units, and saves [next] as the pull cursor, in one transaction. A row waiting in
      * the outbox is skipped: the local change wins until it is pushed, and the push answer brings the
      * server's version. A movement already on the phone only gets its author fields updated
-     * (`created_by`, `device_id`), whether the pull is full or not. False when the phone left the server.
+     * (`created_by`, `device_id`), whether the pull is full or not, never its other columns. False when the phone left the server.
      */
     @Transaction
     open suspend fun applyPull(buffer: PullBuffer, next: Long, fullPull: Boolean, now: Long): Boolean {
@@ -436,7 +431,8 @@ abstract class SyncDao {
                 val rows = buffer.rows(table).filter { it.rowId !in waiting }.let { if (table == SyncTable.LOCATION) locationsParentsFirst(it) else it }
                 rows.forEach { row ->
                     val id = row.rowId!!
-                    writeServerRow(table, row, updateMovements = false, now = now)
+                    // A movement that differs from the local one keeps its values, only its author is set (append-only)
+                    writeServerRow(table, row, now = now)
                     // The version this phone now holds: the base of its next edit of the row
                     row.serverSeq?.let { setSeq(table, id, it) }
                     // A local row renamed to make room for an earlier row of this pull: this row is the server's.
@@ -464,9 +460,9 @@ abstract class SyncDao {
         return parentsFirst(rows.map { fromWire<Location>(SyncTable.LOCATION, it) }).mapNotNull { byId[it.id] }
     }
 
-    private suspend inline fun applying(block: () -> Unit) {
+    private suspend inline fun <T> applying(block: () -> T): T {
         setApplying(true)
-        try {
+        return try {
             block()
         } finally {
             setApplying(false)
@@ -490,8 +486,13 @@ abstract class SyncDao {
         }
     }
 
-    /** Writes one server row, after freeing the unique values local rows hold. Called with `applying` on. */
-    private suspend fun writeServerRow(table: SyncTable, wire: JsonObject, updateMovements: Boolean, now: Long) {
+    /**
+     * Writes one server row, after freeing the unique values local rows hold. Called with `applying` on.
+     * A movement is append-only: inserted when the phone doesn't have it, otherwise only its author fields
+     * are set ([updateMovementAuthor]), never its quantity or any other column. True when the server's
+     * movement differs from the local one in another column: the local values stay, the caller reports it.
+     */
+    private suspend fun writeServerRow(table: SyncTable, wire: JsonObject, now: Long): Boolean {
         when (table) {
             SyncTable.CATEGORY -> {
                 val row = fromWire<Category>(table, wire)
@@ -540,16 +541,31 @@ abstract class SyncDao {
             }
             SyncTable.STOCK_MOVEMENT -> {
                 val row = fromWire<StockMovement>(table, wire)
-                if (updateMovements) {
-                    upsertMovement(row)
-                } else {
+                val local = movement(row.id) ?: run {
                     insertMovement(row)
-                    updateMovementAuthor(row.id, row.createdBy, row.deviceId)
+                    return false
                 }
+                // The server is the authority on the authors, whatever the rest says
+                updateMovementAuthor(row.id, row.createdBy, row.deviceId)
+                return !sameMovementContent(local, row)
             }
             SyncTable.STOCK_REVIEW -> upsertReview(fromWire(table, wire))
             SyncTable.STOCK_REVIEW_LINE -> upsertReviewLine(fromWire(table, wire))
         }
+        return false
+    }
+
+    /** Reports a server movement that differs from the local one, which stays ([MovementDiffers]). */
+    private suspend fun insertMovementDiffers(table: SyncTable, id: String, phone: JsonObject, server: JsonObject, now: Long) {
+        insertRejectedChange(
+            RejectedChange(
+                id = Uuid.random().toString(),
+                tableName = table.tableName,
+                rowId = id,
+                reason = MovementDiffers.reasonOf(phone, server),
+                rejectedAt = now,
+            ),
+        )
     }
 
     /**
@@ -710,7 +726,7 @@ abstract class SyncDao {
         rowKeepMineBlock(table, change.rowId, payload.phone, canPush)?.let { return it }
         // Written like a server row (the photo by its hash), then queued by hand: the side writes of
         // writeServerRow would turn `applying` back on before the row itself is written
-        applying { writeServerRow(table, RowConflict.keepMineRow(payload.phone, now), updateMovements = false, now = now) }
+        applying { writeServerRow(table, RowConflict.keepMineRow(payload.phone, now), now = now) }
         setSeq(table, change.rowId, payload.seq)
         queueOutbox(table.tableName, change.rowId, now)
         dismissRejectedChange(changeId)

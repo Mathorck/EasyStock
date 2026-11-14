@@ -28,6 +28,7 @@ import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.RejectedChange
 import ch.mathorck.easystock.data.model.RejectedChangeRow
+import ch.mathorck.easystock.sync.MovementDiffers
 import ch.mathorck.easystock.sync.MovementKept
 import ch.mathorck.easystock.sync.RowConflict
 import ch.mathorck.easystock.theme.EasyStockTheme
@@ -90,7 +91,12 @@ internal fun RejectedChangesContent(rows: List<RejectedChangeRow>, onBack: () ->
             }
             items(rows, key = { it.change.id }) { row ->
                 // The server kept its own movement: the user chooses which version stays (MovementKeptRow)
-                if (MovementKept.codeOf(row.change.reason) == MovementKept.REASON) {
+                val differs = MovementDiffers.versionsOf(row.change.reason)
+                if (differs != null) {
+                    // The server has other values: the phone kept its own movement (append-only), nothing to choose
+                    MovementDiffersRow(row, differs, onDismiss = { onDismiss(row.change.id) })
+                } else if (MovementKept.codeOf(row.change.reason) == MovementKept.REASON) {
+                    // Left by an older app version: the local movement is the server's
                     MovementKeptRow(row)
                 } else if (RowConflict.payloadOf(row.change.reason) != null) {
                     // Someone else changed the row first: keep theirs or mine (RowConflictRow)

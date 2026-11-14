@@ -13,4 +13,6 @@
     <string name="movement_kept_blocked_location_gone">Garder la mienne n’est pas possible : l’emplacement a été supprimé.</string>
     <string name="movement_kept_blocked_not_enough_stock">Garder la mienne n’est pas possible : le stock à cet emplacement est insuffisant.</string>
     <string name="movement_kept_blocked_invalid">Garder la mienne n’est pas possible pour ce mouvement.</string>
+    <!-- The server has this movement with other values: movements never change, this phone kept its own (MovementDiffers) -->
+    <string name="movement_differs_reason">Le serveur a ce mouvement avec d’autres valeurs. Les mouvements ne changent jamais, ce téléphone a donc gardé le sien : son stock peut différer de celui du serveur pour ce mouvement.</string>
 </resources>

@@ -94,12 +94,14 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
             val decision = decidePush(result, sentRow, rows.getValue(table)[result.id])
             if (result.status == PushStatus.REJECTED && decision != PushDecision.Keep) rejected += result
             when (decision) {
-                is PushDecision.Write -> rows.getValue(table)[result.id] = decision.row
-                PushDecision.DropLocal -> rows.getValue(table).remove(result.id)
-                is PushDecision.MovementKept -> {
-                    rows.getValue(table)[result.id] = decision.server
-                    rejected += result
+                is PushDecision.Write -> if (table == SyncTable.STOCK_MOVEMENT) {
+                    if (keepMovement(result.id, decision.row) && result.status != PushStatus.REJECTED) rejected += result
+                } else {
+                    rows.getValue(table)[result.id] = decision.row
                 }
+                PushDecision.DropLocal -> rows.getValue(table).remove(result.id)
+                // Append-only: only the author of the local movement is set, other values are reported
+                is PushDecision.MovementKept -> if (keepMovement(result.id, decision.server)) rejected += result
                 is PushDecision.Conflict -> rows.getValue(table)[result.id] = decision.server
                 else -> Unit
             }
@@ -107,6 +109,15 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
             if (decision != PushDecision.Keep) outbox.removeAll { it.tableName == result.table && it.rowId == result.id }
             decision
         }
+    }
+
+    /** Sets the author fields of the local movement [id] from [server]; true when the other values differ. */
+    private fun keepMovement(id: String, server: JsonObject): Boolean {
+        val movements = rows.getValue(SyncTable.STOCK_MOVEMENT)
+        val local = movements.getValue(id)
+        val authors = setOf("createdBy", "deviceId")
+        movements[id] = JsonObject(local + server.filterKeys { it in authors })
+        return local.filterKeys { it !in authors } != server.filterKeys { it !in authors && it != WireFields.SERVER_SEQ }
     }
 
     override suspend fun existingIds(table: SyncTable, ids: Set<String>) = ids.intersect(rows.getValue(table).keys)

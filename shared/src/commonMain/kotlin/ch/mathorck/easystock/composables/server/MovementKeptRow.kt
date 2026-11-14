@@ -23,11 +23,13 @@ import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.RejectedChangeRow
 import ch.mathorck.easystock.data.model.StockMovement
 import ch.mathorck.easystock.sync.KeepMineBlock
+import ch.mathorck.easystock.sync.MovementDiffers
 import ch.mathorck.easystock.sync.MovementKeptDetails
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.viewmodels.formatDateTime
 import ch.mathorck.easystock.viewmodels.formatSignedQuantity
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.movement_differs_reason
 import easystock.shared.generated.resources.movement_kept_blocked_article_gone
 import easystock.shared.generated.resources.movement_kept_blocked_invalid
 import easystock.shared.generated.resources.movement_kept_blocked_location_gone
@@ -42,6 +44,7 @@ import easystock.shared.generated.resources.movement_kept_server
 import easystock.shared.generated.resources.movement_kept_use_server
 import easystock.shared.generated.resources.rejected_at
 import easystock.shared.generated.resources.rejected_deleted_row
+import easystock.shared.generated.resources.rejected_dismiss
 import easystock.shared.generated.resources.rejected_table_stock_movement
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -107,6 +110,31 @@ private fun MovementKeptContent(row: RejectedChangeRow, details: MovementKeptDet
                 }
             }
         },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+    )
+}
+
+/**
+ * A `movement-differs` change (sync/MovementDiffers): the server has this movement with other values, the
+ * phone kept its own (append-only). Both versions are shown; the user can only dismiss it.
+ */
+@Composable
+internal fun MovementDiffersRow(row: RejectedChangeRow, versions: MovementDiffers.Versions, onDismiss: () -> Unit) {
+    ListItem(
+        overlineContent = { Text(stringResource(Res.string.rejected_table_stock_movement)) },
+        headlineContent = { Text(row.label?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.rejected_deleted_row)) },
+        supportingContent = {
+            Column {
+                Text(stringResource(Res.string.movement_differs_reason), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(Res.string.movement_kept_server, versions.server.quantityText(), stringResource(versions.server.reason.historyLabel)))
+                Text(stringResource(Res.string.movement_kept_phone, versions.phone.quantityText(), stringResource(versions.phone.reason.historyLabel)))
+                Text(
+                    stringResource(Res.string.rejected_at, formatDateTime(row.change.rejectedAt, TimeZone.currentSystemDefault())),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        trailingContent = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.rejected_dismiss)) } },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
     )
 }

@@ -13,4 +13,6 @@
     <string name="movement_kept_blocked_location_gone">Keep mine is not possible: the location was deleted.</string>
     <string name="movement_kept_blocked_not_enough_stock">Keep mine is not possible: there is not enough stock at this location now.</string>
     <string name="movement_kept_blocked_invalid">Keep mine is not possible for this movement.</string>
+    <!-- The server has this movement with other values: movements never change, this phone kept its own (MovementDiffers) -->
+    <string name="movement_differs_reason">The server has this movement with other values. Movements never change, so this phone kept its own: its stock may differ from the server’s for this movement.</string>
 </resources>

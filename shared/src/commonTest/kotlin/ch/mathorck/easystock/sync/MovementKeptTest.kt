@@ -8,6 +8,7 @@ import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class MovementKeptTest {
     private val phone = StockMovement("m1", "a1", null, "l1", 3000, MovementReason.PURCHASE, "box", occurredAt = 5, createdAt = 5)
@@ -50,6 +51,26 @@ class MovementKeptTest {
         assertNull(MovementKept.phoneRowOf("not-allowed"))
         assertNull(MovementKept.phoneRowOf("movement-kept:{broken"))
         assertNull(MovementKept.phoneMovementOf("movement-kept:{}"))
+    }
+
+    @Test
+    fun theDiffersReasonHoldsBothVersions() {
+        val server = toWire(SyncTable.STOCK_MOVEMENT, phone.copy(quantityMilli = 2000))
+        val reason = MovementDiffers.reasonOf(sent, server)
+        assertTrue(reason.startsWith(MovementDiffers.REASON + ":"))
+        assertEquals(MovementDiffers.Versions(phone, phone.copy(quantityMilli = 2000)), MovementDiffers.versionsOf(reason))
+        // Never read as an old entry, which would offer "Keep mine"
+        assertNull(MovementKept.phoneRowOf(reason))
+        assertNull(MovementDiffers.versionsOf(MovementKept.reasonOf(sent)))
+        assertNull(MovementDiffers.versionsOf("movement-differs:{broken"))
+        assertNull(MovementDiffers.versionsOf("not-allowed"))
+    }
+
+    @Test
+    fun theSameMovementIgnoresOnlyTheAuthor() {
+        assertEquals(true, sameMovementContent(phone, phone.copy(createdBy = "u2", deviceId = "d2")))
+        assertEquals(false, sameMovementContent(phone, phone.copy(quantityMilli = 2000)))
+        assertEquals(false, sameMovementContent(phone, phone.copy(comment = "other")))
     }
 
     private fun block(

@@ -13,4 +13,6 @@
     <string name="movement_kept_blocked_location_gone">Meine behalten ist nicht möglich: Der Lagerort wurde gelöscht.</string>
     <string name="movement_kept_blocked_not_enough_stock">Meine behalten ist nicht möglich: Am Lagerort ist jetzt nicht genug Bestand.</string>
     <string name="movement_kept_blocked_invalid">Meine behalten ist für diese Bewegung nicht möglich.</string>
+    <!-- The server has this movement with other values: movements never change, this phone kept its own (MovementDiffers) -->
+    <string name="movement_differs_reason">Der Server hat diese Bewegung mit anderen Werten. Bewegungen ändern sich nie, deshalb hat dieses Telefon seine behalten: Sein Bestand kann bei dieser Bewegung von dem des Servers abweichen.</string>
 </resources>
