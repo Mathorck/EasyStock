@@ -830,6 +830,25 @@ class SyncEngineTest {
     }
 
     @Test
+    fun nothingToPushAsksNoServerInfo() = runTest {
+        val store = FakeSyncStore(state(since = 7))
+        val epochs = epochStore("e1")
+        val engine = engine(store, epochs) { request ->
+            when (request.path) {
+                "server-info" -> ok("""{"datasetEpoch":"e2"}""")
+                "sync/pull" -> ok("""{"rows":{},"next":30,"hasMore":false,"datasetEpoch":"e2"}""")
+                else -> defaults(request)
+            }
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+
+        // The pull alone sees the reset
+        assertTrue(seen.none { it.path == "server-info" })
+        assertEquals(1, store.wipes)
+        assertEquals("e2", epochs.load())
+    }
+
+    @Test
     fun aServerInfoWithoutAnEpochOrAnErrorIsLeftToTheSyncCalls() = runTest {
         val store = FakeSyncStore(state(since = 7))
         val engine = engine(store, epochStore("e1")) { request ->

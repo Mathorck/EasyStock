@@ -183,9 +183,11 @@ class SyncEngine(
                 val role = refreshAccount(state, remote.account)
                 // The epoch is only sent for data pulled with it: a full pull starts a data set
                 val epoch = if (state.since > 0) epochs.load() else null
-                // Before anything is pushed: a reset is seen here, not only by the 409 of the push
-                if (epoch != null) checkServerEpoch(remote.sync, epoch)
-                if (Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)) push(remote.sync, epoch)
+                val canPush = Permissions.can(Action.PUSH_CHANGES, connected = true, role = role)
+                // Before anything is pushed (photos first): a reset is seen here, not only by the 409 of the push.
+                // Nothing to push: the pull carries the epoch and sees the reset alone, no extra call
+                if (epoch != null && canPush && hasSomethingToPush()) checkServerEpoch(remote.sync, epoch)
+                if (canPush) push(remote.sync, epoch)
                 pull(remote.sync, state.since, epoch)
             } catch (e: Exception) {
                 if (!isDatasetReset(e)) throw e
@@ -234,6 +236,10 @@ class SyncEngine(
         }
         if (answered.isNotBlank() && answered != held) throw DatasetEpochChanged()
     }
+
+    /** True when [push] will send something: a batch waiting for its answer, a local change or a refused photo. */
+    private suspend fun hasSomethingToPush(): Boolean =
+        refusedImages.isNotEmpty() || store.pendingPush() != null || store.outbox(1).isNotEmpty()
 
     /** `GET /me`: the role may have changed since the last cycle (an Admin changed it). */
     private suspend fun refreshAccount(state: SyncState, account: AccountApi): Role? {
