@@ -36,23 +36,27 @@ suspend fun Phone.createArticle(
 
 /** A stock entry of [quantity] units (thousandths in the database). */
 suspend fun Phone.stockIn(articleId: String, locationId: String, quantity: Long): StockMovement =
-    movement(articleId, locationId, quantity * 1000, MovementReason.PURCHASE).also { db.stockActionDao().adjust(it) }
+    movement(articleId, locationId, quantity * 1000, MovementReason.PURCHASE, now()).also { db.stockActionDao().adjust(it) }
 
+/** Both rows of a transfer share one timestamp, as the DAO requires (a clock read per row can differ by 1 ms). */
 suspend fun Phone.transfer(articleId: String, from: String, to: String, quantity: Long) {
+    val at = now()
     db.stockActionDao().transfer(
-        movement(articleId, from, -quantity * 1000, MovementReason.TRANSFER),
-        movement(articleId, to, quantity * 1000, MovementReason.TRANSFER),
+        movement(articleId, from, -quantity * 1000, MovementReason.TRANSFER, at),
+        movement(articleId, to, quantity * 1000, MovementReason.TRANSFER, at),
     )
 }
 
 suspend fun Phone.addUnit(articleId: String, locationId: String, serial: String): Item {
-    val item = Item(newId(), articleId, serialNumber = serial, locationId = locationId, createdAt = now(), updatedAt = now())
-    db.stockActionDao().addItem(item, movement(articleId, locationId, 1000, MovementReason.PURCHASE, item.id))
+    val at = now()
+    val item = Item(newId(), articleId, serialNumber = serial, locationId = locationId, createdAt = at, updatedAt = at)
+    db.stockActionDao().addItem(item, movement(articleId, locationId, 1000, MovementReason.PURCHASE, at, item.id))
     return item
 }
 
-private fun movement(articleId: String, locationId: String, milli: Long, reason: MovementReason, itemId: String? = null) =
-    StockMovement(newId(), articleId, itemId, locationId, milli, reason, occurredAt = now(), createdAt = now())
+/** [at] is passed in, not read here, so the rows of one action (a transfer pair) can share it. */
+private fun movement(articleId: String, locationId: String, milli: Long, reason: MovementReason, at: Long, itemId: String? = null) =
+    StockMovement(newId(), articleId, itemId, locationId, milli, reason, occurredAt = at, createdAt = at)
 
 /**
  * The synced rows of a phone, comparable with another phone's: the photo file name is chosen by each
