@@ -4,7 +4,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Files
@@ -18,18 +19,29 @@ import kotlin.test.assertTrue
 
 class EncryptedSessionStoreTest {
     private val dir: File = Files.createTempDirectory("session").toFile()
-    private val scopes = mutableListOf<CoroutineScope>()
+    private var scope: CoroutineScope? = null
 
     @AfterTest
-    fun cleanUp() {
-        scopes.forEach { it.cancel() }
+    fun cleanUp() = runBlocking {
+        closeStore()
         dir.deleteRecursively()
+        Unit
+    }
+
+    /**
+     * Closes the current store. DataStore releases its file only when its scope's job has
+     * completed (not just been cancelled), so wait for it before opening the file again.
+     */
+    private suspend fun closeStore() {
+        scope?.coroutineContext?.job?.cancelAndJoin()
+        scope = null
     }
 
     /** A new store on the same file, as after an app restart. */
-    private fun open(cipher: TokenCipher = FakeCipher(1)): EncryptedSessionStore {
-        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob()).also { scopes.forEach { s -> s.cancel() }; scopes += it }
-        return EncryptedSessionStore(PreferenceDataStoreFactory.create(scope = scope) { File(dir, "session.preferences_pb") }, cipher)
+    private suspend fun open(cipher: TokenCipher = FakeCipher(1)): EncryptedSessionStore {
+        closeStore()
+        val newScope = CoroutineScope(Dispatchers.IO + SupervisorJob()).also { scope = it }
+        return EncryptedSessionStore(PreferenceDataStoreFactory.create(scope = newScope) { File(dir, "session.preferences_pb") }, cipher)
     }
 
     private fun fileBytes(): String = File(dir, "session.preferences_pb").readBytes().decodeToString()
