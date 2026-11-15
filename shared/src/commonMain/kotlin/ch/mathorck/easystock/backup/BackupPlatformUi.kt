@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.window.DialogProperties
 
 /** Modules of a QR code, row by row. [size] x [size]. */
 class QrMatrix(val size: Int, private val modules: BooleanArray) {
@@ -95,3 +96,9 @@ expect fun rememberIsChangingConfigurations(): () -> Boolean
 /** While in the composition, blocks screenshots and screen recording of the screen (Android FLAG_SECURE). */
 @Composable
 expect fun SecureScreen()
+
+/**
+ * Properties for a full-width dialog that blocks screenshots and screen recording of its own window
+ * (Android FLAG_SECURE: [SecureScreen] covers only the activity window, a dialog has its own).
+ */
+expect fun secureFullWidthDialogProperties(): DialogProperties

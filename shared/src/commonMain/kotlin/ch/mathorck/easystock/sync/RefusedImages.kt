@@ -1,5 +1,6 @@
 package ch.mathorck.easystock.sync
 
+import kotlin.concurrent.Volatile
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json

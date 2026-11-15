@@ -3,6 +3,7 @@ package ch.mathorck.easystock.backup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.DialogProperties
 
 // The iOS target is not supported: no QR encoder, scanner or file pickers. Compiles only.
 
@@ -33,3 +34,5 @@ actual fun rememberIsChangingConfigurations(): () -> Boolean = { false }
 @Composable
 actual fun SecureScreen() {
 }
+
+actual fun secureFullWidthDialogProperties(): DialogProperties = DialogProperties(usePlatformDefaultWidth = false)

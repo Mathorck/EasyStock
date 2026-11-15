@@ -24,10 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.SecureFlagPolicy
 import ch.mathorck.easystock.auth.Role
 import ch.mathorck.easystock.backup.QrCodeImage
+import ch.mathorck.easystock.backup.secureFullWidthDialogProperties
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.server.ApiError
 import ch.mathorck.easystock.composables.server.problemMessage
@@ -137,7 +136,7 @@ internal fun ErrorBlock(error: ApiError, onRetry: () -> Unit) {
  */
 @Composable
 internal fun FullScreenQr(text: String, title: String, subtitle: String?, onClose: () -> Unit) {
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, securePolicy = SecureFlagPolicy.SecureOn)) {
+    Dialog(onDismissRequest = onClose, properties = secureFullWidthDialogProperties()) {
         FullScreenQrContent(text, title, subtitle, onClose)
     }
 }
