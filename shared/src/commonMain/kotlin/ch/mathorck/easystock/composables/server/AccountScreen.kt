@@ -60,6 +60,7 @@ import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.model.ServerUser
 import ch.mathorck.easystock.data.model.SyncState
 import ch.mathorck.easystock.reset.rememberDataReset
+import ch.mathorck.easystock.server.ConnectError
 import ch.mathorck.easystock.server.KtorAccountApi
 import ch.mathorck.easystock.server.MeAnswer
 import ch.mathorck.easystock.server.ServerConnection
@@ -109,6 +110,7 @@ import easystock.shared.generated.resources.server_account_role
 import easystock.shared.generated.resources.server_account_short_code
 import easystock.shared.generated.resources.server_account_short_code_hint
 import easystock.shared.generated.resources.server_cancel
+import easystock.shared.generated.resources.delete_account_error_title
 import easystock.shared.generated.resources.server_error_title
 import easystock.shared.generated.resources.server_field_password
 import easystock.shared.generated.resources.server_field_password_rule
@@ -540,7 +542,9 @@ internal fun AccountContent(
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = actions.dismissError,
-            title = { Text(stringResource(Res.string.server_error_title)) },
+            title = {
+                Text(stringResource(if (error == ConnectError.LAST_ADMIN) Res.string.delete_account_error_title else Res.string.server_error_title))
+            },
             text = { Text(stringResource(error.message())) },
             confirmButton = { TextButton(onClick = actions.dismissError) { Text(stringResource(Res.string.server_ok)) } },
         )

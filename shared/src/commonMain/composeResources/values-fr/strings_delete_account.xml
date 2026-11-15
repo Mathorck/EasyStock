@@ -15,6 +15,7 @@
     <string name="delete_account_anyway">Supprimer quand même</string>
     <string name="delete_account_done">Votre compte a été supprimé</string>
     <string name="delete_account_done_backup">Votre compte a été supprimé. Les modifications non envoyées ont été enregistrées dans une sauvegarde automatique.</string>
+    <string name="delete_account_error_title">Impossible de supprimer votre compte</string>
     <string name="delete_account_last_admin">Vous êtes le dernier Admin de ce serveur. Nommez un autre utilisateur Admin avant de supprimer votre compte.</string>
     <!-- Télécharger mes données (droit d’accès) -->
     <string name="my_data">Télécharger mes données</string>

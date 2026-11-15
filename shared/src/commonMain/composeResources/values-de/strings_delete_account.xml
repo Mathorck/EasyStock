@@ -15,6 +15,7 @@
     <string name="delete_account_anyway">Trotzdem löschen</string>
     <string name="delete_account_done">Ihr Konto wurde gelöscht</string>
     <string name="delete_account_done_backup">Ihr Konto wurde gelöscht. Nicht gesendete Änderungen wurden in einer automatischen Sicherung gespeichert.</string>
+    <string name="delete_account_error_title">Konto kann nicht gelöscht werden</string>
     <string name="delete_account_last_admin">Sie sind der letzte Admin dieses Servers. Machen Sie einen anderen Benutzer zum Admin, bevor Sie Ihr Konto löschen.</string>
     <!-- Meine Daten herunterladen (Auskunftsrecht) -->
     <string name="my_data">Meine Daten herunterladen</string>
