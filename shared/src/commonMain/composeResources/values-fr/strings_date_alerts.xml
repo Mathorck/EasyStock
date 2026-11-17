@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="attributes_flag_when_past">Signaler quand la date est dépassée</string>
+    <string name="attributes_notify_when_past">Notifier quand la date est dépassée</string>
+    <string name="stock_date_passed">Date dépassée</string>
+    <string name="article_date_passed_line">%1$s : %2$s (date dépassée)</string>
+    <string name="article_date_passed_unit_line">%1$s : %2$s (date dépassée, une unité)</string>
+    <string name="date_alerts_channel_name">Dates dépassées</string>
+    <string name="date_alerts_channel_description">Articles dont une date est dépassée</string>
+    <string name="date_alerts_line">%1$s : %2$s (%3$s)</string>
+</resources>

@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.map
 import ch.mathorck.easystock.push.PushHost
 import ch.mathorck.easystock.sync.SyncHost
 import ch.mathorck.easystock.alerts.AlertHost
+import ch.mathorck.easystock.alerts.DateAlertHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -96,6 +97,7 @@ private fun MainContent() {
     // Asked once right after joining a server (Android 13+)
     var askAlertPermission by rememberSaveable { mutableStateOf(false) }
     AlertHost(askPermission = askAlertPermission, onAsked = { askAlertPermission = false }, onOpen = { page = Page.Stock })
+    DateAlertHost()
     val db = rememberAppDatabase()
     val unseenFlow = remember(db, connected) {
         if (connected) db.syncDao().observeUnseenRejectedCount() else flowOf(0)

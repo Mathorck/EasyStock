@@ -65,7 +65,11 @@ import ch.mathorck.easystock.data.db.asTagStore
 import ch.mathorck.easystock.viewmodels.TagLinkViewModel
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import ch.mathorck.easystock.composables.pages.DatePassedBadge
 import ch.mathorck.easystock.composables.pages.LowStockBadge
+import ch.mathorck.easystock.data.model.PastDate
+import easystock.shared.generated.resources.article_date_passed_line
+import easystock.shared.generated.resources.article_date_passed_unit_line
 import ch.mathorck.easystock.data.db.MAX_FLAG_NOTE_LENGTH
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.db.UnitAction
@@ -164,7 +168,7 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     // Read at each flag write by the ViewModel, which outlives a role change
     val permissions by rememberUpdatedState(LocalPermissions.current)
     val viewModel = viewModel(key = "article-detail-$articleId") {
-        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), db.attributeDao(), db.articleFlagDao(), images, permissions = { permissions })
+        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), db.attributeDao(), db.articleFlagDao(), db.dateAlertDao(), images, permissions = { permissions })
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by viewModel.editState.collectAsStateWithLifecycle()
@@ -310,6 +314,9 @@ fun ArticleDetailContent(
                     is FlagCard.Review -> InfoFlagCard(card.row, onFixed = if (gates.markInfoFixed) ({ confirmFixed = card.row.lineId }) else null)
                     is FlagCard.Manual -> ProblemCard(card.row, onFixed = if (gates.markProblemFixed) ({ confirmProblemFixed = card.row.id }) else null)
                 }
+            }
+            if (state.pastDates.isNotEmpty()) {
+                item(key = "past-dates") { PastDatesSection(state.pastDates) }
             }
             if (state.properties.isNotEmpty()) {
                 item(key = "properties") { PropertiesSection(state.properties) }
@@ -633,6 +640,21 @@ private fun Header(article: Article, categoryName: String?) {
         InfoRow(stringResource(Res.string.article_unit_label), article.unit)
         article.description?.takeIf { it.isNotBlank() }?.let {
             InfoRow(stringResource(Res.string.article_description_label), it)
+        }
+    }
+}
+
+/** The dates already past (own or of a unit): the badge, then one line per date. */
+@Composable
+private fun PastDatesSection(pastDates: List<PastDate>) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        DatePassedBadge()
+        pastDates.forEach {
+            val line = stringResource(if (it.isItem) Res.string.article_date_passed_unit_line else Res.string.article_date_passed_line, it.label, it.dateValue)
+            Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         }
     }
 }

@@ -3,6 +3,7 @@ package ch.mathorck.easystock.composables.attributes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +42,7 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.composables.settings.EmptyListHint
+import ch.mathorck.easystock.alerts.rememberNotificationPermission
 import ch.mathorck.easystock.composables.settings.ConfirmDeleteDialog
 import ch.mathorck.easystock.composables.settings.message
 import ch.mathorck.easystock.data.db.rememberAppDatabase
@@ -52,6 +56,7 @@ import ch.mathorck.easystock.viewmodels.AttributeListViewModel
 import ch.mathorck.easystock.viewmodels.allowedTypes
 import ch.mathorck.easystock.viewmodels.measureUnitLocked
 import ch.mathorck.easystock.viewmodels.validate
+import ch.mathorck.easystock.viewmodels.withFlagWhenPast
 import ch.mathorck.easystock.viewmodels.withType
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.attributes_add
@@ -60,6 +65,8 @@ import easystock.shared.generated.resources.attributes_convert_hint
 import easystock.shared.generated.resources.attributes_convert_unavailable
 import easystock.shared.generated.resources.attributes_default_unit
 import easystock.shared.generated.resources.attributes_family
+import easystock.shared.generated.resources.attributes_flag_when_past
+import easystock.shared.generated.resources.attributes_notify_when_past
 import easystock.shared.generated.resources.attributes_family_force
 import easystock.shared.generated.resources.attributes_family_length
 import easystock.shared.generated.resources.attributes_family_mass
@@ -115,9 +122,12 @@ fun AttributesScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         onRenamedSeen = viewModel::consumeRenamed,
         modifier = modifier,
     )
+    // Date notifications need the system permission (Android 13+): asked when the switch goes on
+    val permission = rememberNotificationPermission()
     state.dialog?.let { dialog ->
         AttributeDialog(
             state = dialog,
+            onNotifyOn = { if (permission?.canRequest == true) permission.request() },
             onFormChange = viewModel::updateForm,
             onDismiss = viewModel::cancel,
             onSave = viewModel::save,
@@ -210,6 +220,7 @@ internal fun MeasureFamily.label(): StringResource = when (this) {
 @Composable
 private fun AttributeDialog(
     state: AttributeDialogState,
+    onNotifyOn: () -> Unit,
     onFormChange: ((AttributeForm) -> AttributeForm) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
@@ -298,6 +309,23 @@ private fun AttributeDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (form.dataType == AttributeDataType.DATE) {
+                    SwitchRow(
+                        label = stringResource(Res.string.attributes_flag_when_past),
+                        checked = form.flagWhenPast,
+                        enabled = true,
+                        onCheckedChange = { on -> onFormChange { it.withFlagWhenPast(on) } },
+                    )
+                    SwitchRow(
+                        label = stringResource(Res.string.attributes_notify_when_past),
+                        checked = form.notifyWhenPast,
+                        enabled = form.flagWhenPast,
+                        onCheckedChange = { on ->
+                            if (on) onNotifyOn()
+                            onFormChange { it.copy(notifyWhenPast = on) }
+                        },
+                    )
+                }
                 if (state.saveFailed) {
                     Text(
                         stringResource(Res.string.attributes_error_save),
@@ -314,6 +342,20 @@ private fun AttributeDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.attributes_cancel)) }
         },
     )
+}
+
+/** A label with a switch. The switch can't be changed when [enabled] is false. */
+@Composable
+private fun SwitchRow(label: String, checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    }
 }
 
 /** Read-only dropdown. [options] shows nothing to choose when it has one entry and [enabled] is false. */
@@ -389,7 +431,7 @@ private fun AttributeDialogEditPreview() {
         val form = AttributeForm(label = "Breaking strength", dataType = AttributeDataType.NUMBER, unit = "N")
         AttributeDialog(
             state = AttributeDialogState(editing = editing, form = form, errors = form.validate(previewDefinitions, editing.id)),
-            onFormChange = {}, onDismiss = {}, onSave = {},
+            onNotifyOn = {}, onFormChange = {}, onDismiss = {}, onSave = {},
         )
     }
 }

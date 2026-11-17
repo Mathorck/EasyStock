@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="attributes_flag_when_past">Flag when the date is past</string>
+    <string name="attributes_notify_when_past">Notify when the date is past</string>
+    <string name="stock_date_passed">Date passed</string>
+    <string name="article_date_passed_line">%1$s: %2$s (date passed)</string>
+    <string name="article_date_passed_unit_line">%1$s: %2$s (date passed, one unit)</string>
+    <string name="date_alerts_channel_name">Dates passed</string>
+    <string name="date_alerts_channel_description">Articles with a date that has passed</string>
+    <string name="date_alerts_line">%1$s: %2$s (%3$s)</string>
+</resources>

@@ -139,7 +139,10 @@ abstract class AttributeDao {
         unit: String?,
         options: List<String>?,
         now: Long,
+        flagWhenPast: Boolean = false,
+        notifyWhenPast: Boolean = false,
     ): AttributeDefinition {
+        val flag = dataType == AttributeDataType.DATE && flagWhenPast
         val definition = AttributeDefinition(
             id = id,
             key = newAttributeKey(label, allKeys()),
@@ -151,6 +154,8 @@ abstract class AttributeDao {
                 unit
             },
             options = options.takeIf { dataType == AttributeDataType.ENUM },
+            flagWhenPast = flag,
+            notifyWhenPast = flag && notifyWhenPast,
             createdAt = now,
             updatedAt = now,
         )
@@ -159,7 +164,7 @@ abstract class AttributeDao {
     }
 
     /**
-     * Changes the label, unit and options. The key is kept. The data type is kept too (stored values depend on it),
+     * Changes the label, unit, options and, for a date, the two past-date toggles ([notifyWhenPast] needs [flagWhenPast]). The key is kept. The data type is kept too (stored values depend on it),
      * except number -> measure ([dataType] = [AttributeDataType.MEASURE]): saved numbers stay as they are and are
      * read in the default unit, which must be a known unit ([MeasureUnits]). A number with a known unit keeps it.
      * The unit of a measure is locked: [unit] is ignored, plain values are read in it.
@@ -176,6 +181,8 @@ abstract class AttributeDao {
         options: List<String>?,
         now: Long,
         dataType: AttributeDataType? = null,
+        flagWhenPast: Boolean = false,
+        notifyWhenPast: Boolean = false,
     ): Int {
         val stored = getActiveDefinition(id) ?: throw AttributeNotFoundException(id)
         val type = dataType ?: stored.dataType
@@ -189,12 +196,16 @@ abstract class AttributeDao {
         require(type == stored.dataType || (stored.dataType == AttributeDataType.NUMBER && type == AttributeDataType.MEASURE)) {
             "Can't change ${stored.dataType} to $type"
         }
+        val isDate = stored.dataType == AttributeDataType.DATE
         updateDefinitionRow(
             stored.copy(
                 label = label,
                 dataType = type,
                 unit = newUnit,
                 options = options.takeIf { stored.dataType == AttributeDataType.ENUM },
+                // Date only; notify needs the flag
+                flagWhenPast = isDate && flagWhenPast,
+                notifyWhenPast = isDate && flagWhenPast && notifyWhenPast,
                 updatedAt = now,
             ),
         )

@@ -119,6 +119,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun articleFlagDao(): ArticleFlagDao
 
     abstract fun dateAlertNoticeDao(): DateAlertNoticeDao
+
+    abstract fun dateAlertDao(): DateAlertDao
 }
 
 // Implemented by the Room compiler on each platform

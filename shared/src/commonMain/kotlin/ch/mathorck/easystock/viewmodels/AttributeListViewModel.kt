@@ -35,7 +35,20 @@ data class AttributeForm(
     val dataType: AttributeDataType = AttributeDataType.TEXT,
     val unit: String = "",
     val optionsText: String = "",
+    /** Date only: flag the articles whose date is past. */
+    val flagWhenPast: Boolean = false,
+    /** Date only, needs [flagWhenPast]: notify once when a date is past. */
+    val notifyWhenPast: Boolean = false,
 )
+
+/** Copy with the flag switched. Notify can't stay on without the flag. */
+fun AttributeForm.withFlagWhenPast(on: Boolean): AttributeForm = copy(flagWhenPast = on, notifyWhenPast = notifyWhenPast && on)
+
+/** Copy where the date toggles follow their rules: date only, notify only with the flag. */
+fun AttributeForm.normalizedDateAlerts(): AttributeForm {
+    val flag = dataType == AttributeDataType.DATE && flagWhenPast
+    return copy(flagWhenPast = flag, notifyWhenPast = flag && notifyWhenPast)
+}
 
 /** Copy with [type]. A measure gets a known unit: the typed one when known ("MM" -> mm), else the length default. */
 fun AttributeForm.withType(type: AttributeDataType): AttributeForm =
@@ -81,6 +94,8 @@ fun AttributeDefinition.toForm(): AttributeForm = AttributeForm(
     dataType = dataType,
     unit = unit.orEmpty(),
     optionsText = options.orEmpty().joinToString("\n"),
+    flagWhenPast = flagWhenPast,
+    notifyWhenPast = notifyWhenPast,
 )
 
 data class AttributeFormErrors(
@@ -210,7 +225,7 @@ class AttributeListViewModel(
         viewModelScope.launch {
             try {
                 val now = clock.now().toEpochMilliseconds()
-                val form = input.form
+                val form = input.form.normalizedDateAlerts()
                 val label = form.label.trim()
                 val unit = if (form.dataType == AttributeDataType.MEASURE) {
                     MeasureUnits.find(form.unit)?.symbol
@@ -220,10 +235,10 @@ class AttributeListViewModel(
                 val options = parseAttributeOptions(form.optionsText).takeIf { form.dataType == AttributeDataType.ENUM }
                 val editing = input.editing
                 if (editing == null) {
-                    dao.createDefinition(newId(), label, form.dataType, unit, options, now)
+                    dao.createDefinition(newId(), label, form.dataType, unit, options, now, form.flagWhenPast, form.notifyWhenPast)
                 } else {
                     val type = form.dataType.takeIf { it != editing.dataType }
-                    renamed.value = dao.updateDefinition(editing.id, label, unit, options, now, type).takeIf { it > 0 }
+                    renamed.value = dao.updateDefinition(editing.id, label, unit, options, now, type, form.flagWhenPast, form.notifyWhenPast).takeIf { it > 0 }
                 }
                 if (dialog.value?.editing?.id == editing?.id) dialog.value = null
             } catch (e: CancellationException) {

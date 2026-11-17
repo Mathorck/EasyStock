@@ -11,6 +11,8 @@ import ch.mathorck.easystock.data.db.ArticleFlagWithAuthor
 import ch.mathorck.easystock.data.db.ArticleNotFoundException
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
+import ch.mathorck.easystock.data.db.DateAlertDao
+import ch.mathorck.easystock.data.model.PastDate
 import ch.mathorck.easystock.data.db.DeletedCategoryNameException
 import ch.mathorck.easystock.data.db.DuplicateSkuException
 import ch.mathorck.easystock.data.db.InfoFlag
@@ -257,6 +259,8 @@ data class ArticleDetailUiState(
     val problems: List<ManualFlagRow> = emptyList(),
     /** Attribute values of the article, empty ones skipped, in the category order. */
     val properties: List<AttributeRow> = emptyList(),
+    /** Past dates of this article and its units (date attributes that flag when past). */
+    val pastDates: List<PastDate> = emptyList(),
 ) {
     val isDeleted: Boolean get() = !loading && article == null
 
@@ -288,6 +292,7 @@ class ArticleDetailViewModel(
     categoryDao: CategoryDao,
     attributeDao: AttributeDao,
     flagDao: ArticleFlagDao,
+    dateAlertDao: DateAlertDao,
     private val images: ArticleImageStore,
     /** Current permissions, read at each write: the flag writes are refused when the role cannot do them. */
     permissions: () -> AppPermissions,
@@ -309,8 +314,18 @@ class ArticleDetailViewModel(
         combine(movements, dao.observeInfoFlags(articleId), flagDao.observeForArticle(articleId), ::Triple),
         // Paths built once per location change, shared by all the rows
         dao.observeAllLocations().map(::LocationPaths),
-        combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
-    ) { article, stock, (page, flags, problems), locations, catalog ->
+        combine(
+            combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
+            // Only this article and its units are read, and nothing when no definition flags
+            observePastDates(
+                attributeDao.observeDefinitions(),
+                { dateAlertDao.observeArticle(articleId) },
+                { dateAlertDao.observeItemsOf(articleId) },
+                todayFlow(),
+            ),
+            ::Pair,
+        ),
+    ) { article, stock, (page, flags, problems), locations, (catalog, past) ->
         ArticleDetailUiState(
             loading = false,
             article = article?.article,
@@ -322,6 +337,7 @@ class ArticleDetailViewModel(
             infoFlags = openInfoFlagRows(flags, locations, timeZone),
             problems = manualFlagRows(problems, timeZone),
             properties = article?.article?.let { catalog.rows(it.categoryId, it.attributes) }.orEmpty(),
+            pastDates = past,
         )
     }.flowOn(computeDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleDetailUiState())

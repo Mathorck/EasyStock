@@ -11,12 +11,14 @@ import ch.mathorck.easystock.data.db.ArticleDao
 import ch.mathorck.easystock.data.db.ArticleFlagDao
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
+import ch.mathorck.easystock.data.db.DateAlertDao
 import ch.mathorck.easystock.data.db.StockDao
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.ArticleStock
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Location
+import ch.mathorck.easystock.data.model.PastDate
 import ch.mathorck.easystock.data.model.Tracking
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +34,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.datetime.LocalDate
 
 /** NFC tag filter of the Stock page. */
 enum class TagFilter { TAGGED, UNTAGGED }
@@ -121,6 +124,8 @@ data class StockUiState(
     val attributeLines: Map<String, String> = emptyMap(),
     /** Ids of the articles with an open flag (manual or from a review): they get a flag badge. */
     val flaggedIds: Set<String> = emptySet(),
+    /** Past dates per article id (date attributes that flag when past): they get a date badge. */
+    val pastDatesByArticle: Map<String, List<PastDate>> = emptyMap(),
 ) {
     val selectedLocation: Location? get() = locations.firstOrNull { it.location.id == filters.locationId }?.location
     val selectedCategory: Category? get() = categories.firstOrNull { it.id == filters.categoryId }
@@ -195,6 +200,7 @@ private data class StockLookups(
     val categories: List<Category>,
     val definitions: List<AttributeDefinition>,
     val flagged: Set<String>,
+    val pastDates: Map<String, List<PastDate>>,
 )
 
 /**
@@ -218,6 +224,8 @@ class StockViewModel(
     categoryDao: CategoryDao,
     attributeDao: AttributeDao,
     flagDao: ArticleFlagDao,
+    dateAlertDao: DateAlertDao,
+    today: Flow<LocalDate> = todayFlow(),
     computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
@@ -262,8 +270,16 @@ class StockViewModel(
         source,
         _query,
         effectiveFilters,
-        combine(locations, categories, definitions, flagDao.observeFlaggedArticleIds().map { it.toSet() }, ::StockLookups),
-    ) { total, stock, q, filters, (locs, cats, defs, flagged) ->
+        combine(
+            locations,
+            categories,
+            definitions,
+            flagDao.observeFlaggedArticleIds().map { it.toSet() },
+            observePastDates(definitions, dateAlertDao::observeArticles, dateAlertDao::observeItems, today)
+                .map { past -> past.groupBy { it.articleId } },
+            ::StockLookups,
+        ),
+    ) { total, stock, q, filters, (locs, cats, defs, flagged, past) ->
         // Right after a location change, the list can still be the previous location's: never show it.
         val upToDate = stock.locationId == filters.locationId
         val attributes = { item: ArticleStock -> stock.attributes[item.article.id].orEmpty() }
@@ -281,6 +297,7 @@ class StockViewModel(
             filters = filters,
             attributeLines = if (upToDate) stock.attributeLines else emptyMap(),
             flaggedIds = flagged,
+            pastDatesByArticle = past,
         )
     }.flowOn(computeDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StockUiState())

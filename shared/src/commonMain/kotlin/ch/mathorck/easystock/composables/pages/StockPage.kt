@@ -121,7 +121,9 @@ import easystock.shared.generated.resources.stock_filter_clear_location
 import easystock.shared.generated.resources.stock_filter_location
 import easystock.shared.generated.resources.stock_filter_low_stock
 import easystock.shared.generated.resources.stock_filter_no_results
+import easystock.shared.generated.resources.ic_calendar
 import easystock.shared.generated.resources.ic_flag
+import easystock.shared.generated.resources.stock_date_passed
 import easystock.shared.generated.resources.stock_flagged
 import easystock.shared.generated.resources.stock_low
 import easystock.shared.generated.resources.stock_no_results
@@ -138,7 +140,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun StockPage() {
     val db = rememberAppDatabase()
-    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao(), db.attributeDao(), db.articleFlagDao()) }
+    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao(), db.attributeDao(), db.articleFlagDao(), db.dateAlertDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
@@ -313,7 +315,7 @@ fun StockContent(
             }
             else -> LazyColumn(state = listState, contentPadding = contentPadding) {
                 items(state.items, key = { it.article.id }) { item ->
-                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item, state.attributeLines[item.article.id], flagged = item.article.id in state.flaggedIds) }
+                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item, state.attributeLines[item.article.id], flagged = item.article.id in state.flaggedIds, datePassed = item.article.id in state.pastDatesByArticle) }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
             }
@@ -584,7 +586,7 @@ private fun PickerSheet(
 }
 
 @Composable
-private fun StockRow(item: ArticleStock, attributeLine: String?, flagged: Boolean = false) {
+private fun StockRow(item: ArticleStock, attributeLine: String?, flagged: Boolean = false, datePassed: Boolean = false) {
     ListItem(
         leadingContent = { ArticleThumbnail(item.article.imagePath) },
         headlineContent = { Text(item.article.name) },
@@ -605,6 +607,7 @@ private fun StockRow(item: ArticleStock, attributeLine: String?, flagged: Boolea
                 )
                 if (item.isLowStock) LowStockBadge()
                 if (flagged) FlagBadge()
+                if (datePassed) DatePassedBadge()
             }
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
@@ -624,6 +627,23 @@ internal fun FlagBadge() {
             Icon(painterResource(Res.drawable.ic_flag), contentDescription = null, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(4.dp))
             Text(stringResource(Res.string.stock_flagged), style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+/** Badge of an article with a date attribute in the past (e.g. expired). */
+@Composable
+internal fun DatePassedBadge() {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.padding(top = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) {
+            Icon(painterResource(Res.drawable.ic_calendar), contentDescription = null, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(Res.string.stock_date_passed), style = MaterialTheme.typography.labelSmall)
         }
     }
 }

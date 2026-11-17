@@ -202,4 +202,19 @@ class AttributeDaoTest {
         assertFailsWith<CategoryNotFoundException> { categories.rename("tools", "Other", 4) }
         Unit
     }
+
+    @Test
+    fun dateTogglesAreStoredAndNotifyNeedsTheFlag() = runBlocking<Unit> {
+        val created = attributes.createDefinition("exp", "Expiry", AttributeDataType.DATE, null, null, 1, flagWhenPast = false, notifyWhenPast = true)
+        assertEquals(false, created.notifyWhenPast)
+        attributes.updateDefinition("exp", "Expiry", null, null, 2, flagWhenPast = true, notifyWhenPast = true)
+        val stored = attributes.getActiveDefinition("exp")!!
+        assertEquals(true, stored.flagWhenPast)
+        assertEquals(true, stored.notifyWhenPast)
+        attributes.updateDefinition("exp", "Expiry", null, null, 3, flagWhenPast = false, notifyWhenPast = true)
+        assertEquals(false, attributes.getActiveDefinition("exp")!!.notifyWhenPast)
+        // Never on a non-date attribute
+        attributes.updateDefinition("length", "Length", "m", null, 4, flagWhenPast = true, notifyWhenPast = true)
+        assertEquals(false, attributes.getActiveDefinition("length")!!.flagWhenPast)
+    }
 }
