@@ -38,8 +38,8 @@ import androidx.compose.ui.unit.dp
 import ch.mathorck.easystock.composables.rememberAutoFocusRequester
 import ch.mathorck.easystock.util.formatQuantity
 import ch.mathorck.easystock.util.parseQuantity
-import ch.mathorck.easystock.viewmodels.LocationOption
-import ch.mathorck.easystock.viewmodels.ReviewLineUi
+import ch.mathorck.easystock.viewmodels.location.LocationOption
+import ch.mathorck.easystock.viewmodels.review.ReviewLineUi
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.ic_remove

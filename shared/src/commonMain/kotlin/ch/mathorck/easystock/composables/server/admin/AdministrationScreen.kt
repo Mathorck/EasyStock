@@ -24,12 +24,13 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.server.AdminApi
-import ch.mathorck.easystock.server.KtorAdminApi
-import ch.mathorck.easystock.server.ServerConnection
-import ch.mathorck.easystock.server.rememberServerClient
-import ch.mathorck.easystock.theme.EasyStockTheme
+import ch.mathorck.easystock.enums.server.admin.AdminSection
+import ch.mathorck.easystock.services.server.AdminApi
+import ch.mathorck.easystock.services.server.KtorAdminApi
+import ch.mathorck.easystock.services.server.ServerConnection
+import ch.mathorck.easystock.services.server.rememberServerClient
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.admin_backup
 import easystock.shared.generated.resources.admin_backup_summary
@@ -52,9 +53,6 @@ import easystock.shared.generated.resources.ic_settings
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-
-/** Screens of the administration. */
-internal enum class AdminSection { Users, Invites, PublicInvite, Backup, Settings }
 
 /**
  * Settings > Server > Administration. Opened only for a connected Admin (SettingsGates); the client is

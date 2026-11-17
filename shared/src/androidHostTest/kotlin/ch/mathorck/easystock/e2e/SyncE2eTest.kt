@@ -1,7 +1,7 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.data.model.Tracking
-import ch.mathorck.easystock.sync.RowConflict
+import ch.mathorck.easystock.enums.article.Tracking
+import ch.mathorck.easystock.services.sync.RowConflict
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

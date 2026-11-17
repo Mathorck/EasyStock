@@ -1,9 +1,9 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.auth.Role
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.KtorAccountApi
+import ch.mathorck.easystock.enums.auth.Role
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.server.KtorAccountApi
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

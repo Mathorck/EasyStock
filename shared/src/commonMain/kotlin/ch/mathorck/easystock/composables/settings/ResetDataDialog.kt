@@ -25,7 +25,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import ch.mathorck.easystock.composables.rememberAutoFocusRequester
-import ch.mathorck.easystock.reset.matchesConfirmation
+import ch.mathorck.easystock.services.reset.matchesConfirmation
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.app_info_reset_backup
 import easystock.shared.generated.resources.app_info_reset_confirm

@@ -1,7 +1,5 @@
 package ch.mathorck.easystock.composables.review
 
-import ch.mathorck.easystock.auth.LocalPermissions
-import ch.mathorck.easystock.auth.ReviewGates
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,11 +33,13 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.ReviewStatus
-import ch.mathorck.easystock.viewmodels.ReviewListRow
-import ch.mathorck.easystock.viewmodels.ReviewListViewModel
-import ch.mathorck.easystock.viewmodels.ReviewMessage
-import ch.mathorck.easystock.viewmodels.formatDateTime
+import ch.mathorck.easystock.enums.review.ReviewMessage
+import ch.mathorck.easystock.enums.review.ReviewStatus
+import ch.mathorck.easystock.services.auth.LocalPermissions
+import ch.mathorck.easystock.services.auth.ReviewGates
+import ch.mathorck.easystock.viewmodels.article.formatDateTime
+import ch.mathorck.easystock.viewmodels.review.ReviewListRow
+import ch.mathorck.easystock.viewmodels.review.ReviewListViewModel
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_fact_check
 import easystock.shared.generated.resources.review_list_counts

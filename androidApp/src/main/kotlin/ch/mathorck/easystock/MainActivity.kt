@@ -6,7 +6,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import ch.mathorck.easystock.alerts.handleAlertIntent
+import ch.mathorck.easystock.composables.App
+import ch.mathorck.easystock.services.alerts.handleAlertIntent
 
 // AppCompatActivity: needed for the per-app language below API 33
 class MainActivity : AppCompatActivity() {

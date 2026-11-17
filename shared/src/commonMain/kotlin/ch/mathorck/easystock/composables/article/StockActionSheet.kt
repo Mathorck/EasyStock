@@ -15,7 +15,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
-import ch.mathorck.easystock.composables.LocationIcon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -42,23 +41,28 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import ch.mathorck.easystock.data.db.UnitAction
-import ch.mathorck.easystock.data.model.Location
-import ch.mathorck.easystock.data.model.MovementReason
-import ch.mathorck.easystock.theme.EasyStockTheme
+import ch.mathorck.easystock.composables.LocationIcon
+import ch.mathorck.easystock.composables.article.ItemPropertiesFields
+import ch.mathorck.easystock.composables.article.label
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
+import ch.mathorck.easystock.data.model.location.Location
+import ch.mathorck.easystock.enums.article.StockActionError
+import ch.mathorck.easystock.enums.article.StockActionKind
+import ch.mathorck.easystock.enums.location.LocationChoice
+import ch.mathorck.easystock.enums.stock.MovementReason
+import ch.mathorck.easystock.enums.stock.UnitAction
 import ch.mathorck.easystock.util.formatQuantity
-import ch.mathorck.easystock.viewmodels.LocationChoice
-import ch.mathorck.easystock.viewmodels.SerialIndex
-import ch.mathorck.easystock.viewmodels.StockActionContext
-import ch.mathorck.easystock.viewmodels.StockActionError
-import ch.mathorck.easystock.viewmodels.StockActionForm
-import ch.mathorck.easystock.viewmodels.StockActionKind
-import ch.mathorck.easystock.viewmodels.StockActionUiState
-import ch.mathorck.easystock.viewmodels.buildLocationOptions
-import ch.mathorck.easystock.viewmodels.reasonsFor
-import ch.mathorck.easystock.viewmodels.toLocationTree
-import ch.mathorck.easystock.viewmodels.validate
+import ch.mathorck.easystock.viewmodels.article.StockActionContext
+import ch.mathorck.easystock.viewmodels.article.StockActionForm
+import ch.mathorck.easystock.viewmodels.article.StockActionUiState
+import ch.mathorck.easystock.viewmodels.article.reasonsFor
+import ch.mathorck.easystock.viewmodels.article.validate
+import ch.mathorck.easystock.viewmodels.attributes.validate
+import ch.mathorck.easystock.viewmodels.location.buildLocationOptions
+import ch.mathorck.easystock.viewmodels.stock.SerialIndex
+import ch.mathorck.easystock.viewmodels.stock.toLocationTree
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.item_edit_title
 import easystock.shared.generated.resources.stock_action_at
 import easystock.shared.generated.resources.stock_action_available
 import easystock.shared.generated.resources.stock_action_cancel
@@ -70,7 +74,6 @@ import easystock.shared.generated.resources.stock_action_error_not_positive
 import easystock.shared.generated.resources.stock_action_error_quantity
 import easystock.shared.generated.resources.stock_action_error_same_location
 import easystock.shared.generated.resources.stock_action_error_save
-import easystock.shared.generated.resources.item_edit_title
 import easystock.shared.generated.resources.stock_action_error_serial_taken
 import easystock.shared.generated.resources.stock_action_error_too_long
 import easystock.shared.generated.resources.stock_action_error_unit
@@ -317,15 +320,6 @@ internal fun <T> Choice(options: List<T>, selected: T?, label: @Composable (T) -
         }
     }
 }
-
-private data class PickerOption(
-    val key: String,
-    val text: String,
-    val depth: Int = 0,
-    val icon: String? = null,
-    val color: String? = null,
-    val showIcon: Boolean = false,
-)
 
 @Composable
 private fun Picker(label: String, value: String, options: List<PickerOption>, error: String?, onSelect: (String) -> Unit) {

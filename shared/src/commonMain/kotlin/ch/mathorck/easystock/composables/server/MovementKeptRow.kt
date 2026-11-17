@@ -15,19 +15,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import ch.mathorck.easystock.auth.Action
-import ch.mathorck.easystock.auth.LocalPermissions
 import ch.mathorck.easystock.composables.article.historyLabel
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.MovementReason
-import ch.mathorck.easystock.data.model.RejectedChangeRow
-import ch.mathorck.easystock.data.model.StockMovement
-import ch.mathorck.easystock.sync.KeepMineBlock
-import ch.mathorck.easystock.sync.MovementDiffers
-import ch.mathorck.easystock.sync.MovementKeptDetails
-import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.viewmodels.formatDateTime
-import ch.mathorck.easystock.viewmodels.formatSignedQuantity
+import ch.mathorck.easystock.data.model.stock.StockMovement
+import ch.mathorck.easystock.data.model.sync.RejectedChangeRow
+import ch.mathorck.easystock.enums.auth.Action
+import ch.mathorck.easystock.enums.stock.MovementReason
+import ch.mathorck.easystock.enums.sync.KeepMineBlock
+import ch.mathorck.easystock.services.auth.LocalPermissions
+import ch.mathorck.easystock.services.sync.MovementDiffers
+import ch.mathorck.easystock.services.sync.MovementKeptDetails
+import ch.mathorck.easystock.viewmodels.article.formatDateTime
+import ch.mathorck.easystock.viewmodels.article.formatSignedQuantity
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.movement_differs_reason
 import easystock.shared.generated.resources.movement_kept_blocked_article_gone
@@ -159,7 +159,7 @@ private fun MovementKeptPreview() {
     EasyStockTheme {
         MovementKeptContent(
             row = RejectedChangeRow(
-                ch.mathorck.easystock.data.model.RejectedChange("r1", "stock_movement", "m1", "movement-kept:{}", 1762859000000),
+                ch.mathorck.easystock.data.model.sync.RejectedChange("r1", "stock_movement", "m1", "movement-kept:{}", 1762859000000),
                 "Drill",
             ),
             details = MovementKeptDetails(phone = server.copy(quantityMilli = 3000), server = server, keepMineBlock = null),

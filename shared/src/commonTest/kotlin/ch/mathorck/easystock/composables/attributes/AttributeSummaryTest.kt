@@ -1,19 +1,21 @@
 package ch.mathorck.easystock.composables.attributes
 
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.ArticleStock
-import ch.mathorck.easystock.data.model.AttributeDataType
-import ch.mathorck.easystock.data.model.AttributeDefinition
-import ch.mathorck.easystock.data.model.CategoryAttribute
-import ch.mathorck.easystock.viewmodels.filterByQuery
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.JsonUnquotedLiteral
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.article.ArticleStock
+import ch.mathorck.easystock.data.model.attributes.AttributeDefinition
+import ch.mathorck.easystock.data.model.attributes.CategoryAttribute
+import ch.mathorck.easystock.enums.attributes.AttributeDataType
+import ch.mathorck.easystock.services.attributes.AttributeCatalog
+import ch.mathorck.easystock.services.attributes.AttributeText
+import ch.mathorck.easystock.viewmodels.stock.filterByQuery
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonUnquotedLiteral
 
 @OptIn(ExperimentalSerializationApi::class)
 class AttributeSummaryTest {

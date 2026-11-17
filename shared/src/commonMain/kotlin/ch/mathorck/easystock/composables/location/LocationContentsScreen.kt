@@ -1,10 +1,6 @@
 package ch.mathorck.easystock.composables.location
 
-import ch.mathorck.easystock.auth.LocalPermissions
-import ch.mathorck.easystock.auth.StockListGates
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,16 +44,18 @@ import ch.mathorck.easystock.composables.attributes.summaryLine
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.Item
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.article.Item
+import ch.mathorck.easystock.enums.article.StockActionKind
+import ch.mathorck.easystock.services.auth.LocalPermissions
+import ch.mathorck.easystock.services.auth.StockListGates
 import ch.mathorck.easystock.util.formatQuantity
-import ch.mathorck.easystock.viewmodels.ContentsArticleRow
-import ch.mathorck.easystock.viewmodels.ContentsSubLocation
-import ch.mathorck.easystock.viewmodels.LocationContentsUiState
-import ch.mathorck.easystock.viewmodels.LocationContentsViewModel
-import ch.mathorck.easystock.viewmodels.StockActionForm
-import ch.mathorck.easystock.viewmodels.StockActionKind
-import ch.mathorck.easystock.viewmodels.StockActionViewModel
+import ch.mathorck.easystock.viewmodels.article.StockActionForm
+import ch.mathorck.easystock.viewmodels.article.StockActionViewModel
+import ch.mathorck.easystock.viewmodels.location.ContentsArticleRow
+import ch.mathorck.easystock.viewmodels.location.ContentsSubLocation
+import ch.mathorck.easystock.viewmodels.location.LocationContentsUiState
+import ch.mathorck.easystock.viewmodels.location.LocationContentsViewModel
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.ic_chevron_right
@@ -80,9 +80,6 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-
-/** A stock action started from the contents: the sheet of [article], opened with [form]. */
-private data class ContentsAction(val article: Article, val form: StockActionForm)
 
 /**
  * What [locationId] holds (e.g. after scanning its tag): sub-locations, articles with their stock,

@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import easystock.shared.generated.resources.Res
-import easystock.shared.generated.resources.ic_location
 import easystock.shared.generated.resources.ic_loc_backpack
 import easystock.shared.generated.resources.ic_loc_box
 import easystock.shared.generated.resources.ic_loc_cabinet
@@ -28,11 +27,13 @@ import easystock.shared.generated.resources.ic_loc_tools
 import easystock.shared.generated.resources.ic_loc_van
 import easystock.shared.generated.resources.ic_loc_warehouse
 import easystock.shared.generated.resources.ic_loc_workbench
+import easystock.shared.generated.resources.ic_location
 import easystock.shared.generated.resources.locations_color_amber
 import easystock.shared.generated.resources.locations_color_blue
 import easystock.shared.generated.resources.locations_color_blue_grey
 import easystock.shared.generated.resources.locations_color_brown
 import easystock.shared.generated.resources.locations_color_cyan
+import easystock.shared.generated.resources.locations_color_default
 import easystock.shared.generated.resources.locations_color_green
 import easystock.shared.generated.resources.locations_color_indigo
 import easystock.shared.generated.resources.locations_color_orange
@@ -45,6 +46,7 @@ import easystock.shared.generated.resources.locations_icon_box
 import easystock.shared.generated.resources.locations_icon_cabinet
 import easystock.shared.generated.resources.locations_icon_car
 import easystock.shared.generated.resources.locations_icon_crate
+import easystock.shared.generated.resources.locations_icon_default
 import easystock.shared.generated.resources.locations_icon_door
 import easystock.shared.generated.resources.locations_icon_first_aid
 import easystock.shared.generated.resources.locations_icon_folder
@@ -58,14 +60,12 @@ import easystock.shared.generated.resources.locations_icon_tools
 import easystock.shared.generated.resources.locations_icon_van
 import easystock.shared.generated.resources.locations_icon_warehouse
 import easystock.shared.generated.resources.locations_icon_workbench
-import easystock.shared.generated.resources.locations_color_default
-import easystock.shared.generated.resources.locations_icon_default
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-// Display side of ch.mathorck.easystock.data.model.LocationIcons / LocationColors: the one place mapping a
+// Display side of ch.mathorck.easystock.data.model.location.LocationIcons / LocationColors: the one place mapping a
 // stored key to a drawable, a color and a label. An unknown key (e.g. from a newer app) shows the default.
 
 private val iconDrawables: Map<String, DrawableResource> = mapOf(

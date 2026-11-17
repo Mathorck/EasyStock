@@ -2,27 +2,27 @@ package ch.mathorck.easystock.viewmodels.server
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ch.mathorck.easystock.server.AccountRules
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.ConnectError
-import ch.mathorck.easystock.server.GuestSignupRequest
-import ch.mathorck.easystock.server.JoinApi
-import ch.mathorck.easystock.server.JoinCode
-import ch.mathorck.easystock.server.JoinKind
-import ch.mathorck.easystock.server.LoginRequest
-import ch.mathorck.easystock.server.RedeemInviteRequest
-import ch.mathorck.easystock.server.ResetPasswordRequest
-import ch.mathorck.easystock.server.ServerConnection
-import ch.mathorck.easystock.server.ServerInfo
-import ch.mathorck.easystock.server.SetupRequest
-import ch.mathorck.easystock.server.TokenAnswer
-import ch.mathorck.easystock.server.TypedAddress
-import ch.mathorck.easystock.server.checkServerInfo
-import ch.mathorck.easystock.server.connectErrorOf
-import ch.mathorck.easystock.server.isLocalNetworkAddress
-import ch.mathorck.easystock.server.parseTypedAddress
-import ch.mathorck.easystock.server.withLocalNetwork
+import ch.mathorck.easystock.data.dto.server.GuestSignupRequest
+import ch.mathorck.easystock.data.dto.server.LoginRequest
+import ch.mathorck.easystock.data.dto.server.RedeemInviteRequest
+import ch.mathorck.easystock.data.dto.server.ResetPasswordRequest
+import ch.mathorck.easystock.data.dto.server.ServerInfo
+import ch.mathorck.easystock.data.dto.server.SetupRequest
+import ch.mathorck.easystock.data.dto.server.TokenAnswer
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.enums.server.ConnectError
+import ch.mathorck.easystock.enums.server.JoinKind
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.server.AccountRules
+import ch.mathorck.easystock.services.server.JoinApi
+import ch.mathorck.easystock.services.server.JoinCode
+import ch.mathorck.easystock.services.server.ServerConnection
+import ch.mathorck.easystock.services.server.TypedAddress
+import ch.mathorck.easystock.services.server.checkServerInfo
+import ch.mathorck.easystock.services.server.connectErrorOf
+import ch.mathorck.easystock.services.server.isLocalNetworkAddress
+import ch.mathorck.easystock.services.server.parseTypedAddress
+import ch.mathorck.easystock.services.server.withLocalNetwork
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,84 +30,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-/** The form shown for a join code ([JoinKind]) or a typed address ([LOGIN]). */
-enum class FormMode { LOGIN, INVITE, SETUP, RESET, GUEST }
-
-/** A server to join, and the code it was reached with (null: a typed address, the user logs in). */
-data class ConnectTarget(
-    val connection: ServerConnection,
-    val code: JoinCode? = null,
-    /** A typed address without scheme tried over HTTPS: this plain HTTP address can be offered after a failure. */
-    val httpFallback: String? = null,
-)
-
-/** Where the connect screen is. Nothing is written on the phone before [Done]. */
-sealed interface ConnectStep {
-    /** Scan a code or type an address. */
-    data object Choose : ConnectStep
-
-    data object Scanning : ConnectStep
-
-    /**
-     * Before the first call: the system dialog asks for the local network permission (Android 17+), the
-     * screen answers with [ConnectViewModel.localNetworkAnswered].
-     */
-    data class LocalNetwork(val target: ConnectTarget) : ConnectStep
-
-    /** Asking `/server-info`. */
-    data class Checking(val target: ConnectTarget) : ConnectStep
-
-    /** HTTPS gave no answer: offer plain HTTP ([httpUrl]), after the warning. */
-    data class HttpsFailed(val target: ConnectTarget, val httpUrl: String) : ConnectStep
-
-    /** A code scanned outside this screen (backup): nothing is sent before the user confirms. */
-    data class ConfirmCode(val target: ConnectTarget) : ConnectStep
-
-    /** Before the first call over plain HTTP: the user must accept it. */
-    data class HttpWarning(val target: ConnectTarget) : ConnectStep
-
-    /** The server answers, but this phone has data: export it and erase it, or cancel. */
-    data class NotEmpty(val target: ConnectTarget, val info: ServerInfo) : ConnectStep
-
-    /** The typed confirmation of the erase (with the offer to export first). */
-    data class EraseConfirm(val target: ConnectTarget, val info: ServerInfo, val failed: Boolean = false) : ConnectStep
-
-    data class Erasing(val target: ConnectTarget, val info: ServerInfo) : ConnectStep
-
-    /** A printed Guest code: log in to an own account, or continue as a Guest. */
-    data class GuestChoice(val target: ConnectTarget, val info: ServerInfo) : ConnectStep
-
-    data class Form(
-        val target: ConnectTarget,
-        val info: ServerInfo,
-        val mode: FormMode,
-        /** The join call runs. */
-        val busy: Boolean = false,
-    ) : ConnectStep
-
-    /** Joined: sync_state and the tokens are written. */
-    data object Done : ConnectStep
-}
-
-enum class FormField { USERNAME, DISPLAY_NAME, PASSWORD }
-
-data class ConnectUiState(
-    val step: ConnectStep = ConnectStep.Choose,
-    val address: String = "",
-    /** The typed address can't be read. */
-    val addressInvalid: Boolean = false,
-    val username: String = "",
-    val displayName: String = "",
-    val password: String = "",
-    /** Fields that break the account rules, shown after a submit. */
-    val invalidFields: Set<FormField> = emptySet(),
-    /** Shown in a dialog. */
-    val error: ConnectError? = null,
-) {
-    // The password must never end up in logs
-    override fun toString(): String = "ConnectUiState(step=$step, address=$address, error=$error)"
-}
 
 /** The fields of each form. */
 fun FormMode.fields(): Set<FormField> = when (this) {

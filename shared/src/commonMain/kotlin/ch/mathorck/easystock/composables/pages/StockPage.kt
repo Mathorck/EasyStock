@@ -1,17 +1,5 @@
 package ch.mathorck.easystock.composables.pages
 
-import ch.mathorck.easystock.auth.LocalPermissions
-import ch.mathorck.easystock.auth.StockListGates
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.runtime.saveable.rememberSaveable
-import ch.mathorck.easystock.composables.article.ArticleDetailScreen
-import ch.mathorck.easystock.composables.article.ArticleFormDialog
-import ch.mathorck.easystock.composables.article.ArticleThumbnail
-import ch.mathorck.easystock.images.rememberArticleImageStore
-import androidx.compose.runtime.LaunchedEffect
-import ch.mathorck.easystock.viewmodels.NewArticleViewModel
-import easystock.shared.generated.resources.ic_add
-import easystock.shared.generated.resources.stock_add_entry
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -30,16 +18,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import ch.mathorck.easystock.composables.LocationIcon
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -47,16 +37,19 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.SheetValue
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,31 +61,67 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import ch.mathorck.easystock.composables.LocationIcon
+import ch.mathorck.easystock.composables.article.ArticleDetailScreen
+import ch.mathorck.easystock.composables.article.ArticleFormDialog
+import ch.mathorck.easystock.composables.article.ArticleThumbnail
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.ArticleStock
-import ch.mathorck.easystock.data.model.Category
-import ch.mathorck.easystock.data.model.Location
-import ch.mathorck.easystock.theme.EasyStockTheme
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.article.ArticleStock
+import ch.mathorck.easystock.data.model.attributes.AttributeDefinition
+import ch.mathorck.easystock.data.model.categories.Category
+import ch.mathorck.easystock.data.model.location.Location
+import ch.mathorck.easystock.enums.article.Tracking
+import ch.mathorck.easystock.enums.stock.StockLevelFilter
+import ch.mathorck.easystock.enums.stock.StockPicker
+import ch.mathorck.easystock.enums.tags.TagFilter
+import ch.mathorck.easystock.services.alerts.AlertNavigation
+import ch.mathorck.easystock.services.alerts.AlertTarget
+import ch.mathorck.easystock.services.auth.LocalPermissions
+import ch.mathorck.easystock.services.auth.StockListGates
+import ch.mathorck.easystock.services.images.rememberArticleImageStore
+import ch.mathorck.easystock.services.sync.rememberSyncEngine
 import ch.mathorck.easystock.util.formatQuantity
-import ch.mathorck.easystock.viewmodels.StockFilters
-import ch.mathorck.easystock.viewmodels.StockLevelFilter
-import ch.mathorck.easystock.viewmodels.TagFilter
-import ch.mathorck.easystock.data.model.Tracking
-import ch.mathorck.easystock.data.model.AttributeDefinition
+import ch.mathorck.easystock.viewmodels.article.NewArticleViewModel
+import ch.mathorck.easystock.viewmodels.stock.PickerOption
+import ch.mathorck.easystock.viewmodels.stock.StockFilters
+import ch.mathorck.easystock.viewmodels.stock.StockUiState
+import ch.mathorck.easystock.viewmodels.stock.StockViewModel
+import ch.mathorck.easystock.viewmodels.stock.toLocationTree
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_add
+import easystock.shared.generated.resources.ic_arrow_drop_down
+import easystock.shared.generated.resources.ic_calendar
+import easystock.shared.generated.resources.ic_cancel
+import easystock.shared.generated.resources.ic_check
 import easystock.shared.generated.resources.ic_close
+import easystock.shared.generated.resources.ic_flag
 import easystock.shared.generated.resources.ic_nfc
+import easystock.shared.generated.resources.ic_search
+import easystock.shared.generated.resources.ic_stock
+import easystock.shared.generated.resources.stock_add_entry
+import easystock.shared.generated.resources.stock_date_passed
+import easystock.shared.generated.resources.stock_empty_hint
+import easystock.shared.generated.resources.stock_empty_title
 import easystock.shared.generated.resources.stock_filter_active
+import easystock.shared.generated.resources.stock_filter_all_categories
+import easystock.shared.generated.resources.stock_filter_all_locations
 import easystock.shared.generated.resources.stock_filter_all_types
 import easystock.shared.generated.resources.stock_filter_any_attribute
 import easystock.shared.generated.resources.stock_filter_attribute
+import easystock.shared.generated.resources.stock_filter_category
+import easystock.shared.generated.resources.stock_filter_clear_all
 import easystock.shared.generated.resources.stock_filter_clear_attribute
+import easystock.shared.generated.resources.stock_filter_clear_category
+import easystock.shared.generated.resources.stock_filter_clear_location
 import easystock.shared.generated.resources.stock_filter_clear_tag
 import easystock.shared.generated.resources.stock_filter_clear_type
 import easystock.shared.generated.resources.stock_filter_consumables
 import easystock.shared.generated.resources.stock_filter_has_attribute
+import easystock.shared.generated.resources.stock_filter_location
+import easystock.shared.generated.resources.stock_filter_low_stock
+import easystock.shared.generated.resources.stock_filter_no_results
 import easystock.shared.generated.resources.stock_filter_out_of_stock
 import easystock.shared.generated.resources.stock_filter_tag
 import easystock.shared.generated.resources.stock_filter_tag_any
@@ -100,39 +129,12 @@ import easystock.shared.generated.resources.stock_filter_tag_with
 import easystock.shared.generated.resources.stock_filter_tag_without
 import easystock.shared.generated.resources.stock_filter_tools
 import easystock.shared.generated.resources.stock_filter_type
-import easystock.shared.generated.resources.stock_no_results_filtered
-import ch.mathorck.easystock.viewmodels.StockUiState
-import ch.mathorck.easystock.viewmodels.StockViewModel
-import ch.mathorck.easystock.viewmodels.toLocationTree
-import easystock.shared.generated.resources.Res
-import easystock.shared.generated.resources.ic_arrow_drop_down
-import easystock.shared.generated.resources.ic_cancel
-import easystock.shared.generated.resources.ic_check
-import easystock.shared.generated.resources.ic_search
-import easystock.shared.generated.resources.ic_stock
-import easystock.shared.generated.resources.stock_empty_hint
-import easystock.shared.generated.resources.stock_empty_title
-import easystock.shared.generated.resources.stock_filter_all_categories
-import easystock.shared.generated.resources.stock_filter_all_locations
-import easystock.shared.generated.resources.stock_filter_category
-import easystock.shared.generated.resources.stock_filter_clear_all
-import easystock.shared.generated.resources.stock_filter_clear_category
-import easystock.shared.generated.resources.stock_filter_clear_location
-import easystock.shared.generated.resources.stock_filter_location
-import easystock.shared.generated.resources.stock_filter_low_stock
-import easystock.shared.generated.resources.stock_filter_no_results
-import easystock.shared.generated.resources.ic_calendar
-import easystock.shared.generated.resources.ic_flag
-import easystock.shared.generated.resources.stock_date_passed
 import easystock.shared.generated.resources.stock_flagged
 import easystock.shared.generated.resources.stock_low
 import easystock.shared.generated.resources.stock_no_results
+import easystock.shared.generated.resources.stock_no_results_filtered
 import easystock.shared.generated.resources.stock_search_hint
 import kotlinx.coroutines.launch
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import ch.mathorck.easystock.sync.rememberSyncEngine
-import ch.mathorck.easystock.alerts.AlertNavigation
-import ch.mathorck.easystock.alerts.AlertTarget
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -236,19 +238,6 @@ private fun SyncRefreshBox(content: @Composable () -> Unit) {
         modifier = Modifier.fillMaxSize(),
     ) { content() }
 }
-
-private enum class StockPicker { Location, Category, Type, Tag, Attribute }
-
-/** One entry of a picker sheet. A null [id] is the "All" entry. */
-private data class PickerOption(
-    val id: String?,
-    val label: String,
-    val depth: Int = 0,
-    val icon: String? = null,
-    val color: String? = null,
-    /** True for location entries: show the location icon (the default one when [icon] is null). */
-    val showIcon: Boolean = false,
-)
 
 /**
  * @param contentPadding padding of the list, e.g. to keep the last row above a FAB.

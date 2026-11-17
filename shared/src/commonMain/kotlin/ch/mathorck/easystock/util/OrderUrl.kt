@@ -5,20 +5,6 @@ const val MAX_ORDER_URL_LENGTH = 2048
 
 private const val MAX_PORT_DIGITS = 5
 
-/** Result of [checkOrderUrl]. */
-sealed interface OrderUrlCheck {
-    /** Blank input: no link. */
-    data object Empty : OrderUrlCheck
-
-    /** An absolute http(s) URL with a host. [url] is the trimmed value to store. */
-    data class Valid(val url: String) : OrderUrlCheck
-
-    data object TooLong : OrderUrlCheck
-
-    /** Not an absolute http(s) URL with a host (other scheme, no host, spaces, user info, ...). */
-    data object Invalid : OrderUrlCheck
-}
-
 /**
  * Checks the order link as typed: trims it, blank is [OrderUrlCheck.Empty]. Only absolute `http://` and
  * `https://` URLs with a host are valid, no other scheme (javascript:, intent:, file:, ...), at most

@@ -129,7 +129,7 @@ Sync engine
 * For each row the server rejected, the app writes the server's version if there is one, and adds a `rejected_change` row.
 * A rejected row with reason `conflict` (another phone changed it first) keeps theirs by default: the app writes the
   server's row and its `serverSeq`, and keeps the phone's version in the `rejected_change` row
-  (`conflict:{"seq":S,"row":<phone wire row>}`, `sync/RowConflict.kt`) until the user chooses.
+  (`conflict:{"seq":S,"row":<phone wire row>}`, `services/sync/RowConflict.kt`) until the user chooses.
 * If the push fails on the network, the outbox stays as it is and the next cycle sends the same batch ID again.
 * Pull asks for rows since `sync_state.since`, writes them with `applying` on, and saves the new `since` value in the same transaction.
   Each written row's `serverSeq` is stored in `server_seq`. A row still waiting in the outbox is not overwritten and
@@ -166,7 +166,7 @@ Roles in the app
 * The author line is shown only when `created_by` matches a `server_user` row. Standalone movements have no author, so no line.
 * If a role changes while offline, the app updates the buttons at the next `GET /me`.
 * The app reads the role from `sync_state.role` (`SessionDao.observeRole`). No row means standalone: everything allowed.
-* The UI gets the rights from `LocalPermissions` (`auth/AppPermissions.kt`), the rules are in `auth/Permissions.kt`.
+* The UI gets the rights from `LocalPermissions` (`services/auth/AppPermissions.kt`), the rules are in `services/auth/Permissions.kt`.
 * The roles and their rights below are confirmed by the user:
   * Admin: everything, the admin screens included.
   * Editor: stock actions, edit, delete, tag linking, reviews, settings screens, history, alerts. No admin screens.
@@ -296,7 +296,7 @@ Open points (connect and account screens)
 
 Open points (sync engine)
 
-* Done: the engine (`sync/SyncEngine.kt`, store `sync/RoomSyncStore.kt` + `data/db/SyncDao.kt`), DB v10 tables
+* Done: the engine (`services/sync/SyncEngine.kt`, store `services/sync/RoomSyncStore.kt` + `data/dao/sync/SyncDao.kt`), DB v10 tables
   (`pending_push`, `image_hash`, `rejected_change`), push, paged pull, photo upload and download, the role update
   from `GET /me`, triggers (foreground, 3 s after the last local change, pull to refresh on the Stock page, the full
   pull right after joining or a promotion), the sync row and the rejected changes screen on the Account screen, and
@@ -305,7 +305,7 @@ Open points (sync engine)
 * Done: UnifiedPush (see "Open points (push)") and the low-stock alert notifications (see "Open points
   (low-stock alerts)").
 * Done: `dataset-reset` (the server replaced its whole data set, server plan §1.2 #21). The engine
-  (`sync/DatasetReset.kt`) keeps the server's `datasetEpoch` and sends it as `X-EasyStock-Dataset-Epoch` with push
+  (`services/sync/DatasetReset.kt`) keeps the server's `datasetEpoch` and sends it as `X-EasyStock-Dataset-Epoch` with push
   and pull. On a 409 `dataset-reset` (any call of the cycle), or a pull answer with another `datasetEpoch` than the
   one kept, or a `GET /server-info` (asked at the start of each cycle with a known epoch, before the push) with
   another `datasetEpoch` than the one kept, it counts the unsent changes, erases every synced row, the outbox, the pending push, the rejected
@@ -345,7 +345,7 @@ Open points (sync engine)
   works too.
 * A new row the server rejects without a server version stays on this phone only (never synced, still in the
   rejected list). The user decides: delete it, or change it so it is sent again.
-* Done: `MOVEMENT_KEPT` lets the user choose (`sync/MovementKept.kt`, `composables/server/MovementKeptRow.kt`). The
+* Done: `MOVEMENT_KEPT` lets the user choose (`services/sync/MovementKept.kt`, `composables/server/MovementKeptRow.kt`). The
   server must send its kept movement back in `row` (status `changed`, table `stock_movement`). The app writes the
   server's movement over the local one with the same id, so the stock matches the server: the only case where the
   app changes a movement (the local one was never accepted, so it is not a synced row). The phone's version is kept
@@ -380,9 +380,9 @@ Open points (sync engine)
 
 Open points (low-stock alerts)
 
-* Done: `alerts/AlertNotifier.kt` runs after each pull, inside the cycle (`SyncEngine` `afterPull`), so a background
-  sync shows alerts too. The rules are in `planAlerts` (`alerts/AlertPlan.kt`, tested in `AlertPlanTest`); the
-  Android notifications are in `alerts/AlertPlatform.android.kt` (iOS stub). The queries are in `data/db/AlertDao.kt`.
+* Done: `services/alerts/AlertNotifier.kt` runs after each pull, inside the cycle (`SyncEngine` `afterPull`), so a background
+  sync shows alerts too. The rules are in `planAlerts` (`services/alerts/AlertPlan.kt`, tested in `AlertPlanTest`); the
+  Android notifications are in `services/alerts/AlertPlatform.android.kt` (iOS stub). The queries are in `data/dao/alerts/AlertDao.kt`.
   No schema change: `low_stock_alert.notified` already existed.
 * Each alert is shown at most once (`notified` set after the plan). Rows are never deleted: a later full pull would
   bring them back as new.
@@ -411,7 +411,7 @@ Open points (low-stock alerts)
   disabled with a hint while `GET /me` has not answered (offline). Turning it on asks the system notification permission
   after the server accepted. Assumed: the PATCH answer body is ignored (any 2xx), the field name is `alertsEnabled`.
 * Done: permission (Android 13+): a short explanation, then the system dialog, once after each join for roles that
-  get alerts, and once when a Guest is promoted to one (`alerts/AlertPermissionRule.kt`: the pref `was_guest` is set
+  get alerts, and once when a Guest is promoted to one (`services/alerts/AlertPermissionRule.kt`: the pref `was_guest` is set
   while the stored role is Guest, so a promotion pulled by the background job is noticed at the next app start).
   "Not now" or a denial changes nothing else: alerts are still marked as seen. A Viewer promoted from Guest is asked
   too, even if they have not turned alerts on yet.
@@ -420,7 +420,7 @@ Open points (push)
 
 * Done: UnifiedPush with the connector library `org.unifiedpush.android:connector` 3.3.5 (no Firebase, no Google Play
   Services; it brings Google Tink for the Web Push decryption, unused here). Code in `push/` (`PushRegistrar`,
-  `KtorPushApi`), Android in `push/EasyStockPushService.kt` and `PushRegistrar.android.kt`, the row in
+  `KtorPushApi`), Android in `services/push/EasyStockPushService.kt` and `services/push/PushRegistrar.android.kt`, the row in
   `composables/server/PushRow.kt`.
 * The Account screen lists the installed distributors; the user turns push on and picks one in a dialog (always a
   choice, even with one app). Without a distributor it says the 15-minute background sync is used.

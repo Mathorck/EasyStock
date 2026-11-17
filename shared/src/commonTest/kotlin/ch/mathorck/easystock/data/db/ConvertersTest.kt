@@ -1,16 +1,16 @@
 package ch.mathorck.easystock.data.db
 
-import ch.mathorck.easystock.data.model.AttributeDataType
-import ch.mathorck.easystock.data.model.ItemStatus
-import ch.mathorck.easystock.data.model.MovementReason
-import ch.mathorck.easystock.data.model.Tracking
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import ch.mathorck.easystock.enums.article.ItemStatus
+import ch.mathorck.easystock.enums.article.Tracking
+import ch.mathorck.easystock.enums.attributes.AttributeDataType
+import ch.mathorck.easystock.enums.stock.MovementReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class ConvertersTest {
     private val converters = Converters()

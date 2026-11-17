@@ -52,21 +52,21 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import ch.mathorck.easystock.images.CropAspect
-import ch.mathorck.easystock.images.CropHandle
-import ch.mathorck.easystock.images.CropPreview
-import ch.mathorck.easystock.images.CropRect
-import ch.mathorck.easystock.images.CropRequest
-import ch.mathorck.easystock.images.CropSource
-import ch.mathorck.easystock.images.dragCrop
-import ch.mathorck.easystock.images.fitViewport
-import ch.mathorck.easystock.images.hitTest
-import ch.mathorck.easystock.images.initialCrop
-import ch.mathorck.easystock.images.minCropSize
-import ch.mathorck.easystock.images.rememberArticleImageStore
-import ch.mathorck.easystock.images.rotateRect90
-import ch.mathorck.easystock.images.toCropBox
-import ch.mathorck.easystock.images.withAspect
+import ch.mathorck.easystock.enums.images.CropAspect
+import ch.mathorck.easystock.enums.images.CropHandle
+import ch.mathorck.easystock.services.images.CropPreview
+import ch.mathorck.easystock.services.images.CropRect
+import ch.mathorck.easystock.services.images.CropRequest
+import ch.mathorck.easystock.services.images.CropSource
+import ch.mathorck.easystock.services.images.dragCrop
+import ch.mathorck.easystock.services.images.fitViewport
+import ch.mathorck.easystock.services.images.hitTest
+import ch.mathorck.easystock.services.images.initialCrop
+import ch.mathorck.easystock.services.images.minCropSize
+import ch.mathorck.easystock.services.images.rememberArticleImageStore
+import ch.mathorck.easystock.services.images.rotateRect90
+import ch.mathorck.easystock.services.images.toCropBox
+import ch.mathorck.easystock.services.images.withAspect
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.article_image_crop_area
 import easystock.shared.generated.resources.article_image_crop_cancel
@@ -89,7 +89,7 @@ private val CropForeground = Color.White
 
 /**
  * Full-screen crop of [source]. [onSaved] receives the path of the new photo. [onCancel] when the user
- * leaves without saving: the caller then discards the source ([ch.mathorck.easystock.images.ArticleImageStore.discardCrop]).
+ * leaves without saving: the caller then discards the source ([ch.mathorck.easystock.services.images.ArticleImageStore.discardCrop]).
  * [onError] when the image can't be read or saved.
  */
 @Composable
@@ -222,38 +222,6 @@ private fun AspectChip(text: String, selected: Boolean, enabled: Boolean, onClic
             selectedLabelColor = Color.Black,
             selectedContainerColor = CropForeground,
         ),
-    )
-}
-
-/** What the user is editing: the crop rectangle in the displayed frame, the rotation and the aspect lock. */
-private class CropState(private val preview: CropPreview) {
-    var quarterTurns by mutableStateOf(0)
-        private set
-    var aspect by mutableStateOf(CropAspect.FREE)
-        private set
-    var rect by mutableStateOf(initialCrop(preview.width.toFloat(), preview.height.toFloat(), CropAspect.FREE))
-        private set
-
-    val frameWidth: Float get() = if (quarterTurns % 2 == 0) preview.width.toFloat() else preview.height.toFloat()
-    val frameHeight: Float get() = if (quarterTurns % 2 == 0) preview.height.toFloat() else preview.width.toFloat()
-
-    fun selectAspect(value: CropAspect) {
-        aspect = value
-        rect = withAspect(rect, value.ratio, frameWidth, frameHeight)
-    }
-
-    fun rotate() {
-        rect = rotateRect90(rect, frameHeight)
-        quarterTurns = (quarterTurns + 1) % 4
-    }
-
-    fun drag(handle: CropHandle, dx: Float, dy: Float) {
-        rect = dragCrop(rect, handle, dx, dy, frameWidth, frameHeight, aspect.ratio, minCropSize(frameWidth, frameHeight))
-    }
-
-    fun request() = CropRequest(
-        box = toCropBox(rect, frameWidth.toInt(), frameHeight.toInt()),
-        quarterTurns = quarterTurns,
     )
 }
 

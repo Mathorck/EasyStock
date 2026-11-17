@@ -1,15 +1,15 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.auth.Role
-import ch.mathorck.easystock.auth.storedRoleOf
-import ch.mathorck.easystock.data.model.Category
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.sync.KtorSyncApi
-import ch.mathorck.easystock.sync.PushRequest
-import ch.mathorck.easystock.sync.SyncTable
-import ch.mathorck.easystock.sync.encodePush
-import ch.mathorck.easystock.sync.toWire
+import ch.mathorck.easystock.data.dto.sync.PushRequest
+import ch.mathorck.easystock.data.model.categories.Category
+import ch.mathorck.easystock.enums.auth.Role
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.enums.sync.SyncTable
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.auth.storedRoleOf
+import ch.mathorck.easystock.services.sync.KtorSyncApi
+import ch.mathorck.easystock.services.sync.encodePush
+import ch.mathorck.easystock.services.sync.toWire
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

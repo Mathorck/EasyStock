@@ -3,22 +3,19 @@ package ch.mathorck.easystock.e2e
 import android.content.ContextWrapper
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import ch.mathorck.easystock.auth.ServerJoin
-import ch.mathorck.easystock.backup.BackupData
 import ch.mathorck.easystock.data.db.AppDatabase
 import ch.mathorck.easystock.data.db.buildAppDatabase
-import ch.mathorck.easystock.server.KtorAccountApi
-import ch.mathorck.easystock.server.ServerInfo
-import ch.mathorck.easystock.server.createServerClient
-import ch.mathorck.easystock.server.serverHttpEngine
-import ch.mathorck.easystock.sync.AndroidSyncImageFiles
-import ch.mathorck.easystock.sync.KtorSyncApi
-import ch.mathorck.easystock.sync.PushAnswer
-import ch.mathorck.easystock.sync.RoomSyncStore
-import ch.mathorck.easystock.sync.SyncApi
-import ch.mathorck.easystock.sync.SyncEngine
-import ch.mathorck.easystock.sync.SyncRemote
-import ch.mathorck.easystock.sync.SyncResult
+import ch.mathorck.easystock.data.dto.backup.BackupData
+import ch.mathorck.easystock.enums.sync.SyncResult
+import ch.mathorck.easystock.services.auth.ServerJoin
+import ch.mathorck.easystock.services.server.KtorAccountApi
+import ch.mathorck.easystock.services.server.createServerClient
+import ch.mathorck.easystock.services.server.serverHttpEngine
+import ch.mathorck.easystock.services.sync.AndroidSyncImageFiles
+import ch.mathorck.easystock.services.sync.KtorSyncApi
+import ch.mathorck.easystock.services.sync.RoomSyncStore
+import ch.mathorck.easystock.services.sync.SyncEngine
+import ch.mathorck.easystock.services.sync.SyncRemote
 import java.io.File
 import java.nio.file.Files
 import java.util.Collections
@@ -82,25 +79,5 @@ class Phone(val name: String, val session: Session) : AutoCloseable {
         client.close()
         db.close()
         filesDir.deleteRecursively()
-    }
-}
-
-/** Counts the server calls of the engine, to check what happened before what. */
-private class RecordingSyncApi(private val inner: SyncApi, private val calls: MutableList<String>) : SyncApi by inner {
-    override suspend fun serverInfo(): ServerInfo = record("server-info") { inner.serverInfo() }
-
-    override suspend fun push(body: String, epoch: String?): PushAnswer = record("push") { inner.push(body, epoch) }
-
-    override suspend fun pull(since: Long, limit: Int, epoch: String?) = record("pull") { inner.pull(since, limit, epoch) }
-
-    /** A failed call is listed with its error: the engine only keeps a [ch.mathorck.easystock.sync.SyncError]. */
-    private inline fun <T> record(name: String, call: () -> T): T {
-        calls += name
-        return try {
-            call()
-        } catch (e: Exception) {
-            calls += "$name failed: $e"
-            throw e
-        }
     }
 }

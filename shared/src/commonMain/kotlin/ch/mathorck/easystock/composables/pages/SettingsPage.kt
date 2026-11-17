@@ -1,6 +1,5 @@
 package ch.mathorck.easystock.composables.pages
 
-import ch.mathorck.easystock.theme.EasyStockTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -23,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,97 +34,92 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import ch.mathorck.easystock.applyAppLanguage
-import ch.mathorck.easystock.auth.AppPermissions
-import ch.mathorck.easystock.auth.LocalPermissions
-import ch.mathorck.easystock.auth.SettingsGates
-import ch.mathorck.easystock.prefs.LocalAppPreferences
-import ch.mathorck.easystock.theme.isDynamicColorSupported
-import androidx.compose.runtime.collectAsState
-import ch.mathorck.easystock.backup.WifiState
-import ch.mathorck.easystock.backup.rememberBackupService
-import ch.mathorck.easystock.composables.settings.AppInfoScreen
+import ch.mathorck.easystock.composables.attributes.AttributesScreen
+import ch.mathorck.easystock.composables.review.ReviewsScreen
 import ch.mathorck.easystock.composables.server.AccountScreen
 import ch.mathorck.easystock.composables.server.ConnectScreen
 import ch.mathorck.easystock.composables.server.admin.AdministrationScreen
-import ch.mathorck.easystock.auth.rememberJoinPlatform
-import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.SyncState
-import ch.mathorck.easystock.reset.rememberDataReset
-import ch.mathorck.easystock.server.ServerConnection
-import ch.mathorck.easystock.server.rememberLocalNetworkAccess
-import ch.mathorck.easystock.viewmodels.server.ConnectStep
-import ch.mathorck.easystock.viewmodels.server.ConnectViewModel
-import kotlinx.coroutines.flow.map
-import easystock.shared.generated.resources.ic_settings
-import easystock.shared.generated.resources.settings_server
-import easystock.shared.generated.resources.settings_server_not_connected
-import easystock.shared.generated.resources.admin_title
-import easystock.shared.generated.resources.ic_dns
-import easystock.shared.generated.resources.settings_administration_summary
-import easystock.shared.generated.resources.settings_section_server
-import ch.mathorck.easystock.viewmodels.BackupStep
-import ch.mathorck.easystock.viewmodels.BackupViewModel
-import kotlinx.coroutines.delay
-import kotlin.time.ComparableTimeMark
-import kotlin.time.Duration.Companion.seconds
-import ch.mathorck.easystock.currentAppLanguage
-import ch.mathorck.easystock.composables.attributes.AttributesScreen
+import ch.mathorck.easystock.composables.settings.AppInfoScreen
 import ch.mathorck.easystock.composables.settings.BackupScreen
 import ch.mathorck.easystock.composables.settings.CategoriesScreen
 import ch.mathorck.easystock.composables.settings.LocationsScreen
 import ch.mathorck.easystock.composables.settings.TagsScreen
-import ch.mathorck.easystock.composables.review.ReviewsScreen
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
+import ch.mathorck.easystock.composables.theme.isDynamicColorSupported
+import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.enums.AppLanguage
+import ch.mathorck.easystock.enums.settings.SettingsSubpageId
+import ch.mathorck.easystock.services.auth.AppPermissions
+import ch.mathorck.easystock.services.auth.LocalPermissions
+import ch.mathorck.easystock.services.auth.SettingsGates
+import ch.mathorck.easystock.services.auth.rememberJoinPlatform
+import ch.mathorck.easystock.services.backup.WifiState
+import ch.mathorck.easystock.services.backup.rememberBackupService
+import ch.mathorck.easystock.services.prefs.LocalAppPreferences
+import ch.mathorck.easystock.services.reset.rememberDataReset
+import ch.mathorck.easystock.services.server.ServerConnection
+import ch.mathorck.easystock.services.server.rememberLocalNetworkAccess
+import ch.mathorck.easystock.util.applyAppLanguage
+import ch.mathorck.easystock.util.currentAppLanguage
+import ch.mathorck.easystock.viewmodels.backup.BackupStep
+import ch.mathorck.easystock.viewmodels.backup.BackupViewModel
+import ch.mathorck.easystock.viewmodels.server.ConnectStep
+import ch.mathorck.easystock.viewmodels.server.ConnectViewModel
+import ch.mathorck.easystock.viewmodels.settings.SyncLoad
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.admin_title
 import easystock.shared.generated.resources.backup_wifi_active
 import easystock.shared.generated.resources.backup_wifi_stop
-import easystock.shared.generated.resources.ic_wifi
 import easystock.shared.generated.resources.ic_backup
 import easystock.shared.generated.resources.ic_category
-import easystock.shared.generated.resources.ic_fact_check
-import easystock.shared.generated.resources.settings_reviews
-import easystock.shared.generated.resources.settings_reviews_summary
 import easystock.shared.generated.resources.ic_chevron_right
+import easystock.shared.generated.resources.ic_dns
+import easystock.shared.generated.resources.ic_fact_check
+import easystock.shared.generated.resources.ic_info
 import easystock.shared.generated.resources.ic_label
+import easystock.shared.generated.resources.ic_language
 import easystock.shared.generated.resources.ic_location
 import easystock.shared.generated.resources.ic_nfc
-import easystock.shared.generated.resources.settings_tags
-import easystock.shared.generated.resources.settings_tags_summary
-import easystock.shared.generated.resources.settings_locations
-import easystock.shared.generated.resources.settings_locations_summary
-import easystock.shared.generated.resources.ic_info
-import easystock.shared.generated.resources.ic_language
+import easystock.shared.generated.resources.ic_palette
+import easystock.shared.generated.resources.ic_settings
+import easystock.shared.generated.resources.ic_wifi
+import easystock.shared.generated.resources.settings_administration_summary
 import easystock.shared.generated.resources.settings_app_info
 import easystock.shared.generated.resources.settings_app_info_summary
 import easystock.shared.generated.resources.settings_attributes
+import easystock.shared.generated.resources.settings_attributes_summary
 import easystock.shared.generated.resources.settings_backup
 import easystock.shared.generated.resources.settings_backup_summary
-import easystock.shared.generated.resources.settings_section_data
-import easystock.shared.generated.resources.settings_attributes_summary
+import easystock.shared.generated.resources.settings_cancel
 import easystock.shared.generated.resources.settings_categories
 import easystock.shared.generated.resources.settings_categories_summary
-import easystock.shared.generated.resources.settings_section_catalogue
-import easystock.shared.generated.resources.settings_cancel
-import easystock.shared.generated.resources.settings_language
 import easystock.shared.generated.resources.settings_dynamic_color
 import easystock.shared.generated.resources.settings_dynamic_color_summary
-import easystock.shared.generated.resources.ic_palette
+import easystock.shared.generated.resources.settings_language
 import easystock.shared.generated.resources.settings_language_english
 import easystock.shared.generated.resources.settings_language_french
 import easystock.shared.generated.resources.settings_language_german
 import easystock.shared.generated.resources.settings_language_system
+import easystock.shared.generated.resources.settings_locations
+import easystock.shared.generated.resources.settings_locations_summary
+import easystock.shared.generated.resources.settings_reviews
+import easystock.shared.generated.resources.settings_reviews_summary
+import easystock.shared.generated.resources.settings_section_catalogue
+import easystock.shared.generated.resources.settings_section_data
 import easystock.shared.generated.resources.settings_section_general
+import easystock.shared.generated.resources.settings_section_server
+import easystock.shared.generated.resources.settings_server
+import easystock.shared.generated.resources.settings_server_not_connected
+import easystock.shared.generated.resources.settings_tags
+import easystock.shared.generated.resources.settings_tags_summary
+import kotlin.time.ComparableTimeMark
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-
-/** Full-screen subpages opened from the settings list. */
-enum class SettingsSubpageId { Attributes, Categories, Locations, Tags, Reviews, Backup, AppInfo, Administration, Server }
-
-/** The `sync_state` row once read: null while the database has not answered yet. */
-private class SyncLoad(val state: SyncState?)
 
 @Composable
 fun SettingsPage(
@@ -512,7 +507,7 @@ private fun SettingsPageViewerPreview() {
         SettingsContent(
             language = AppLanguage.System,
             onLanguageSelected = {},
-            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.VIEWER)),
+            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.enums.auth.Role.VIEWER)),
         )
     }
 }
@@ -524,7 +519,7 @@ private fun SettingsPageGuestPreview() {
         SettingsContent(
             language = AppLanguage.System,
             onLanguageSelected = {},
-            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.GUEST)),
+            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.enums.auth.Role.GUEST)),
         )
     }
 }
@@ -536,7 +531,7 @@ private fun SettingsPageAdminPreview() {
         SettingsContent(
             language = AppLanguage.System,
             onLanguageSelected = {},
-            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.auth.Role.ADMIN)),
+            gates = SettingsGates.of(AppPermissions.connectedAs(ch.mathorck.easystock.enums.auth.Role.ADMIN)),
         )
     }
 }

@@ -1,8 +1,8 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.images.newImagePath
-import ch.mathorck.easystock.sync.KtorSyncApi
-import ch.mathorck.easystock.sync.sha256Hex
+import ch.mathorck.easystock.services.images.newImagePath
+import ch.mathorck.easystock.services.sync.KtorSyncApi
+import ch.mathorck.easystock.services.sync.sha256Hex
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream

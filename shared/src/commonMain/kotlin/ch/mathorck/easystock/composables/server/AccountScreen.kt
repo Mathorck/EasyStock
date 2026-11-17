@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -25,14 +28,19 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -43,64 +51,94 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import ch.mathorck.easystock.auth.Role
-import ch.mathorck.easystock.auth.rememberSessionStore
-import ch.mathorck.easystock.auth.storedRoleOf
-import ch.mathorck.easystock.alerts.alertsOn
-import ch.mathorck.easystock.alerts.canChooseAlerts
-import ch.mathorck.easystock.alerts.rememberNotificationPermission
+import ch.mathorck.easystock.composables.backup.rememberIsChangingConfigurations
+import ch.mathorck.easystock.composables.server.admin.label
+import ch.mathorck.easystock.composables.server.admin.serverTime
+import ch.mathorck.easystock.composables.settings.SettingsSubpage
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
+import ch.mathorck.easystock.data.db.rememberAppDatabase
+import ch.mathorck.easystock.data.dto.server.MeAnswer
+import ch.mathorck.easystock.data.model.server.ServerUser
+import ch.mathorck.easystock.data.model.sync.SyncState
+import ch.mathorck.easystock.enums.auth.Role
+import ch.mathorck.easystock.enums.server.ConnectError
+import ch.mathorck.easystock.enums.sync.SyncError
+import ch.mathorck.easystock.services.alerts.alertsOn
+import ch.mathorck.easystock.services.alerts.canChooseAlerts
+import ch.mathorck.easystock.services.alerts.rememberNotificationPermission
+import ch.mathorck.easystock.services.auth.rememberSessionStore
+import ch.mathorck.easystock.services.auth.storedRoleOf
+import ch.mathorck.easystock.services.push.rememberPushRegistrar
+import ch.mathorck.easystock.services.reset.rememberDataReset
+import ch.mathorck.easystock.services.server.KtorAccountApi
+import ch.mathorck.easystock.services.server.ServerConnection
+import ch.mathorck.easystock.services.server.WireRole
+import ch.mathorck.easystock.services.server.clearLater
+import ch.mathorck.easystock.services.server.rememberLocalNetworkAccess
+import ch.mathorck.easystock.services.server.rememberServerClient
+import ch.mathorck.easystock.services.server.rememberServerFiles
+import ch.mathorck.easystock.services.sync.SyncCoordinator
+import ch.mathorck.easystock.services.sync.SyncStatus
+import ch.mathorck.easystock.services.sync.rememberSyncEngine
+import ch.mathorck.easystock.viewmodels.server.AccountUiState
+import ch.mathorck.easystock.viewmodels.server.AccountViewModel
+import ch.mathorck.easystock.viewmodels.server.DeleteForm
+import ch.mathorck.easystock.viewmodels.server.DeletePhase
+import ch.mathorck.easystock.viewmodels.server.FormField
+import ch.mathorck.easystock.viewmodels.server.LogoutStep
+import ch.mathorck.easystock.viewmodels.server.MyDataError
+import ch.mathorck.easystock.viewmodels.server.MyDataState
+import ch.mathorck.easystock.viewmodels.server.MyDataViewModel
+import ch.mathorck.easystock.viewmodels.server.NameForm
+import ch.mathorck.easystock.viewmodels.server.PasswordForm
+import ch.mathorck.easystock.viewmodels.server.PromotionForm
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.admin_error_file
+import easystock.shared.generated.resources.admin_error_network
+import easystock.shared.generated.resources.admin_error_server
+import easystock.shared.generated.resources.admin_error_session_revoked
+import easystock.shared.generated.resources.admin_error_too_old
 import easystock.shared.generated.resources.alerts_switch_off
 import easystock.shared.generated.resources.alerts_switch_offline
 import easystock.shared.generated.resources.alerts_switch_on
 import easystock.shared.generated.resources.alerts_switch_title
-import ch.mathorck.easystock.composables.server.admin.label
-import ch.mathorck.easystock.composables.server.admin.serverTime
-import ch.mathorck.easystock.composables.settings.SettingsSubpage
-import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.ServerUser
-import ch.mathorck.easystock.data.model.SyncState
-import ch.mathorck.easystock.reset.rememberDataReset
-import ch.mathorck.easystock.server.ConnectError
-import ch.mathorck.easystock.server.KtorAccountApi
-import ch.mathorck.easystock.server.MeAnswer
-import ch.mathorck.easystock.server.ServerConnection
-import ch.mathorck.easystock.server.WireRole
-import ch.mathorck.easystock.server.rememberLocalNetworkAccess
-import ch.mathorck.easystock.server.rememberServerClient
-import ch.mathorck.easystock.sync.SyncCoordinator
-import ch.mathorck.easystock.sync.SyncError
-import ch.mathorck.easystock.sync.SyncStatus
-import ch.mathorck.easystock.sync.rememberSyncEngine
-import ch.mathorck.easystock.push.rememberPushRegistrar
-import androidx.compose.material3.Badge
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.MutableStateFlow
-import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.viewmodels.server.AccountUiState
-import ch.mathorck.easystock.viewmodels.server.AccountViewModel
-import ch.mathorck.easystock.viewmodels.server.FormField
-import ch.mathorck.easystock.viewmodels.server.LogoutStep
-import ch.mathorck.easystock.viewmodels.server.NameForm
-import ch.mathorck.easystock.viewmodels.server.PasswordForm
-import androidx.compose.ui.text.input.KeyboardType
-import easystock.shared.generated.resources.server_field_current_password
-import easystock.shared.generated.resources.server_field_display_name
-import easystock.shared.generated.resources.server_field_display_name_rule
-import easystock.shared.generated.resources.server_field_new_password
-import easystock.shared.generated.resources.server_name_title
-import easystock.shared.generated.resources.server_password_change
-import easystock.shared.generated.resources.server_password_changed_message
-import easystock.shared.generated.resources.server_password_changed_title
-import easystock.shared.generated.resources.server_password_wrong
-import easystock.shared.generated.resources.server_save
-import ch.mathorck.easystock.viewmodels.server.PromotionForm
-import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.delete_account
+import easystock.shared.generated.resources.delete_account_anyway
+import easystock.shared.generated.resources.delete_account_erased
+import easystock.shared.generated.resources.delete_account_error_title
+import easystock.shared.generated.resources.delete_account_final
+import easystock.shared.generated.resources.delete_account_movements
+import easystock.shared.generated.resources.delete_account_password_empty
+import easystock.shared.generated.resources.delete_account_phone
+import easystock.shared.generated.resources.delete_account_sync_failed_message
+import easystock.shared.generated.resources.delete_account_sync_failed_title
+import easystock.shared.generated.resources.delete_account_syncing
+import easystock.shared.generated.resources.delete_account_title
+import easystock.shared.generated.resources.delete_account_working
 import easystock.shared.generated.resources.ic_chevron_right
+import easystock.shared.generated.resources.ic_delete
+import easystock.shared.generated.resources.ic_download
 import easystock.shared.generated.resources.ic_settings
+import easystock.shared.generated.resources.ic_sync
 import easystock.shared.generated.resources.ic_warning
+import easystock.shared.generated.resources.local_network_allow
+import easystock.shared.generated.resources.local_network_open_settings
+import easystock.shared.generated.resources.local_network_settings_hint
+import easystock.shared.generated.resources.logout_sync_failed
+import easystock.shared.generated.resources.logout_syncing
+import easystock.shared.generated.resources.my_data
+import easystock.shared.generated.resources.my_data_download
+import easystock.shared.generated.resources.my_data_downloading
+import easystock.shared.generated.resources.my_data_message
+import easystock.shared.generated.resources.my_data_rate_limited
+import easystock.shared.generated.resources.my_data_ready
+import easystock.shared.generated.resources.my_data_save
+import easystock.shared.generated.resources.my_data_saved
+import easystock.shared.generated.resources.my_data_share
+import easystock.shared.generated.resources.my_data_summary
+import easystock.shared.generated.resources.my_data_title
+import easystock.shared.generated.resources.rejected_summary
+import easystock.shared.generated.resources.rejected_title
 import easystock.shared.generated.resources.server_account_address
 import easystock.shared.generated.resources.server_account_administration
 import easystock.shared.generated.resources.server_account_last_sync
@@ -110,8 +148,11 @@ import easystock.shared.generated.resources.server_account_role
 import easystock.shared.generated.resources.server_account_short_code
 import easystock.shared.generated.resources.server_account_short_code_hint
 import easystock.shared.generated.resources.server_cancel
-import easystock.shared.generated.resources.delete_account_error_title
 import easystock.shared.generated.resources.server_error_title
+import easystock.shared.generated.resources.server_field_current_password
+import easystock.shared.generated.resources.server_field_display_name
+import easystock.shared.generated.resources.server_field_display_name_rule
+import easystock.shared.generated.resources.server_field_new_password
 import easystock.shared.generated.resources.server_field_password
 import easystock.shared.generated.resources.server_field_password_rule
 import easystock.shared.generated.resources.server_field_username
@@ -129,17 +170,21 @@ import easystock.shared.generated.resources.server_logout_pending
 import easystock.shared.generated.resources.server_logout_running
 import easystock.shared.generated.resources.server_logout_stay
 import easystock.shared.generated.resources.server_logout_sync_first
-import easystock.shared.generated.resources.logout_sync_failed
-import easystock.shared.generated.resources.logout_syncing
-import easystock.shared.generated.resources.ic_sync
-import easystock.shared.generated.resources.rejected_summary
-import easystock.shared.generated.resources.rejected_title
+import easystock.shared.generated.resources.server_logout_title
+import easystock.shared.generated.resources.server_name_title
+import easystock.shared.generated.resources.server_ok
+import easystock.shared.generated.resources.server_password_change
+import easystock.shared.generated.resources.server_password_changed_message
+import easystock.shared.generated.resources.server_password_changed_title
+import easystock.shared.generated.resources.server_password_wrong
+import easystock.shared.generated.resources.server_promotion_banner
+import easystock.shared.generated.resources.server_promotion_open
+import easystock.shared.generated.resources.server_promotion_title
+import easystock.shared.generated.resources.server_save
+import easystock.shared.generated.resources.settings_server
 import easystock.shared.generated.resources.sync_error_app_too_old
 import easystock.shared.generated.resources.sync_error_forbidden
 import easystock.shared.generated.resources.sync_error_local_network
-import easystock.shared.generated.resources.local_network_allow
-import easystock.shared.generated.resources.local_network_open_settings
-import easystock.shared.generated.resources.local_network_settings_hint
 import easystock.shared.generated.resources.sync_error_network
 import easystock.shared.generated.resources.sync_error_server
 import easystock.shared.generated.resources.sync_full_pull
@@ -147,98 +192,11 @@ import easystock.shared.generated.resources.sync_images_not_sent
 import easystock.shared.generated.resources.sync_never
 import easystock.shared.generated.resources.sync_now
 import easystock.shared.generated.resources.sync_running
-import easystock.shared.generated.resources.server_logout_title
-import easystock.shared.generated.resources.server_ok
-import easystock.shared.generated.resources.server_promotion_banner
-import easystock.shared.generated.resources.server_promotion_open
-import easystock.shared.generated.resources.server_promotion_title
-import easystock.shared.generated.resources.settings_server
-import ch.mathorck.easystock.backup.rememberIsChangingConfigurations
-import ch.mathorck.easystock.server.clearLater
-import ch.mathorck.easystock.server.rememberServerFiles
-import ch.mathorck.easystock.viewmodels.server.DeleteForm
-import ch.mathorck.easystock.viewmodels.server.DeletePhase
-import ch.mathorck.easystock.viewmodels.server.MyDataError
-import ch.mathorck.easystock.viewmodels.server.MyDataState
-import ch.mathorck.easystock.viewmodels.server.MyDataViewModel
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.DisposableEffect
-import easystock.shared.generated.resources.admin_error_file
-import easystock.shared.generated.resources.admin_error_network
-import easystock.shared.generated.resources.admin_error_server
-import easystock.shared.generated.resources.admin_error_session_revoked
-import easystock.shared.generated.resources.admin_error_too_old
-import easystock.shared.generated.resources.delete_account
-import easystock.shared.generated.resources.delete_account_anyway
-import easystock.shared.generated.resources.delete_account_erased
-import easystock.shared.generated.resources.delete_account_final
-import easystock.shared.generated.resources.delete_account_movements
-import easystock.shared.generated.resources.delete_account_password_empty
-import easystock.shared.generated.resources.delete_account_phone
-import easystock.shared.generated.resources.delete_account_sync_failed_message
-import easystock.shared.generated.resources.delete_account_sync_failed_title
-import easystock.shared.generated.resources.delete_account_syncing
-import easystock.shared.generated.resources.delete_account_title
-import easystock.shared.generated.resources.delete_account_working
-import easystock.shared.generated.resources.ic_delete
-import easystock.shared.generated.resources.ic_download
-import easystock.shared.generated.resources.my_data
-import easystock.shared.generated.resources.my_data_download
-import easystock.shared.generated.resources.my_data_downloading
-import easystock.shared.generated.resources.my_data_message
-import easystock.shared.generated.resources.my_data_rate_limited
-import easystock.shared.generated.resources.my_data_ready
-import easystock.shared.generated.resources.my_data_save
-import easystock.shared.generated.resources.my_data_saved
-import easystock.shared.generated.resources.my_data_share
-import easystock.shared.generated.resources.my_data_summary
-import easystock.shared.generated.resources.my_data_title
+import kotlin.time.Instant
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.Instant
-
-/** The user's actions on the account screen, so that the content can be previewed without a view model. */
-internal class AccountActions(
-    val askLogout: () -> Unit = {},
-    val cancelLogout: () -> Unit = {},
-    val confirmLogout: () -> Unit = {},
-    val syncThenLogout: () -> Unit = {},
-    val syncNow: () -> Unit = {},
-    /** After [SyncError.LOCAL_NETWORK_DENIED]: asks for the permission, or opens the app settings. */
-    val allowLocalNetwork: () -> Unit = {},
-    val openRejected: () -> Unit = {},
-    val logoutOffline: () -> Unit = {},
-    val stayConnected: () -> Unit = {},
-    val openPromotion: () -> Unit = {},
-    val closePromotion: () -> Unit = {},
-    val promotionUsernameChanged: (String) -> Unit = {},
-    val promotionPasswordChanged: (String) -> Unit = {},
-    val submitPromotion: () -> Unit = {},
-    val dismissError: () -> Unit = {},
-    val openAdministration: () -> Unit = {},
-    val setAlerts: (Boolean) -> Unit = {},
-    val openName: () -> Unit = {},
-    val closeName: () -> Unit = {},
-    val nameChanged: (String) -> Unit = {},
-    val submitName: () -> Unit = {},
-    val openPassword: () -> Unit = {},
-    val closePassword: () -> Unit = {},
-    val currentPasswordChanged: (String) -> Unit = {},
-    val newPasswordChanged: (String) -> Unit = {},
-    val submitPassword: () -> Unit = {},
-    val dismissPasswordChanged: () -> Unit = {},
-    val askDelete: () -> Unit = {},
-    val cancelDelete: () -> Unit = {},
-    val deletePasswordChanged: (String) -> Unit = {},
-    val confirmDelete: () -> Unit = {},
-    val deleteAnyway: () -> Unit = {},
-    val openMyData: () -> Unit = {},
-    val closeMyData: () -> Unit = {},
-    val downloadMyData: () -> Unit = {},
-    val saveMyData: () -> Unit = {},
-    val shareMyData: () -> Unit = {},
-)
 
 /**
  * Settings › Server on a connected phone: the own account, a pending promotion, the logout. [onLoggedOut]
@@ -1005,7 +963,7 @@ private fun AccountGuestPreview() {
                     displayName = "Ann",
                     role = "guest",
                     shortCode = "K7Q-42",
-                    pendingPromotion = ch.mathorck.easystock.server.PendingPromotion("member"),
+                    pendingPromotion = ch.mathorck.easystock.data.dto.server.PendingPromotion("member"),
                 ),
             ),
             onBack = {},

@@ -25,14 +25,14 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.settings.EmptyListHint
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.RejectedChange
-import ch.mathorck.easystock.data.model.RejectedChangeRow
-import ch.mathorck.easystock.sync.MovementDiffers
-import ch.mathorck.easystock.sync.MovementKept
-import ch.mathorck.easystock.sync.RowConflict
-import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.viewmodels.formatDateTime
+import ch.mathorck.easystock.data.model.sync.RejectedChange
+import ch.mathorck.easystock.data.model.sync.RejectedChangeRow
+import ch.mathorck.easystock.services.sync.MovementDiffers
+import ch.mathorck.easystock.services.sync.MovementKept
+import ch.mathorck.easystock.services.sync.RowConflict
+import ch.mathorck.easystock.viewmodels.article.formatDateTime
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.rejected_at
 import easystock.shared.generated.resources.rejected_deleted_row
@@ -51,11 +51,11 @@ import easystock.shared.generated.resources.rejected_table_stock_movement
 import easystock.shared.generated.resources.rejected_table_stock_review
 import easystock.shared.generated.resources.rejected_table_stock_review_line
 import easystock.shared.generated.resources.rejected_title
+import kotlin.time.Clock
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.Clock
 
 /**
  * Settings › Server › Changes not accepted: the local changes the server refused, newest first.

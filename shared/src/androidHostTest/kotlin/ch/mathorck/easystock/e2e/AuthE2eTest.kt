@@ -1,13 +1,13 @@
 package ch.mathorck.easystock.e2e
 
 import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.ClientVersions
-import ch.mathorck.easystock.server.KtorAccountApi
-import ch.mathorck.easystock.server.checkServerInfo
-import ch.mathorck.easystock.server.createServerClient
-import ch.mathorck.easystock.server.serverHttpEngine
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.server.ClientVersions
+import ch.mathorck.easystock.services.server.KtorAccountApi
+import ch.mathorck.easystock.services.server.checkServerInfo
+import ch.mathorck.easystock.services.server.createServerClient
+import ch.mathorck.easystock.services.server.serverHttpEngine
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

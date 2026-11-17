@@ -10,9 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import ch.mathorck.easystock.server.ConnectError
-import ch.mathorck.easystock.server.ServerConnection
+import ch.mathorck.easystock.enums.server.ConnectError
+import ch.mathorck.easystock.services.server.ServerConnection
 import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.delete_account_last_admin
 import easystock.shared.generated.resources.ic_lock
 import easystock.shared.generated.resources.ic_warning
 import easystock.shared.generated.resources.server_error_account_disabled
@@ -25,6 +26,7 @@ import easystock.shared.generated.resources.server_error_code_used
 import easystock.shared.generated.resources.server_error_guest_limit
 import easystock.shared.generated.resources.server_error_invalid
 import easystock.shared.generated.resources.server_error_local
+import easystock.shared.generated.resources.server_error_local_network
 import easystock.shared.generated.resources.server_error_network
 import easystock.shared.generated.resources.server_error_no_promotion
 import easystock.shared.generated.resources.server_error_not_a_server
@@ -33,13 +35,11 @@ import easystock.shared.generated.resources.server_error_rate_limited
 import easystock.shared.generated.resources.server_error_server
 import easystock.shared.generated.resources.server_error_session_revoked
 import easystock.shared.generated.resources.server_error_setup_done
+import easystock.shared.generated.resources.server_error_tls
 import easystock.shared.generated.resources.server_error_username_taken
 import easystock.shared.generated.resources.server_error_wrong_credentials
 import easystock.shared.generated.resources.server_guest_off
 import easystock.shared.generated.resources.server_pinned
-import easystock.shared.generated.resources.delete_account_last_admin
-import easystock.shared.generated.resources.server_error_local_network
-import easystock.shared.generated.resources.server_error_tls
 import easystock.shared.generated.resources.server_secured
 import easystock.shared.generated.resources.server_unsecured
 import org.jetbrains.compose.resources.StringResource

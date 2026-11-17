@@ -4,9 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import ch.mathorck.easystock.nfc.TagEvent
-import ch.mathorck.easystock.nfc.appNfcTags
-import ch.mathorck.easystock.nfc.normalizeTagId
+import ch.mathorck.easystock.services.nfc.TagEvent
+import ch.mathorck.easystock.services.nfc.appNfcTags
+import ch.mathorck.easystock.services.nfc.normalizeTagId
 
 /**
  * Debug builds only: feeds a fake NFC tag to the app, like the platform reader does.

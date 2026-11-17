@@ -1,25 +1,19 @@
 package ch.mathorck.easystock.viewmodels.server
 
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.ConnectError
-import ch.mathorck.easystock.server.GuestSignupRequest
-import ch.mathorck.easystock.server.JoinApi
-import ch.mathorck.easystock.server.JoinCode
-import ch.mathorck.easystock.server.JoinKind
-import ch.mathorck.easystock.server.LoginRequest
-import ch.mathorck.easystock.server.RedeemInviteRequest
-import ch.mathorck.easystock.server.ResetPasswordRequest
-import ch.mathorck.easystock.server.ServerConnection
-import ch.mathorck.easystock.server.ServerInfo
-import ch.mathorck.easystock.server.SessionUser
-import ch.mathorck.easystock.server.SetupRequest
-import ch.mathorck.easystock.server.TokenAnswer
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
+import ch.mathorck.easystock.data.dto.server.GuestSignupRequest
+import ch.mathorck.easystock.data.dto.server.LoginRequest
+import ch.mathorck.easystock.data.dto.server.RedeemInviteRequest
+import ch.mathorck.easystock.data.dto.server.ResetPasswordRequest
+import ch.mathorck.easystock.data.dto.server.SessionUser
+import ch.mathorck.easystock.data.dto.server.SetupRequest
+import ch.mathorck.easystock.data.dto.server.TokenAnswer
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.enums.server.ConnectError
+import ch.mathorck.easystock.enums.server.JoinKind
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.server.FakeJoinApi
+import ch.mathorck.easystock.services.server.JoinCode
+import ch.mathorck.easystock.services.server.ServerConnection
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -27,42 +21,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 
-private val ANSWER = TokenAnswer("access", "refresh", user = SessionUser("u1", "Ann", "member", "human"))
-
-private class FakeJoinApi(val connection: ServerConnection) : JoinApi, AutoCloseable {
-    var info: ServerInfo = ServerInfo(apiVersion = 1, setupDone = true, guestSignupEnabled = true)
-    var infoError: ApiException? = null
-    var authError: ApiException? = null
-    val calls = mutableListOf<Any>()
-    var closed = false
-
-    override suspend fun serverInfo(): ServerInfo {
-        calls += "server-info"
-        infoError?.let { throw it }
-        return info
-    }
-
-    private fun answer(request: Any): TokenAnswer {
-        calls += request
-        authError?.let { throw it }
-        return ANSWER
-    }
-
-    override suspend fun login(request: LoginRequest) = answer(request)
-
-    override suspend fun setup(request: SetupRequest) = answer(request)
-
-    override suspend fun redeemInvite(request: RedeemInviteRequest) = answer(request)
-
-    override suspend fun guestSignup(request: GuestSignupRequest) = answer(request)
-
-    override suspend fun resetPassword(request: ResetPasswordRequest) = answer(request)
-
-    override fun close() {
-        closed = true
-    }
-}
+internal val ANSWER = TokenAnswer("access", "refresh", user = SessionUser("u1", "Ann", "member", "human"))
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConnectViewModelTest {

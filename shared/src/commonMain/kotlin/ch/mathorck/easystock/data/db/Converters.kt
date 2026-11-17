@@ -1,14 +1,14 @@
 package ch.mathorck.easystock.data.db
 
 import androidx.room.TypeConverter
-import ch.mathorck.easystock.data.model.AttributeDataType
-import ch.mathorck.easystock.data.model.ItemStatus
-import ch.mathorck.easystock.data.model.MovementReason
-import ch.mathorck.easystock.data.model.ReviewResult
-import ch.mathorck.easystock.data.model.ReviewStatus
-import ch.mathorck.easystock.data.model.Tracking
-import ch.mathorck.easystock.data.model.dbValue
-import ch.mathorck.easystock.data.model.enumFromDb
+import ch.mathorck.easystock.enums.article.ItemStatus
+import ch.mathorck.easystock.enums.article.Tracking
+import ch.mathorck.easystock.enums.attributes.AttributeDataType
+import ch.mathorck.easystock.enums.dbValue
+import ch.mathorck.easystock.enums.enumFromDb
+import ch.mathorck.easystock.enums.review.ReviewResult
+import ch.mathorck.easystock.enums.review.ReviewStatus
+import ch.mathorck.easystock.enums.stock.MovementReason
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject

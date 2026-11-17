@@ -1,0 +1,480 @@
+package ch.mathorck.easystock.services.backup
+
+import ch.mathorck.easystock.data.dao.article.MAX_FLAG_NOTE_LENGTH
+import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
+import ch.mathorck.easystock.data.db.DB_VERSION
+import ch.mathorck.easystock.data.dto.backup.BackupBundle
+import ch.mathorck.easystock.data.dto.backup.BackupData
+import ch.mathorck.easystock.data.dto.backup.BackupManifest
+import ch.mathorck.easystock.enums.backup.BackupError
+import ch.mathorck.easystock.enums.backup.BackupTable
+import ch.mathorck.easystock.exceptions.backup.BackupException
+import ch.mathorck.easystock.services.backup.BackupFixtures.article
+import ch.mathorck.easystock.services.backup.BackupFixtures.category
+import ch.mathorck.easystock.services.backup.BackupFixtures.flag
+import ch.mathorck.easystock.services.backup.BackupFixtures.full
+import ch.mathorck.easystock.services.backup.BackupFixtures.item
+import ch.mathorck.easystock.services.backup.BackupFixtures.location
+import ch.mathorck.easystock.services.backup.BackupFixtures.movement
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+
+class BackupFormatTest {
+    private val manifest = BackupManifest(appVersion = "1.0.0", createdAt = "2026-11-10T12:00:00Z")
+
+    @Test
+    fun tablesRoundTripWithEveryColumn() {
+        val data = full()
+        val tables = BackupTable.entries.associateWith { BackupCodec.encodeTable(data, it) }
+
+        assertEquals(data, BackupCodec.decodeTables { tables[it] })
+    }
+
+    /** Schema 9: the server authors of a movement are exported, and an older backup without them reads as null. */
+    @Test
+    fun schema9MovementAuthorsAreWrittenAndOptional() {
+        val authored = movement("m1", "a1", "l1", 1000).copy(createdBy = "u1", deviceId = "d1")
+        val json = BackupCodec.encodeTable(BackupData(movements = listOf(authored)), BackupTable.STOCK_MOVEMENT).decodeToString()
+        assertTrue("\"created_by\":\"u1\"" in json, json)
+        assertTrue("\"device_id\":\"d1\"" in json, json)
+
+        val older = """[{"id":"m1","article_id":"a1","location_id":"l1","quantity":1000,"reason":"purchase","occurred_at":1,"created_at":1}]"""
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.STOCK_MOVEMENT) older.encodeToByteArray() else null }.movements.single()
+        assertNull(decoded.createdBy)
+        assertNull(decoded.deviceId)
+    }
+
+    /** Imported into a standalone phone, the server authors are dropped; the rest of the backup is unchanged. */
+    @Test
+    fun standaloneImportDropsTheServerAuthors() {
+        val data = full()
+        val authored = data.copy(movements = data.movements.map { it.copy(createdBy = "u1", deviceId = "d1") })
+
+        val imported = authored.withoutServerAuthors()
+
+        assertEquals(data, imported)
+        // Nothing to drop: the same instance
+        assertTrue(data.withoutServerAuthors() === data)
+    }
+
+    /** Schema 13: flags, the order link and the date alert switches are written; a v12 backup reads them as empty / off. */
+    @Test
+    fun schema13ColumnsAreWrittenAndOlderBackupsHaveNone() {
+        val data = full()
+        val flags = BackupCodec.encodeTable(data, BackupTable.ARTICLE_FLAG).decodeToString()
+        assertTrue("\"article_id\":\"art1\"" in flags, flags)
+        assertTrue("\"created_by\":null" in flags, flags)
+        val articles = BackupCodec.encodeTable(data, BackupTable.ARTICLE).decodeToString()
+        assertTrue("\"order_url\":\"https://shop.example/drill?a=1&b=2\"" in articles, articles)
+        val attributes = BackupCodec.encodeTable(data, BackupTable.ATTRIBUTE_DEFINITION).decodeToString()
+        assertTrue("\"flag_when_past\":true" in attributes, attributes)
+
+        // A v12 backup: no article_flag file, no new columns
+        val v12Article = """[{"id":"a1","name":"Old","tracking":"quantity","unit":"pce","archived":false,"created_at":1,"updated_at":1}]"""
+        val v12Attribute = """[{"id":"d1","key":"expiry","label":"Expiry","data_type":"date","created_at":1,"updated_at":1}]"""
+        val decoded = BackupCodec.decodeTables {
+            when (it) {
+                BackupTable.ARTICLE -> v12Article.encodeToByteArray()
+                BackupTable.ATTRIBUTE_DEFINITION -> v12Attribute.encodeToByteArray()
+                else -> null
+            }
+        }
+        assertNull(decoded.articles.single().orderUrl)
+        assertEquals(false, decoded.attributeDefinitions.single().flagWhenPast)
+        assertEquals(false, decoded.attributeDefinitions.single().notifyWhenPast)
+        assertTrue(decoded.articleFlags.isEmpty())
+    }
+
+    @Test
+    fun standaloneImportDropsTheFlagAuthors() {
+        val data = full()
+        val authored = data.copy(articleFlags = data.articleFlags.map { it.copy(createdBy = "u1") })
+
+        assertEquals(data, authored.withoutServerAuthors())
+        assertTrue(data.withoutServerAuthors() === data)
+    }
+
+    @Test
+    fun flagOfUnknownArticleIsDamaged() {
+        val data = full().let { it.copy(articleFlags = it.articleFlags + flag("fl3", "nowhere")) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun flagNoteOfTheMaximumLengthIsValidAndALongerOneIsDamaged() {
+        val note = "x".repeat(MAX_FLAG_NOTE_LENGTH)
+        val ok = full().let { it.copy(articleFlags = it.articleFlags + flag("fl3", "art1").copy(note = note)) }
+        validateBackup(ok)
+        val tooLong = full().let { it.copy(articleFlags = it.articleFlags + flag("fl3", "art1").copy(note = note + "x")) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(tooLong) }.error)
+    }
+
+    @Test
+    fun duplicateFlagIdIsDamaged() {
+        val data = full().let { it.copy(articleFlags = it.articleFlags + flag("fl1", "art1")) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun schema3ColumnsAreWritten() {
+        val data = BackupData(
+            categories = listOf(category("c1").copy(nameTemplate = "{color} rope")),
+            articles = listOf(article("a1").copy(nameAuto = true)),
+        )
+        val categories = BackupCodec.encodeTable(data, BackupTable.CATEGORY).decodeToString()
+        val articles = BackupCodec.encodeTable(data, BackupTable.ARTICLE).decodeToString()
+
+        assertTrue("\"name_template\":\"{color} rope\"" in categories)
+        assertTrue("\"name_auto\":true" in articles)
+        assertEquals(data, BackupCodec.decodeTables { BackupCodec.encodeTable(data, it) })
+    }
+
+    /** A schema 2 backup has no name_template nor name_auto: null and false. */
+    @Test
+    fun schema2TablesDecodeWithTheNewColumnsDefaults() {
+        val data = BackupData(
+            categories = listOf(category("c1").copy(nameTemplate = "{color} rope")),
+            articles = listOf(article("a1").copy(nameAuto = true)),
+        )
+        fun withoutColumn(table: BackupTable, column: String): ByteArray {
+            val rows = backupJson.parseToJsonElement(BackupCodec.encodeTable(data, table).decodeToString()).jsonArray
+            val stripped = JsonArray(rows.map { row -> JsonObject(row.jsonObject - column) })
+            return stripped.toString().encodeToByteArray()
+        }
+        val tables = mapOf(
+            BackupTable.CATEGORY to withoutColumn(BackupTable.CATEGORY, "name_template"),
+            BackupTable.ARTICLE to withoutColumn(BackupTable.ARTICLE, "name_auto"),
+        )
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 2))
+
+        val decoded = BackupCodec.decodeTables { tables[it] }
+
+        assertNull(decoded.categories.single().nameTemplate)
+        assertEquals(false, decoded.articles.single().nameAuto)
+        assertEquals(data.articles.single().copy(nameAuto = false), decoded.articles.single())
+    }
+
+    @Test
+    fun schema4LocationColumnsAreWritten() {
+        val data = BackupData(locations = listOf(location("l1").copy(icon = "warehouse", color = "teal")))
+        val locations = BackupCodec.encodeTable(data, BackupTable.LOCATION).decodeToString()
+
+        assertTrue("\"icon\":\"warehouse\"" in locations)
+        assertTrue("\"color\":\"teal\"" in locations)
+        assertEquals(data, BackupCodec.decodeTables { BackupCodec.encodeTable(data, it) })
+    }
+
+    /** A schema 3 backup has no icon nor color on its locations: both null (default look). */
+    @Test
+    fun schema3LocationsDecodeWithTheDefaultAppearance() {
+        val data = BackupData(locations = listOf(location("l1").copy(icon = "warehouse", color = "teal")))
+        val rows = backupJson.parseToJsonElement(BackupCodec.encodeTable(data, BackupTable.LOCATION).decodeToString()).jsonArray
+        val stripped = JsonArray(rows.map { JsonObject(it.jsonObject - "icon" - "color") }).toString().encodeToByteArray()
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 3))
+
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.LOCATION) stripped else null }
+
+        assertEquals(location("l1"), decoded.locations.single())
+    }
+
+    @Test
+    fun schema6LocationTagIsWritten() {
+        val locations = BackupCodec.encodeTable(full(), BackupTable.LOCATION).decodeToString()
+
+        assertTrue("\"barcode\":\"04:B5:6C\"" in locations)
+    }
+
+    /** A schema 5 backup has no tag on its locations: null. */
+    @Test
+    fun schema5LocationsDecodeWithoutTag() {
+        val data = BackupData(locations = listOf(location("l1").copy(barcode = "TAG")))
+        val rows = backupJson.parseToJsonElement(BackupCodec.encodeTable(data, BackupTable.LOCATION).decodeToString()).jsonArray
+        val stripped = JsonArray(rows.map { JsonObject(it.jsonObject - "barcode") }).toString().encodeToByteArray()
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 5))
+
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.LOCATION) stripped else null }
+
+        assertEquals(location("l1"), decoded.locations.single())
+    }
+
+    @Test
+    fun schema5ReviewTablesAreWritten() {
+        val reviews = BackupCodec.encodeTable(full(), BackupTable.STOCK_REVIEW).decodeToString()
+        val lines = BackupCodec.encodeTable(full(), BackupTable.STOCK_REVIEW_LINE).decodeToString()
+
+        assertTrue("\"status\":\"finished\"" in reviews)
+        assertTrue("\"result\":\"elsewhere\"" in lines)
+        assertTrue("\"expected_quantity\":2500" in lines)
+        assertTrue("\"found_location_id\":\"room\"" in lines)
+    }
+
+    /** A new unit found during a review is kept in a backup, and a review line written before has none. */
+    @Test
+    fun pendingUnitOfAReviewLineRoundTripsAndOlderLinesHaveNone() {
+        val pending = ch.mathorck.easystock.data.model.article.PendingUnit("SN-9", ch.mathorck.easystock.enums.article.ItemStatus.REPAIR).toJson()
+        val line = full().reviewLines.first().copy(itemId = null, pendingItem = pending)
+        val data = BackupData(reviewLines = listOf(line))
+
+        val encoded = BackupCodec.encodeTable(data, BackupTable.STOCK_REVIEW_LINE).decodeToString()
+        assertTrue("\"pending_item\":{" in encoded)
+        assertEquals(line, BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) encoded.encodeToByteArray() else null }.reviewLines.single())
+
+        val rows = backupJson.parseToJsonElement(encoded).jsonArray
+        val old = JsonArray(rows.map { row -> JsonObject(row.jsonObject - "pending_item") }).toString()
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) old.encodeToByteArray() else null }
+        assertNull(decoded.reviewLines.single().pendingItem)
+    }
+
+    /** A fixed "info to fix" flag keeps its fix time in a backup, and a line written before version 8 has none. */
+    @Test
+    fun infoFixedAtOfAReviewLineRoundTripsAndOlderLinesHaveNone() {
+        val line = full().reviewLines.first().copy(infoFlagged = true, note = "Change the box", infoFixedAt = 4_200)
+        val data = BackupData(reviewLines = listOf(line))
+
+        val encoded = BackupCodec.encodeTable(data, BackupTable.STOCK_REVIEW_LINE).decodeToString()
+        assertTrue("\"info_fixed_at\":4200" in encoded)
+        assertEquals(line, BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) encoded.encodeToByteArray() else null }.reviewLines.single())
+
+        val rows = backupJson.parseToJsonElement(encoded).jsonArray
+        val old = JsonArray(rows.map { row -> JsonObject(row.jsonObject - "info_fixed_at") }).toString()
+        val decoded = BackupCodec.decodeTables { if (it == BackupTable.STOCK_REVIEW_LINE) old.encodeToByteArray() else null }
+        assertNull(decoded.reviewLines.single().infoFixedAt)
+        assertTrue(decoded.reviewLines.single().infoFlagged)
+    }
+
+    /** A schema 4 backup has no review tables: none, and the rest is read as before. */
+    @Test
+    fun schema4BackupHasNoReviews() {
+        val data = full()
+        val tables = BackupTable.entries
+            .filter { it != BackupTable.STOCK_REVIEW && it != BackupTable.STOCK_REVIEW_LINE }
+            .associateWith { BackupCodec.encodeTable(data, it) }
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 7))
+
+        val decoded = BackupCodec.decodeTables { tables[it] }
+
+        assertEquals(data.copy(reviews = emptyList(), reviewLines = emptyList()), decoded)
+        validateBackup(decoded)
+    }
+
+    @Test
+    fun reviewLineOfUnknownReviewIsDamaged() {
+        val data = full().copy(reviews = emptyList())
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun reviewOfUnknownLocationIsDamaged() {
+        val data = full().let { it.copy(reviews = it.reviews.map { r -> r.copy(locationId = "nowhere") }) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun missingTableFileIsAnEmptyTable() {
+        assertEquals(BackupData(), BackupCodec.decodeTables { null })
+    }
+
+    @Test
+    fun columnsUseSchemaNamesAndEnumsTheirDatabaseValue() {
+        val json = BackupCodec.encodeTable(full(), BackupTable.ARTICLE).decodeToString()
+
+        assertTrue("\"image_path\":\"images/" in json)
+        assertTrue("\"threshold\":1500" in json)
+        assertTrue("\"tracking\":\"serial\"" in json)
+        assertTrue("\"deleted_at\":null" in json)
+        val movements = BackupCodec.encodeTable(full(), BackupTable.STOCK_MOVEMENT).decodeToString()
+        assertTrue("\"reason\":\"loan\"" in movements)
+        assertTrue("\"quantity\":-1000" in movements)
+    }
+
+    @Test
+    fun measureAttributesRoundTrip() {
+        val base = full()
+        val length = base.attributeDefinitions.single().copy(
+            id = "a2", key = "length", label = "Length", dataType = ch.mathorck.easystock.enums.attributes.AttributeDataType.MEASURE, unit = "m", options = null,
+        )
+        val data = base.copy(
+            attributeDefinitions = base.attributeDefinitions + length,
+            articles = base.articles.map { article ->
+                article.copy(attributes = article.attributes?.let { JsonObject(it + ("length" to kotlinx.serialization.json.Json.parseToJsonElement("""{"value":9.8,"unit":"mm"}"""))) })
+            },
+        )
+        val tables = BackupTable.entries.associateWith { BackupCodec.encodeTable(data, it) }
+
+        assertTrue("\"data_type\":\"measure\"" in tables.getValue(BackupTable.ATTRIBUTE_DEFINITION).decodeToString())
+        assertEquals(data, BackupCodec.decodeTables { tables[it] })
+    }
+
+    @Test
+    fun unknownEnumValueIsDamaged() {
+        val json = BackupCodec.encodeTable(full(), BackupTable.ARTICLE).decodeToString().replace("\"serial\"", "\"weight\"")
+
+        val error = assertFailsWith<BackupException> {
+            BackupCodec.decodeTables { if (it == BackupTable.ARTICLE) json.encodeToByteArray() else null }
+        }
+        assertEquals(BackupError.DAMAGED, error.error)
+    }
+
+    @Test
+    fun invalidJsonIsDamaged() {
+        val error = assertFailsWith<BackupException> { BackupCodec.decodeTables { "[{".encodeToByteArray() } }
+        assertEquals(BackupError.DAMAGED, error.error)
+    }
+
+    @Test
+    fun bundleRoundTrip() {
+        val bundle = BackupBundle(manifest.copy(counts = full().counts()), full())
+
+        assertEquals(bundle, BackupCodec.decodeBundle(BackupCodec.encodeBundle(bundle)))
+    }
+
+    // ---------- Manifest ----------
+
+    @Test
+    fun manifestRoundTrip() {
+        assertEquals(manifest, BackupCodec.decodeManifest(BackupCodec.encodeManifest(manifest)))
+    }
+
+    @Test
+    fun manifestOfCurrentVersionsIsAccepted() {
+        BackupCodec.checkManifest(manifest)
+        // v12 changes only indices: backups keep schema 11, so the server ([10, 11]) and v11 apps import them
+        assertEquals(DATA_SCHEMA_VERSION, manifest.schemaVersion)
+        assertEquals(13, DATA_SCHEMA_VERSION)
+        assertEquals(13, DB_VERSION)
+        assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
+    }
+
+    @Test
+    fun olderSchemaIsAccepted() {
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 1))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 4))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 7))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 8))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 9))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 10))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 11))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 12))
+    }
+
+    @Test
+    fun currentDbVersionIsAccepted() {
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = DB_VERSION))
+    }
+
+    @Test
+    fun newerSchemaIsRejected() {
+        val error = assertFailsWith<BackupException> { BackupCodec.checkManifest(manifest.copy(schemaVersion = DB_VERSION + 1)) }
+        assertEquals(BackupError.NEWER_VERSION, error.error)
+    }
+
+    @Test
+    fun newerFormatIsRejected() {
+        val error = assertFailsWith<BackupException> { BackupCodec.checkManifest(manifest.copy(formatVersion = BACKUP_FORMAT_VERSION + 1)) }
+        assertEquals(BackupError.NEWER_VERSION, error.error)
+    }
+
+    @Test
+    fun otherFormatIsNotABackup() {
+        val error = assertFailsWith<BackupException> { BackupCodec.checkManifest(manifest.copy(format = "other")) }
+        assertEquals(BackupError.NOT_A_BACKUP, error.error)
+    }
+
+    @Test
+    fun zeroVersionIsDamaged() {
+        val error = assertFailsWith<BackupException> { BackupCodec.checkManifest(manifest.copy(schemaVersion = 0)) }
+        assertEquals(BackupError.DAMAGED, error.error)
+    }
+
+    @Test
+    fun unreadableManifestIsNotABackup() {
+        val error = assertFailsWith<BackupException> { BackupCodec.decodeManifest("hello".encodeToByteArray()) }
+        assertEquals(BackupError.NOT_A_BACKUP, error.error)
+    }
+
+    // ---------- Validation ----------
+
+    @Test
+    fun fullBackupIsValid() {
+        validateBackup(full())
+    }
+
+    @Test
+    fun missingReferenceIsDamaged() {
+        val data = BackupData(articles = listOf(article("a", category = "nope")))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun movementOfUnknownLocationIsDamaged() {
+        val data = BackupData(articles = listOf(article("a")), movements = listOf(movement("m", "a", "nowhere", 1000)))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun duplicateUniqueValueIsDamaged() {
+        val data = BackupData(categories = listOf(category("c1", "Tools"), category("c2", "Tools")))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun tagOnAnArticleAndALocationIsDamaged() {
+        val data = BackupData(locations = listOf(location("crate").copy(barcode = "TAG")), articles = listOf(article("a", barcode = "TAG")))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun locationTagsAreAccepted() {
+        val data = BackupData(locations = listOf(location("crate").copy(barcode = "TAG"), location("box")), articles = listOf(article("a", barcode = "OTHER")))
+        validateBackup(data)
+    }
+
+    @Test
+    fun locationCycleIsDamaged() {
+        val data = BackupData(locations = listOf(location("a", parent = "b"), location("b", parent = "a")))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun imagePathOutsideThePhotoFolderIsDamaged() {
+        val data = BackupData(articles = listOf(article("a", image = "../databases/easystock.db")))
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun parentsComeFirst() {
+        val sorted = parentsFirst(listOf(location("bin", "shelf"), location("shelf", "room"), location("room")))
+        assertEquals(listOf("room", "shelf", "bin"), sorted.map { it.id })
+    }
+
+    // ---------- Item location cache ----------
+
+    @Test
+    fun itemLocationIsWhereItsMovementsSumIsPositive() {
+        val movements = listOf(
+            movement("m1", "a", "shelf", 1000, item = "i"),
+            movement("m2", "a", "shelf", -1000, item = "i"),
+            movement("m3", "a", "van", 1000, item = "i"),
+        )
+        val locations = itemLocations(listOf(item("i", "a"), item("j", "a")), movements)
+
+        assertEquals("van", locations["i"])
+        assertNull(locations["j"])
+    }
+
+    @Test
+    fun itemOutOfStockHasNoLocation() {
+        val movements = listOf(movement("m1", "a", "shelf", 1000, item = "i"), movement("m2", "a", "shelf", -1000, item = "i"))
+        val data = BackupData(items = listOf(item("i", "a", location = "shelf")), movements = movements).withItemLocations()
+
+        assertNull(data.items.single().locationId)
+    }
+}

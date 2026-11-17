@@ -1,22 +1,22 @@
 package ch.mathorck.easystock.composables.server
 
 import ch.mathorck.easystock.composables.server.admin.message
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ProblemTypes
-import ch.mathorck.easystock.sync.ConflictCodes
-import ch.mathorck.easystock.sync.PushDecision
-import ch.mathorck.easystock.sync.PushResult
-import ch.mathorck.easystock.sync.PushStatus
-import ch.mathorck.easystock.sync.RejectReasons
-import ch.mathorck.easystock.sync.decidePush
-import ch.mathorck.easystock.viewmodels.admin.ActionFailure
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
+import ch.mathorck.easystock.data.dto.sync.PushResult
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.enums.sync.PushStatus
+import ch.mathorck.easystock.services.server.ProblemTypes
+import ch.mathorck.easystock.services.sync.ConflictCodes
+import ch.mathorck.easystock.services.sync.PushDecision
+import ch.mathorck.easystock.services.sync.RejectReasons
+import ch.mathorck.easystock.services.sync.decidePush
+import ch.mathorck.easystock.viewmodels.server.admin.ActionFailure
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 class ProblemMessagesTest {
     @Test

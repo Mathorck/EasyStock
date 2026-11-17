@@ -15,14 +15,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import ch.mathorck.easystock.auth.Action
-import ch.mathorck.easystock.auth.LocalPermissions
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.RejectedChange
-import ch.mathorck.easystock.data.model.RejectedChangeRow
-import ch.mathorck.easystock.sync.RowKeepMineBlock
-import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.viewmodels.formatDateTime
+import ch.mathorck.easystock.data.model.sync.RejectedChange
+import ch.mathorck.easystock.data.model.sync.RejectedChangeRow
+import ch.mathorck.easystock.enums.auth.Action
+import ch.mathorck.easystock.enums.sync.RowKeepMineBlock
+import ch.mathorck.easystock.services.auth.LocalPermissions
+import ch.mathorck.easystock.viewmodels.article.formatDateTime
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.rejected_at
 import easystock.shared.generated.resources.rejected_deleted_row
@@ -39,15 +39,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-
-/** What "Keep mine" can do for a row conflict: not read yet, offered, or why not. */
-private sealed interface KeepMine {
-    data object Loading : KeepMine
-
-    data object Offered : KeepMine
-
-    data class Blocked(val block: RowKeepMineBlock) : KeepMine
-}
 
 /**
  * A stale edit the server rejected (`conflict:`, sync/RowConflict): the phone shows the server's

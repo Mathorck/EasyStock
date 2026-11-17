@@ -1,6 +1,5 @@
 package ch.mathorck.easystock.composables.article
 
-import ch.mathorck.easystock.composables.attributes.ATTRIBUTE_SUMMARY_SEPARATOR
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,16 +25,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import ch.mathorck.easystock.data.db.UnitAction
-import ch.mathorck.easystock.data.model.ItemStatus
+import ch.mathorck.easystock.composables.LocationIcon
+import ch.mathorck.easystock.composables.attributes.ATTRIBUTE_SUMMARY_SEPARATOR
+import ch.mathorck.easystock.enums.article.ItemStatus
+import ch.mathorck.easystock.enums.stock.UnitAction
 import ch.mathorck.easystock.util.formatQuantity
-import ch.mathorck.easystock.viewmodels.LocationStockRow
-import ch.mathorck.easystock.viewmodels.UnitRow
+import ch.mathorck.easystock.viewmodels.article.UnitRow
+import ch.mathorck.easystock.viewmodels.location.LocationStockRow
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.ic_add
 import easystock.shared.generated.resources.ic_more_vert
 import easystock.shared.generated.resources.ic_remove
 import easystock.shared.generated.resources.ic_swap_horiz
+import easystock.shared.generated.resources.item_edit_menu
 import easystock.shared.generated.resources.stock_action_add
 import easystock.shared.generated.resources.stock_action_end_repair
 import easystock.shared.generated.resources.stock_action_found
@@ -43,7 +45,6 @@ import easystock.shared.generated.resources.stock_action_lend
 import easystock.shared.generated.resources.stock_action_lose
 import easystock.shared.generated.resources.stock_action_more
 import easystock.shared.generated.resources.stock_action_move
-import easystock.shared.generated.resources.item_edit_menu
 import easystock.shared.generated.resources.stock_action_no_serial
 import easystock.shared.generated.resources.stock_action_not_in_stock
 import easystock.shared.generated.resources.stock_action_remove
@@ -53,7 +54,6 @@ import easystock.shared.generated.resources.stock_action_status_available
 import easystock.shared.generated.resources.stock_action_status_lent
 import easystock.shared.generated.resources.stock_action_status_lost
 import easystock.shared.generated.resources.stock_action_status_repair
-import ch.mathorck.easystock.composables.LocationIcon
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource

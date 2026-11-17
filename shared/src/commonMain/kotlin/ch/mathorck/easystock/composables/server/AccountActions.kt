@@ -1,0 +1,45 @@
+package ch.mathorck.easystock.composables.server
+
+import ch.mathorck.easystock.enums.sync.SyncError
+
+/** The user's actions on the account screen, so that the content can be previewed without a view model. */
+internal class AccountActions(
+    val askLogout: () -> Unit = {},
+    val cancelLogout: () -> Unit = {},
+    val confirmLogout: () -> Unit = {},
+    val syncThenLogout: () -> Unit = {},
+    val syncNow: () -> Unit = {},
+    /** After [SyncError.LOCAL_NETWORK_DENIED]: asks for the permission, or opens the app settings. */
+    val allowLocalNetwork: () -> Unit = {},
+    val openRejected: () -> Unit = {},
+    val logoutOffline: () -> Unit = {},
+    val stayConnected: () -> Unit = {},
+    val openPromotion: () -> Unit = {},
+    val closePromotion: () -> Unit = {},
+    val promotionUsernameChanged: (String) -> Unit = {},
+    val promotionPasswordChanged: (String) -> Unit = {},
+    val submitPromotion: () -> Unit = {},
+    val dismissError: () -> Unit = {},
+    val openAdministration: () -> Unit = {},
+    val setAlerts: (Boolean) -> Unit = {},
+    val openName: () -> Unit = {},
+    val closeName: () -> Unit = {},
+    val nameChanged: (String) -> Unit = {},
+    val submitName: () -> Unit = {},
+    val openPassword: () -> Unit = {},
+    val closePassword: () -> Unit = {},
+    val currentPasswordChanged: (String) -> Unit = {},
+    val newPasswordChanged: (String) -> Unit = {},
+    val submitPassword: () -> Unit = {},
+    val dismissPasswordChanged: () -> Unit = {},
+    val askDelete: () -> Unit = {},
+    val cancelDelete: () -> Unit = {},
+    val deletePasswordChanged: (String) -> Unit = {},
+    val confirmDelete: () -> Unit = {},
+    val deleteAnyway: () -> Unit = {},
+    val openMyData: () -> Unit = {},
+    val closeMyData: () -> Unit = {},
+    val downloadMyData: () -> Unit = {},
+    val saveMyData: () -> Unit = {},
+    val shareMyData: () -> Unit = {},
+)

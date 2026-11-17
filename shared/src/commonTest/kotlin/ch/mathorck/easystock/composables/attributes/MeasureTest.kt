@@ -1,23 +1,39 @@
 package ch.mathorck.easystock.composables.attributes
 
-import ch.mathorck.easystock.data.db.CategoryAttributeWithDefinition
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.ArticleStock
-import ch.mathorck.easystock.data.model.AttributeDataType
-import ch.mathorck.easystock.data.model.AttributeDefinition
-import ch.mathorck.easystock.data.model.CategoryAttribute
-import ch.mathorck.easystock.viewmodels.filterByQuery
+import ch.mathorck.easystock.data.dao.attributes.CategoryAttributeWithDefinition
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.article.ArticleStock
+import ch.mathorck.easystock.data.model.attributes.AttributeDefinition
+import ch.mathorck.easystock.data.model.attributes.CategoryAttribute
+import ch.mathorck.easystock.enums.attributes.AttributeDataType
+import ch.mathorck.easystock.enums.attributes.AttributeError
+import ch.mathorck.easystock.enums.attributes.MeasureFamily
+import ch.mathorck.easystock.enums.attributes.attributeInputText
+import ch.mathorck.easystock.enums.attributes.normalizeAttributeNumber
+import ch.mathorck.easystock.enums.attributes.validateAttributes
+import ch.mathorck.easystock.services.attributes.AttributeCatalog
+import ch.mathorck.easystock.services.attributes.AttributeText
+import ch.mathorck.easystock.services.attributes.ExactDecimal
+import ch.mathorck.easystock.services.attributes.MeasureUnits
+import ch.mathorck.easystock.services.attributes.MeasureValue
+import ch.mathorck.easystock.services.attributes.NameTemplateError
+import ch.mathorck.easystock.services.attributes.NameTemplateParseResult
+import ch.mathorck.easystock.services.attributes.NameTemplatePart
+import ch.mathorck.easystock.services.attributes.articleNameFromTemplate
+import ch.mathorck.easystock.services.attributes.parseNameTemplate
+import ch.mathorck.easystock.services.attributes.sampleAttributeValues
+import ch.mathorck.easystock.viewmodels.stock.filterByQuery
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonUnquotedLiteral
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalSerializationApi::class)
 class MeasureTest {

@@ -1,18 +1,18 @@
 package ch.mathorck.easystock.data.db
 
-import ch.mathorck.easystock.backup.BackupManifest
-import ch.mathorck.easystock.backup.BackupTable
-import ch.mathorck.easystock.server.ClientVersions
+import ch.mathorck.easystock.data.dto.backup.BackupManifest
+import ch.mathorck.easystock.enums.backup.BackupTable
+import ch.mathorck.easystock.services.server.ClientVersions
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * [DATA_SCHEMA_VERSION] (sent to the server, written in backups) must describe the synced tables of

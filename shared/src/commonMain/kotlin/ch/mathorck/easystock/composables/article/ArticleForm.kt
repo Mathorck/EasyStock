@@ -2,7 +2,6 @@
 
 package ch.mathorck.easystock.composables.article
 
-import ch.mathorck.easystock.nfc.formatTagId
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,36 +44,38 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import ch.mathorck.easystock.composables.attributes.AttributeError
+import ch.mathorck.easystock.composables.article.errorText
 import ch.mathorck.easystock.composables.attributes.AttributeFields
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.Category
-import ch.mathorck.easystock.data.model.Tracking
-import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.viewmodels.ArticleForm
-import ch.mathorck.easystock.viewmodels.ArticleFormMode
-import ch.mathorck.easystock.viewmodels.ArticleFormUiState
-import ch.mathorck.easystock.viewmodels.SkuIndex
-import ch.mathorck.easystock.viewmodels.CategoryMode
-import ch.mathorck.easystock.viewmodels.FieldError
-import ch.mathorck.easystock.viewmodels.toForm
-import ch.mathorck.easystock.viewmodels.validate
-import ch.mathorck.easystock.viewmodels.withTypedName
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.categories.Category
+import ch.mathorck.easystock.enums.article.ArticleFormMode
+import ch.mathorck.easystock.enums.article.FieldError
+import ch.mathorck.easystock.enums.article.Tracking
+import ch.mathorck.easystock.enums.attributes.AttributeError
+import ch.mathorck.easystock.enums.categories.CategoryMode
+import ch.mathorck.easystock.services.nfc.formatTagId
+import ch.mathorck.easystock.viewmodels.article.ArticleForm
+import ch.mathorck.easystock.viewmodels.article.ArticleFormUiState
+import ch.mathorck.easystock.viewmodels.article.toForm
+import ch.mathorck.easystock.viewmodels.article.validate
+import ch.mathorck.easystock.viewmodels.article.withTypedName
+import ch.mathorck.easystock.viewmodels.attributes.toForm
+import ch.mathorck.easystock.viewmodels.attributes.validate
+import ch.mathorck.easystock.viewmodels.stock.SkuIndex
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.article_category
 import easystock.shared.generated.resources.article_category_name
 import easystock.shared.generated.resources.article_category_new
 import easystock.shared.generated.resources.article_category_none
 import easystock.shared.generated.resources.article_description
-import easystock.shared.generated.resources.article_error_url
-import easystock.shared.generated.resources.article_order_url
-import easystock.shared.generated.resources.article_order_url_hint
 import easystock.shared.generated.resources.article_edit_title
 import easystock.shared.generated.resources.article_error_category_deleted
 import easystock.shared.generated.resources.article_error_quantity
 import easystock.shared.generated.resources.article_error_save
 import easystock.shared.generated.resources.article_error_sku_taken
 import easystock.shared.generated.resources.article_error_too_long
+import easystock.shared.generated.resources.article_error_url
 import easystock.shared.generated.resources.article_form_close
 import easystock.shared.generated.resources.article_form_create_hint
 import easystock.shared.generated.resources.article_form_section_attributes
@@ -87,11 +88,13 @@ import easystock.shared.generated.resources.article_form_type_consumable_hint
 import easystock.shared.generated.resources.article_form_type_locked
 import easystock.shared.generated.resources.article_form_type_tool
 import easystock.shared.generated.resources.article_form_type_tool_hint
-import easystock.shared.generated.resources.article_image_section
 import easystock.shared.generated.resources.article_form_unit_hint
+import easystock.shared.generated.resources.article_image_section
 import easystock.shared.generated.resources.article_name
 import easystock.shared.generated.resources.article_name_template_follows
 import easystock.shared.generated.resources.article_name_template_use
+import easystock.shared.generated.resources.article_order_url
+import easystock.shared.generated.resources.article_order_url_hint
 import easystock.shared.generated.resources.article_save
 import easystock.shared.generated.resources.article_sku
 import easystock.shared.generated.resources.article_stock_hint
@@ -103,8 +106,6 @@ import easystock.shared.generated.resources.ic_nfc
 import easystock.shared.generated.resources.nfc_new_article_tag
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-
-private typealias FormChange = ((ArticleForm) -> ArticleForm) -> Unit
 
 /**
  * Full-screen article form, for create and edit (see [ArticleFormMode]).

@@ -1,13 +1,13 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.backup.BackupData
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.Category
-import ch.mathorck.easystock.data.model.Item
-import ch.mathorck.easystock.data.model.Location
-import ch.mathorck.easystock.data.model.MovementReason
-import ch.mathorck.easystock.data.model.StockMovement
-import ch.mathorck.easystock.data.model.Tracking
+import ch.mathorck.easystock.data.dto.backup.BackupData
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.article.Item
+import ch.mathorck.easystock.data.model.categories.Category
+import ch.mathorck.easystock.data.model.location.Location
+import ch.mathorck.easystock.data.model.stock.StockMovement
+import ch.mathorck.easystock.enums.article.Tracking
+import ch.mathorck.easystock.enums.stock.MovementReason
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 

@@ -32,12 +32,12 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.attributes.CategoryAttributesScreen
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.data.db.rememberAppDatabase
-import ch.mathorck.easystock.data.model.Category
-import ch.mathorck.easystock.theme.EasyStockTheme
-import ch.mathorck.easystock.viewmodels.CategoryDialogState
-import ch.mathorck.easystock.viewmodels.CategoryListUiState
-import ch.mathorck.easystock.viewmodels.CategoryListViewModel
+import ch.mathorck.easystock.data.model.categories.Category
+import ch.mathorck.easystock.viewmodels.categories.CategoryDialogState
+import ch.mathorck.easystock.viewmodels.categories.CategoryListUiState
+import ch.mathorck.easystock.viewmodels.categories.CategoryListViewModel
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.attributes_cancel
 import easystock.shared.generated.resources.attributes_categories_empty

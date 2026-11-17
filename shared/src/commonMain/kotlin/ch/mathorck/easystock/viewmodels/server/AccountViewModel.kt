@@ -2,121 +2,22 @@ package ch.mathorck.easystock.viewmodels.server
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ch.mathorck.easystock.auth.ServerSessionEvents
-import ch.mathorck.easystock.server.AccountApi
-import ch.mathorck.easystock.server.AccountRules
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.CompletePromotionRequest
-import ch.mathorck.easystock.server.ConnectError
-import ch.mathorck.easystock.server.MeAnswer
-import ch.mathorck.easystock.server.TokenAnswer
-import ch.mathorck.easystock.server.connectErrorOf
+import ch.mathorck.easystock.data.dto.server.CompletePromotionRequest
+import ch.mathorck.easystock.data.dto.server.MeAnswer
+import ch.mathorck.easystock.data.dto.server.TokenAnswer
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.enums.server.ConnectError
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.auth.ServerSessionEvents
+import ch.mathorck.easystock.services.server.AccountApi
+import ch.mathorck.easystock.services.server.AccountRules
+import ch.mathorck.easystock.services.server.connectErrorOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-/** The logout, step by step. */
-sealed interface LogoutStep {
-    /**
-     * [pending]: local changes not sent yet (they are lost). [guest]: the account is deleted.
-     * [syncFailed]: "Sync, then log out" could not send them all.
-     */
-    data class Confirm(val pending: Int, val guest: Boolean, val syncFailed: Boolean = false) : LogoutStep
-
-    /** "Sync, then log out": the changes are being sent. */
-    data class Syncing(val guest: Boolean) : LogoutStep
-
-    data object Working : LogoutStep
-
-    /** The server can't be reached: log out on this phone only (the session stays valid on the server until it expires). */
-    data object Offline : LogoutStep
-
-    /** The phone is standalone and empty again. */
-    data object Done : LogoutStep
-}
-
-/** The promotion form: a Guest the Admin promoted chooses a username and a password. */
-data class PromotionForm(
-    val username: String = "",
-    val password: String = "",
-    val invalidFields: Set<FormField> = emptySet(),
-    val busy: Boolean = false,
-) {
-    override fun toString(): String = "PromotionForm(username=$username, busy=$busy)"
-}
-
-/** The display name dialog. */
-data class NameForm(val text: String, val invalid: Boolean = false, val busy: Boolean = false)
-
-/** The change password dialog. [wrongCurrent]: the server refused the current password. */
-data class PasswordForm(
-    val current: String = "",
-    val new: String = "",
-    /** Only [FormField.PASSWORD] (the new one). */
-    val invalidFields: Set<FormField> = emptySet(),
-    val currentEmpty: Boolean = false,
-    val wrongCurrent: Boolean = false,
-    val busy: Boolean = false,
-) {
-    override fun toString(): String = "PasswordForm(busy=$busy)"
-}
-
-/** Where "Delete my account" is. */
-enum class DeletePhase {
-    /** The confirmation, with the password field of a full account. */
-    CONFIRM,
-
-    /** The local changes are sent first. */
-    SYNCING,
-
-    /** Not all changes could be sent: delete anyway (they are saved in an automatic backup) or cancel. */
-    SYNC_FAILED,
-
-    /** `DELETE /me`, then the wipe of the phone. */
-    DELETING,
-
-    /** Deleted and wiped: the screen leaves. */
-    DONE,
-}
-
-/**
- * The "Delete my account" dialog. [guest]: no password (a Guest has none). [wrongPassword]: the server refused
- * it. [pending]: in [DeletePhase.SYNC_FAILED], the changes still not sent (null when they could not be counted).
- */
-data class DeleteForm(
-    val guest: Boolean,
-    val password: String = "",
-    val passwordEmpty: Boolean = false,
-    val wrongPassword: Boolean = false,
-    val phase: DeletePhase = DeletePhase.CONFIRM,
-    val pending: Int? = null,
-) {
-    val busy: Boolean get() = phase == DeletePhase.SYNCING || phase == DeletePhase.DELETING || phase == DeletePhase.DONE
-
-    override fun toString(): String = "DeleteForm(guest=$guest, phase=$phase)"
-}
-
-data class AccountUiState(
-    /** From `GET /me`, null until it answered. */
-    val me: MeAnswer? = null,
-    /** `GET /me` failed: the screen shows what is stored on the phone. */
-    val meError: ConnectError? = null,
-    /** An alerts switch change is being sent. */
-    val alertsBusy: Boolean = false,
-    val logout: LogoutStep? = null,
-    val promotion: PromotionForm? = null,
-    val nameForm: NameForm? = null,
-    val passwordForm: PasswordForm? = null,
-    /** The password was changed: a dialog tells that the other devices must log in again. */
-    val passwordChanged: Boolean = false,
-    val deleteForm: DeleteForm? = null,
-    /** Shown once in a dialog. */
-    val error: ConnectError? = null,
-)
 
 /**
  * Settings › Server when connected: the own account, the promotion of a Guest, the logout.

@@ -1,27 +1,27 @@
 package ch.mathorck.easystock.composables
 
-import ch.mathorck.easystock.theme.EasyStockTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.enums.Page
+import easystock.shared.generated.resources.Res
+import easystock.shared.generated.resources.ic_scan
+import easystock.shared.generated.resources.ic_settings
+import easystock.shared.generated.resources.ic_stock
+import easystock.shared.generated.resources.nav_scan
+import easystock.shared.generated.resources.nav_settings
+import easystock.shared.generated.resources.nav_stock
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import easystock.shared.generated.resources.Res
-import easystock.shared.generated.resources.ic_scan
-import easystock.shared.generated.resources.ic_stock
-import easystock.shared.generated.resources.ic_settings
-import easystock.shared.generated.resources.nav_scan
-import easystock.shared.generated.resources.nav_stock
-import easystock.shared.generated.resources.nav_settings
 
 @Composable
 fun NavBarComposable(

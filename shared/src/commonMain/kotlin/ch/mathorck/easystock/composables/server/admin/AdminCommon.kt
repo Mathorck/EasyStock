@@ -24,15 +24,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import ch.mathorck.easystock.auth.Role
-import ch.mathorck.easystock.backup.QrCodeImage
-import ch.mathorck.easystock.backup.secureFullWidthDialogProperties
-import ch.mathorck.easystock.composables.settings.EmptyListHint
-import ch.mathorck.easystock.server.ApiError
+import ch.mathorck.easystock.composables.backup.QrCodeImage
+import ch.mathorck.easystock.composables.backup.secureFullWidthDialogProperties
 import ch.mathorck.easystock.composables.server.problemMessage
-import ch.mathorck.easystock.viewmodels.admin.ActionFailure
-import ch.mathorck.easystock.viewmodels.admin.Loaded
-import ch.mathorck.easystock.viewmodels.formatDateTime
+import ch.mathorck.easystock.composables.settings.EmptyListHint
+import ch.mathorck.easystock.enums.auth.Role
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.viewmodels.article.formatDateTime
+import ch.mathorck.easystock.viewmodels.server.admin.ActionFailure
+import ch.mathorck.easystock.viewmodels.server.admin.Loaded
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.admin_error_conflict
 import easystock.shared.generated.resources.admin_error_forbidden
@@ -50,10 +50,10 @@ import easystock.shared.generated.resources.admin_role_admin
 import easystock.shared.generated.resources.admin_role_editor
 import easystock.shared.generated.resources.admin_role_guest
 import easystock.shared.generated.resources.admin_role_viewer
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.Instant
 
 internal fun Role.label(): StringResource = when (this) {
     Role.ADMIN -> Res.string.admin_role_admin

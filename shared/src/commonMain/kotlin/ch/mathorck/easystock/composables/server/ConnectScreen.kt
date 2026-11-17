@@ -30,8 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,14 +49,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import ch.mathorck.easystock.backup.QrScanner
+import ch.mathorck.easystock.composables.backup.QrScanner
 import ch.mathorck.easystock.composables.settings.ResetDataDialog
 import ch.mathorck.easystock.composables.settings.SettingsSubpage
-import ch.mathorck.easystock.server.ConnectError
-import ch.mathorck.easystock.server.ServerConnection
-import ch.mathorck.easystock.server.rememberLocalNetworkAccess
-import ch.mathorck.easystock.server.ServerInfo
-import ch.mathorck.easystock.theme.EasyStockTheme
+import ch.mathorck.easystock.composables.theme.EasyStockTheme
+import ch.mathorck.easystock.data.dto.server.ServerInfo
+import ch.mathorck.easystock.enums.server.ConnectError
+import ch.mathorck.easystock.services.server.ServerConnection
+import ch.mathorck.easystock.services.server.rememberLocalNetworkAccess
 import ch.mathorck.easystock.viewmodels.server.ConnectStep
 import ch.mathorck.easystock.viewmodels.server.ConnectUiState
 import ch.mathorck.easystock.viewmodels.server.ConnectViewModel
@@ -73,13 +73,13 @@ import easystock.shared.generated.resources.local_network_allow
 import easystock.shared.generated.resources.local_network_open_settings
 import easystock.shared.generated.resources.local_network_settings_hint
 import easystock.shared.generated.resources.server_cancel
+import easystock.shared.generated.resources.server_checking
 import easystock.shared.generated.resources.server_confirm_code_message
 import easystock.shared.generated.resources.server_confirm_code_title
-import easystock.shared.generated.resources.server_connect_button
-import easystock.shared.generated.resources.server_checking
 import easystock.shared.generated.resources.server_connect_address
 import easystock.shared.generated.resources.server_connect_address_hint
 import easystock.shared.generated.resources.server_connect_address_invalid
+import easystock.shared.generated.resources.server_connect_button
 import easystock.shared.generated.resources.server_connect_intro
 import easystock.shared.generated.resources.server_connect_next
 import easystock.shared.generated.resources.server_connect_or
@@ -126,31 +126,6 @@ import easystock.shared.generated.resources.server_scan_hint
 import easystock.shared.generated.resources.server_try_http
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-
-/** The user's actions on the connect screen, so that the content can be previewed without a view model. */
-internal class ConnectActions(
-    val startScan: () -> Unit = {},
-    val scanned: (String) -> Unit = {},
-    val scanCancelled: () -> Unit = {},
-    val addressChanged: (String) -> Unit = {},
-    val submitAddress: () -> Unit = {},
-    val cancel: () -> Unit = {},
-    val tryHttp: () -> Unit = {},
-    val acceptHttp: () -> Unit = {},
-    val confirmCode: () -> Unit = {},
-    val askErase: () -> Unit = {},
-    val cancelErase: () -> Unit = {},
-    val confirmErase: () -> Unit = {},
-    val chooseLogin: () -> Unit = {},
-    val chooseGuest: () -> Unit = {},
-    val usernameChanged: (String) -> Unit = {},
-    val displayNameChanged: (String) -> Unit = {},
-    val passwordChanged: (String) -> Unit = {},
-    val submitForm: () -> Unit = {},
-    val dismissError: () -> Unit = {},
-    /** After [ConnectError.LOCAL_NETWORK_DENIED]: asks again, or opens the app settings when Android won't ask any more. */
-    val allowLocalNetwork: () -> Unit = {},
-)
 
 /**
  * Settings › Server on a standalone phone. Nothing is sent before the user scans a code or submits an

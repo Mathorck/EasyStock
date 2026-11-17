@@ -1,7 +1,7 @@
 package ch.mathorck.easystock.composables.server
 
-import ch.mathorck.easystock.server.ProblemTypes
-import ch.mathorck.easystock.sync.RejectReasons
+import ch.mathorck.easystock.services.server.ProblemTypes
+import ch.mathorck.easystock.services.sync.RejectReasons
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.admin_error_backup_too_large
 import easystock.shared.generated.resources.admin_error_forbidden

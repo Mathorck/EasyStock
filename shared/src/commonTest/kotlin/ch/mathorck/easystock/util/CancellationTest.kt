@@ -1,10 +1,10 @@
 package ch.mathorck.easystock.util
 
-import kotlinx.coroutines.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 
 class CancellationTest {
     @Test

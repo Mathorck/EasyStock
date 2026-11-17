@@ -1,12 +1,12 @@
 package ch.mathorck.easystock.e2e
 
-import ch.mathorck.easystock.auth.Role
-import ch.mathorck.easystock.backup.BackupArchive
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.ServerImportMode
-import ch.mathorck.easystock.sync.SyncError
-import ch.mathorck.easystock.sync.SyncResult
+import ch.mathorck.easystock.enums.auth.Role
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.enums.server.ServerImportMode
+import ch.mathorck.easystock.enums.sync.SyncError
+import ch.mathorck.easystock.enums.sync.SyncResult
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.backup.BackupArchive
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.toByteArray
 import java.io.File
@@ -46,7 +46,7 @@ class AdminE2eTest {
             assertEquals(SyncError.SESSION_REVOKED, phone.engine.status.value.error)
             assertNull(victim.store.refreshToken(), "tokens forgotten")
             val error = victim.client().use { client ->
-                assertFailsWith<ApiException> { ch.mathorck.easystock.server.KtorAccountApi(client).me() }
+                assertFailsWith<ApiException> { ch.mathorck.easystock.services.server.KtorAccountApi(client).me() }
             }
             assertEquals(ApiError.SESSION_REVOKED, error.error)
         }

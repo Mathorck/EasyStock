@@ -7,11 +7,17 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
-import org.junit.Before
-import org.junit.Test
+import ch.mathorck.easystock.composables.sync.BACKGROUND_SYNC_WORK
+import ch.mathorck.easystock.composables.sync.PUSH_SYNC_WORK
+import ch.mathorck.easystock.composables.sync.backgroundSyncRequest
+import ch.mathorck.easystock.composables.sync.enqueuePushSync
+import ch.mathorck.easystock.composables.sync.pushSyncRequest
+import ch.mathorck.easystock.services.sync.WorkManagerBackgroundSync
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.Before
+import org.junit.Test
 
 /** The background job: its request and the schedule/cancel calls. The worker itself runs the engine of the process on the app database: not run here. */
 class BackgroundSyncWorkerTest {

@@ -1,21 +1,9 @@
 package ch.mathorck.easystock.viewmodels.server
 
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.LocalFile
-import ch.mathorck.easystock.server.MyDataApi
-import ch.mathorck.easystock.server.ServerFileStore
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.readRemaining
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import kotlinx.io.IOException
-import kotlinx.io.readByteArray
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.server.FakeMyDataApi
+import ch.mathorck.easystock.services.server.RecordingFileStore
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -24,43 +12,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
-
-private class FakeMyDataApi : MyDataApi {
-    var body = """{"formatVersion":1}"""
-    var error: Exception? = null
-    var calls = 0
-    var gate: CompletableDeferred<Unit>? = null
-
-    override suspend fun downloadMyData(write: suspend (ByteReadChannel) -> Unit) {
-        calls++
-        gate?.await()
-        error?.let { throw it }
-        write(ByteReadChannel(body))
-    }
-}
-
-private class RecordingFileStore : ServerFileStore {
-    data class Received(val name: String, val mimeType: String, val content: String)
-
-    val received = mutableListOf<Received>()
-    var clears = 0
-    var receiveError: Exception? = null
-
-    override suspend fun receive(name: String, mimeType: String, channel: ByteReadChannel): LocalFile {
-        receiveError?.let { throw it }
-        val content = channel.readRemaining().readByteArray().decodeToString()
-        received += Received(name, mimeType, content)
-        return LocalFile("/cache/server/share/$name", name, content.length.toLong(), mimeType)
-    }
-
-    override fun read(file: LocalFile) = ByteReadChannel(byteArrayOf())
-
-    override suspend fun invitePdf(name: String, qrText: String, serverName: String, line: String) = error("unused")
-
-    override suspend fun clear() {
-        clears++
-    }
-}
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MyDataViewModelTest {

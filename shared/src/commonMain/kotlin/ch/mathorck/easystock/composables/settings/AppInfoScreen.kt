@@ -15,8 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -25,24 +25,23 @@ import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import ch.mathorck.easystock.appinfo.AppInfo
-import ch.mathorck.easystock.appinfo.ISSUES_URL
-import ch.mathorck.easystock.appinfo.LICENSE_URL
-import ch.mathorck.easystock.appinfo.REPO_URL
-import ch.mathorck.easystock.appinfo.formatBytes
-import ch.mathorck.easystock.appinfo.rememberAppInfoPlatform
-import ch.mathorck.easystock.appinfo.toReportText
-import ch.mathorck.easystock.backup.BACKUP_FORMAT_VERSION
-import ch.mathorck.easystock.currentAppLanguage
 import ch.mathorck.easystock.data.db.DB_VERSION
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.enums.AppLanguage
-import ch.mathorck.easystock.nfc.NfcAvailability
-import ch.mathorck.easystock.reset.rememberDataReset
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-import ch.mathorck.easystock.appinfo.DataCounts
-import ch.mathorck.easystock.viewmodels.formatDateTime
+import ch.mathorck.easystock.enums.nfc.NfcAvailability
+import ch.mathorck.easystock.enums.settings.AppInfoSection
+import ch.mathorck.easystock.services.appinfo.AppInfo
+import ch.mathorck.easystock.services.appinfo.DataCounts
+import ch.mathorck.easystock.services.appinfo.ISSUES_URL
+import ch.mathorck.easystock.services.appinfo.LICENSE_URL
+import ch.mathorck.easystock.services.appinfo.REPO_URL
+import ch.mathorck.easystock.services.appinfo.formatBytes
+import ch.mathorck.easystock.services.appinfo.rememberAppInfoPlatform
+import ch.mathorck.easystock.services.appinfo.toReportText
+import ch.mathorck.easystock.services.backup.BACKUP_FORMAT_VERSION
+import ch.mathorck.easystock.services.reset.rememberDataReset
+import ch.mathorck.easystock.util.currentAppLanguage
+import ch.mathorck.easystock.viewmodels.article.formatDateTime
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.app_info_app_language
 import easystock.shared.generated.resources.app_info_application_id
@@ -74,13 +73,16 @@ import easystock.shared.generated.resources.app_info_os
 import easystock.shared.generated.resources.app_info_photos
 import easystock.shared.generated.resources.app_info_photos_value
 import easystock.shared.generated.resources.app_info_privacy
+import easystock.shared.generated.resources.app_info_repository
 import easystock.shared.generated.resources.app_info_reset
 import easystock.shared.generated.resources.app_info_reset_summary
-import easystock.shared.generated.resources.app_info_repository
 import easystock.shared.generated.resources.app_info_section_app
 import easystock.shared.generated.resources.app_info_section_data
 import easystock.shared.generated.resources.app_info_section_device
 import easystock.shared.generated.resources.app_info_section_support
+import easystock.shared.generated.resources.app_info_summary_app
+import easystock.shared.generated.resources.app_info_summary_data
+import easystock.shared.generated.resources.app_info_summary_device
 import easystock.shared.generated.resources.app_info_system_locale
 import easystock.shared.generated.resources.app_info_tags
 import easystock.shared.generated.resources.app_info_updated
@@ -95,14 +97,13 @@ import easystock.shared.generated.resources.ic_folder_open
 import easystock.shared.generated.resources.ic_info
 import easystock.shared.generated.resources.ic_link
 import easystock.shared.generated.resources.ic_settings
-import easystock.shared.generated.resources.app_info_summary_app
-import easystock.shared.generated.resources.app_info_summary_data
-import easystock.shared.generated.resources.app_info_summary_device
 import easystock.shared.generated.resources.settings_app_info
 import easystock.shared.generated.resources.settings_language_english
 import easystock.shared.generated.resources.settings_language_french
 import easystock.shared.generated.resources.settings_language_german
 import easystock.shared.generated.resources.settings_language_system
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
@@ -299,12 +300,6 @@ fun AppInfoScreen(
             },
         )
     }
-}
-
-private enum class AppInfoSection(val title: StringResource, val icon: DrawableResource) {
-    App(Res.string.app_info_section_app, Res.drawable.ic_info),
-    Data(Res.string.app_info_section_data, Res.drawable.ic_folder_open),
-    Device(Res.string.app_info_section_device, Res.drawable.ic_settings),
 }
 
 @Composable

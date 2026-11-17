@@ -48,13 +48,6 @@ val MIGRATION_10_11: Migration = object : Migration(10, 11) {
 /** Manual migrations, added to every database builder (app and tests). */
 val MANUAL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_8_9, MIGRATION_10_11)
 
-/** Creates the outbox triggers on a fresh install, and on every open (a no-op when they exist). */
-object OutboxTriggersCallback : RoomDatabase.Callback() {
-    override fun onCreate(connection: SQLiteConnection) = OutboxTriggers.create(connection)
-
-    override fun onOpen(connection: SQLiteConnection) = OutboxTriggers.create(connection)
-}
-
 /** Migrations and callbacks every [AppDatabase] needs, whatever the driver or file. */
 fun RoomDatabase.Builder<AppDatabase>.withAppSchema(): RoomDatabase.Builder<AppDatabase> =
     addMigrations(*MANUAL_MIGRATIONS).addCallback(OutboxTriggersCallback)

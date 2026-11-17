@@ -2,12 +2,14 @@ package ch.mathorck.easystock.viewmodels.server
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ch.mathorck.easystock.server.ApiError
-import ch.mathorck.easystock.server.ApiException
-import ch.mathorck.easystock.server.LocalFile
-import ch.mathorck.easystock.server.MyDataApi
-import ch.mathorck.easystock.server.ProblemTypes
-import ch.mathorck.easystock.server.ServerFileStore
+import ch.mathorck.easystock.enums.server.ApiError
+import ch.mathorck.easystock.exceptions.server.ApiException
+import ch.mathorck.easystock.services.server.LocalFile
+import ch.mathorck.easystock.services.server.MyDataApi
+import ch.mathorck.easystock.services.server.ProblemTypes
+import ch.mathorck.easystock.services.server.ServerFileStore
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,37 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.Instant
-
-/** Why "Download my data" failed. */
-enum class MyDataError {
-    NETWORK,
-
-    /** 429: 5 exports per hour. */
-    RATE_LIMITED,
-
-    /** 401: the session ended (the revoke handler wipes the phone). */
-    SESSION_REVOKED,
-
-    /** The server needs a newer app. */
-    APP_TOO_OLD,
-    SERVER,
-
-    /** The file could not be written, saved or shared on this phone. */
-    FILE,
-}
-
-data class MyDataState(
-    /** The summary of what the export holds, shown before the download. */
-    val summary: Boolean = false,
-    val downloading: Boolean = false,
-    /** The downloaded export, to save or share. */
-    val downloaded: LocalFile? = null,
-    val error: MyDataError? = null,
-    /** The file was saved where the user chose. */
-    val saved: Boolean = false,
-)
 
 /**
  * "Download my data" (right of access): `GET /me/data` streamed to a file in the server cache folder

@@ -4,28 +4,45 @@ import androidx.room.AutoMigration
 import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import ch.mathorck.easystock.data.model.Article
-import ch.mathorck.easystock.data.model.ArticleFlag
-import ch.mathorck.easystock.data.model.DateAlertNotice
-import ch.mathorck.easystock.data.model.AttributeDefinition
-import ch.mathorck.easystock.data.model.Category
-import ch.mathorck.easystock.data.model.CategoryAttribute
-import ch.mathorck.easystock.data.model.Item
-import ch.mathorck.easystock.data.model.Location
-import ch.mathorck.easystock.data.model.StockMovement
-import ch.mathorck.easystock.data.model.StockReview
-import ch.mathorck.easystock.data.model.StockReviewLine
-import ch.mathorck.easystock.data.model.SyncState
-import ch.mathorck.easystock.data.model.OutboxEntry
-import ch.mathorck.easystock.data.model.ServerUser
-import ch.mathorck.easystock.data.model.LowStockAlert
-import ch.mathorck.easystock.data.model.RejectedChange
-import ch.mathorck.easystock.data.model.ImageHash
-import ch.mathorck.easystock.data.model.PendingPush
-import ch.mathorck.easystock.data.model.ServerSeq
+import ch.mathorck.easystock.data.dao.alerts.AlertDao
+import ch.mathorck.easystock.data.dao.alerts.DateAlertDao
+import ch.mathorck.easystock.data.dao.alerts.DateAlertNoticeDao
+import ch.mathorck.easystock.data.dao.appinfo.AppInfoDao
+import ch.mathorck.easystock.data.dao.article.ArticleDao
+import ch.mathorck.easystock.data.dao.article.ArticleDetailDao
+import ch.mathorck.easystock.data.dao.article.ArticleFlagDao
+import ch.mathorck.easystock.data.dao.article.ArticleFormDao
+import ch.mathorck.easystock.data.dao.attributes.AttributeDao
+import ch.mathorck.easystock.data.dao.backup.BackupDao
+import ch.mathorck.easystock.data.dao.categories.CategoryDao
+import ch.mathorck.easystock.data.dao.location.LocationDao
+import ch.mathorck.easystock.data.dao.review.ReviewDao
+import ch.mathorck.easystock.data.dao.stock.StockActionDao
+import ch.mathorck.easystock.data.dao.stock.StockDao
+import ch.mathorck.easystock.data.dao.sync.SessionDao
+import ch.mathorck.easystock.data.dao.sync.SyncDao
+import ch.mathorck.easystock.data.dao.tags.TagDao
+import ch.mathorck.easystock.data.model.alerts.DateAlertNotice
+import ch.mathorck.easystock.data.model.alerts.LowStockAlert
+import ch.mathorck.easystock.data.model.article.Article
+import ch.mathorck.easystock.data.model.article.ArticleFlag
+import ch.mathorck.easystock.data.model.article.ImageHash
+import ch.mathorck.easystock.data.model.article.Item
+import ch.mathorck.easystock.data.model.attributes.AttributeDefinition
+import ch.mathorck.easystock.data.model.attributes.CategoryAttribute
+import ch.mathorck.easystock.data.model.categories.Category
+import ch.mathorck.easystock.data.model.location.Location
+import ch.mathorck.easystock.data.model.review.StockReview
+import ch.mathorck.easystock.data.model.review.StockReviewLine
+import ch.mathorck.easystock.data.model.server.ServerUser
+import ch.mathorck.easystock.data.model.stock.StockMovement
+import ch.mathorck.easystock.data.model.sync.OutboxEntry
+import ch.mathorck.easystock.data.model.sync.PendingPush
+import ch.mathorck.easystock.data.model.sync.RejectedChange
+import ch.mathorck.easystock.data.model.sync.ServerSeq
+import ch.mathorck.easystock.data.model.sync.SyncState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
@@ -121,12 +138,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun dateAlertNoticeDao(): DateAlertNoticeDao
 
     abstract fun dateAlertDao(): DateAlertDao
-}
-
-// Implemented by the Room compiler on each platform
-@Suppress("KotlinNoActualForExpect")
-expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
-    override fun initialize(): AppDatabase
 }
 
 /** Builds the database from a platform builder (see androidMain / iosMain). */
