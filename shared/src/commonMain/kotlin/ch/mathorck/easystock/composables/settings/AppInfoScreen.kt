@@ -86,6 +86,7 @@ import easystock.shared.generated.resources.app_info_tags
 import easystock.shared.generated.resources.app_info_updated
 import easystock.shared.generated.resources.app_info_version
 import easystock.shared.generated.resources.app_info_version_value
+import easystock.shared.generated.resources.ic_bug_report
 import easystock.shared.generated.resources.ic_chevron_right
 import easystock.shared.generated.resources.ic_content_copy
 import easystock.shared.generated.resources.ic_delete
@@ -93,7 +94,6 @@ import easystock.shared.generated.resources.ic_description
 import easystock.shared.generated.resources.ic_folder_open
 import easystock.shared.generated.resources.ic_info
 import easystock.shared.generated.resources.ic_link
-import easystock.shared.generated.resources.ic_open_in_new
 import easystock.shared.generated.resources.ic_settings
 import easystock.shared.generated.resources.app_info_summary_app
 import easystock.shared.generated.resources.app_info_summary_data
@@ -220,7 +220,7 @@ fun AppInfoScreen(
                     )
                     Note(if (copied) stringResource(Res.string.app_info_copied) else stringResource(Res.string.app_info_privacy))
                     ActionRow(stringResource(Res.string.app_info_repository), Res.drawable.ic_link) { uriHandler.openUri(REPO_URL) }
-                    ActionRow(stringResource(Res.string.app_info_issues), Res.drawable.ic_open_in_new) { uriHandler.openUri(ISSUES_URL) }
+                    ActionRow(stringResource(Res.string.app_info_issues), Res.drawable.ic_bug_report) { uriHandler.openUri(ISSUES_URL) }
                     ActionRow(stringResource(Res.string.app_info_license), Res.drawable.ic_description) { uriHandler.openUri(LICENSE_URL) }
                 }
                 AppInfoSection.App -> {
