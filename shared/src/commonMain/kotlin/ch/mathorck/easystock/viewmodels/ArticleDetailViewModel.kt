@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ch.mathorck.easystock.composables.attributes.AttributeCatalog
 import ch.mathorck.easystock.composables.attributes.AttributeRow
+import ch.mathorck.easystock.auth.AppPermissions
 import ch.mathorck.easystock.data.db.ArticleDetailDao
+import ch.mathorck.easystock.data.db.ArticleFlagDao
+import ch.mathorck.easystock.data.db.ArticleFlagWithAuthor
 import ch.mathorck.easystock.data.db.ArticleNotFoundException
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
@@ -142,6 +145,16 @@ sealed interface HistoryRow {
     data class InfoFixed(val flag: InfoFlagRow, val at: String) : HistoryRow {
         override val key: String get() = "fixed-${flag.lineId}"
     }
+
+    /** Manual flag ("Report a problem"), dated when it was raised. */
+    data class ProblemReported(val flag: ManualFlagRow, val at: String) : HistoryRow {
+        override val key: String get() = "problem-reported-${flag.id}"
+    }
+
+    /** Manual flag resolved. */
+    data class ProblemFixed(val flag: ManualFlagRow, val at: String) : HistoryRow {
+        override val key: String get() = "problem-fixed-${flag.id}"
+    }
 }
 
 /** Open flags (not fixed yet), in the given order (the query sorts the newest review first). */
@@ -162,6 +175,7 @@ private fun InfoFlag.toRow(paths: Map<String, String>, timeZone: TimeZone) = Inf
 /**
  * Movements and flag events merged, newest first. A flag gives a "flagged" entry at the review finish time and,
  * once fixed, a "fixed" entry. At the same time a movement comes before a flag event (the order is stable).
+ * Manual flags ([manualFlags], resolved ones included) give a "reported" entry and, once resolved, a "fixed" one.
  * [moreMovements]: [movements] are only the newest ones (see [HISTORY_PAGE_SIZE]); flag events older than the
  * oldest movement shown are left out until more movements are loaded, so the history has no gap.
  */
@@ -171,7 +185,8 @@ fun historyRows(
     locations: List<Location>,
     timeZone: TimeZone,
     moreMovements: Boolean = false,
-): List<HistoryRow> = historyRows(movements, flags, LocationPaths(locations), timeZone, moreMovements)
+    manualFlags: List<ArticleFlagWithAuthor> = emptyList(),
+): List<HistoryRow> = historyRows(movements, flags, LocationPaths(locations), timeZone, moreMovements, manualFlags)
 
 fun historyRows(
     movements: List<MovementWithLocation>,
@@ -179,6 +194,7 @@ fun historyRows(
     locations: LocationPaths,
     timeZone: TimeZone,
     moreMovements: Boolean = false,
+    manualFlags: List<ArticleFlagWithAuthor> = emptyList(),
 ): List<HistoryRow> {
     val paths = locations.paths
     val cutoff = if (moreMovements) movements.lastOrNull()?.movement?.occurredAt else null
@@ -192,7 +208,15 @@ fun historyRows(
             flag.flaggedAt to HistoryRow.InfoFlagged(row, row.flaggedAt),
         )
     }
-    val shownFlags = if (cutoff == null) flagEntries else flagEntries.filter { it.first >= cutoff }
+    val manualEntries = manualFlags.flatMap { raw ->
+        val row = raw.toRow(timeZone)
+        listOfNotNull(
+            raw.flag.resolvedAt?.let { it to HistoryRow.ProblemFixed(row, formatDateTime(it, timeZone)) },
+            raw.flag.createdAt to HistoryRow.ProblemReported(row, row.createdAt),
+        )
+    }
+    val allFlags = flagEntries + manualEntries
+    val shownFlags = if (cutoff == null) allFlags else allFlags.filter { it.first >= cutoff }
     return (movementEntries + shownFlags).sortedByDescending { it.first }.map { it.second }
 }
 
@@ -229,6 +253,8 @@ data class ArticleDetailUiState(
     val hasMoreHistory: Boolean = false,
     /** Open "info to fix" flags from finished reviews. */
     val infoFlags: List<InfoFlagRow> = emptyList(),
+    /** Open manual flags ("Report a problem"). */
+    val problems: List<ManualFlagRow> = emptyList(),
     /** Attribute values of the article, empty ones skipped, in the category order. */
     val properties: List<AttributeRow> = emptyList(),
 ) {
@@ -261,7 +287,10 @@ class ArticleDetailViewModel(
     private val dao: ArticleDetailDao,
     categoryDao: CategoryDao,
     attributeDao: AttributeDao,
+    flagDao: ArticleFlagDao,
     private val images: ArticleImageStore,
+    /** Current permissions, read at each write: the flag writes are refused when the role cannot do them. */
+    permissions: () -> AppPermissions,
     private val clock: Clock = Clock.System,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
     private val newId: () -> String = { Uuid.random().toString() },
@@ -277,20 +306,21 @@ class ArticleDetailViewModel(
     val state: StateFlow<ArticleDetailUiState> = combine(
         dao.observeArticle(articleId),
         dao.observeStockByLocation(articleId),
-        combine(movements, dao.observeInfoFlags(articleId), ::Pair),
+        combine(movements, dao.observeInfoFlags(articleId), flagDao.observeForArticle(articleId), ::Triple),
         // Paths built once per location change, shared by all the rows
         dao.observeAllLocations().map(::LocationPaths),
         combine(attributeDao.observeDefinitions(), attributeDao.observeActiveLinks(), ::AttributeCatalog),
-    ) { article, stock, (page, flags), locations, catalog ->
+    ) { article, stock, (page, flags, problems), locations, catalog ->
         ArticleDetailUiState(
             loading = false,
             article = article?.article,
             categoryName = article?.categoryName,
             totalMilli = stock.sumOf { it.stockMilli },
             locations = locationStockRows(stock, locations),
-            history = historyRows(page.movements, flags, locations, timeZone, page.hasMore),
+            history = historyRows(page.movements, flags, locations, timeZone, page.hasMore, problems),
             hasMoreHistory = page.hasMore,
             infoFlags = openInfoFlagRows(flags, locations, timeZone),
+            problems = manualFlagRows(problems, timeZone),
             properties = article?.article?.let { catalog.rows(it.categoryId, it.attributes) }.orEmpty(),
         )
     }.flowOn(computeDispatcher)
@@ -393,6 +423,34 @@ class ArticleDetailViewModel(
         viewModelScope.launch {
             try {
                 dao.markInfoFixed(lineId, clock.now().toEpochMilliseconds())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The write failed: the flag stays open and can be marked again
+            }
+        }
+    }
+
+    private val flagActions = ArticleFlagActions(flagDao.asStore(), permissions, clock, newId)
+
+    /** Raises a manual flag on the article. Refused (nothing written) when the role cannot flag or the note is invalid. */
+    fun reportProblem(note: String) {
+        viewModelScope.launch {
+            try {
+                flagActions.report(articleId, note)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The write failed: nothing was added, the user can report again
+            }
+        }
+    }
+
+    /** Resolves a manual flag. Refused (nothing written) when the role cannot edit, so a Viewer never queues it. */
+    fun markProblemFixed(flagId: String) {
+        viewModelScope.launch {
+            try {
+                flagActions.resolve(flagId)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

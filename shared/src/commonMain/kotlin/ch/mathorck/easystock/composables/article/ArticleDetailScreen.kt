@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -33,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,6 +66,7 @@ import ch.mathorck.easystock.viewmodels.TagLinkViewModel
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import ch.mathorck.easystock.composables.pages.LowStockBadge
+import ch.mathorck.easystock.data.db.MAX_FLAG_NOTE_LENGTH
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.data.db.UnitAction
 import ch.mathorck.easystock.data.model.Article
@@ -77,6 +80,11 @@ import ch.mathorck.easystock.util.orderUrlHost
 import ch.mathorck.easystock.viewmodels.ArticleDetailUiState
 import ch.mathorck.easystock.viewmodels.ArticleDetailViewModel
 import ch.mathorck.easystock.viewmodels.HistoryRow
+import ch.mathorck.easystock.viewmodels.FlagCard
+import ch.mathorck.easystock.viewmodels.FlagNoteError
+import ch.mathorck.easystock.viewmodels.ManualFlagRow
+import ch.mathorck.easystock.viewmodels.flagCards
+import ch.mathorck.easystock.viewmodels.flagNoteError
 import ch.mathorck.easystock.viewmodels.InfoFlagRow
 import ch.mathorck.easystock.viewmodels.LocationStockRow
 import ch.mathorck.easystock.viewmodels.MovementRow
@@ -96,6 +104,15 @@ import easystock.shared.generated.resources.article_history_info_flagged
 import easystock.shared.generated.resources.article_history_info_flagged_note
 import easystock.shared.generated.resources.article_info_fixed_action
 import easystock.shared.generated.resources.article_info_fixed_cancel
+import easystock.shared.generated.resources.article_report_problem
+import easystock.shared.generated.resources.article_problem_title
+import easystock.shared.generated.resources.article_problem_source
+import easystock.shared.generated.resources.article_problem_source_author
+import easystock.shared.generated.resources.article_problem_note_label
+import easystock.shared.generated.resources.article_problem_note_too_long
+import easystock.shared.generated.resources.article_problem_report_confirm
+import easystock.shared.generated.resources.article_history_problem_reported
+import easystock.shared.generated.resources.article_history_problem_fixed
 import easystock.shared.generated.resources.article_info_fixed_confirm
 import easystock.shared.generated.resources.article_info_fixed_confirm_text
 import easystock.shared.generated.resources.article_info_fixed_confirm_title
@@ -144,8 +161,10 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
     val db = rememberAppDatabase()
     val images = rememberArticleImageStore()
     // Keyed: the ViewModel store is shared, each article needs its own instance
+    // Read at each flag write by the ViewModel, which outlives a role change
+    val permissions by rememberUpdatedState(LocalPermissions.current)
     val viewModel = viewModel(key = "article-detail-$articleId") {
-        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), db.attributeDao(), images)
+        ArticleDetailViewModel(articleId, db.articleDetailDao(), db.categoryDao(), db.attributeDao(), db.articleFlagDao(), images, permissions = { permissions })
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editState by viewModel.editState.collectAsStateWithLifecycle()
@@ -176,6 +195,8 @@ fun ArticleDetailScreen(articleId: String, onBack: () -> Unit, modifier: Modifie
         onLinkTag = tagLink::start,
         onRemoveTag = tagLink::removeTag,
         onMarkInfoFixed = viewModel::markInfoFixed,
+        onReportProblem = viewModel::reportProblem,
+        onMarkProblemFixed = viewModel::markProblemFixed,
         onShowMoreHistory = viewModel::showMoreHistory,
         modifier = modifier,
         gates = gates,
@@ -232,6 +253,8 @@ fun ArticleDetailContent(
     onLinkTag: () -> Unit = {},
     onRemoveTag: () -> Unit = {},
     onMarkInfoFixed: (lineId: String) -> Unit = {},
+    onReportProblem: (note: String) -> Unit = {},
+    onMarkProblemFixed: (flagId: String) -> Unit = {},
     onShowMoreHistory: () -> Unit = {},
     /** What the role can see and do, everything in standalone mode. */
     gates: ArticleDetailGates = ArticleDetailGates.of(AppPermissions.Standalone),
@@ -239,6 +262,9 @@ fun ArticleDetailContent(
     val article = state.article
     // Line id of the flag waiting for the "mark as fixed" confirmation
     var confirmFixed by remember { mutableStateOf<String?>(null) }
+    // Id of the manual flag waiting for the "mark as fixed" confirmation
+    var confirmProblemFixed by remember { mutableStateOf<String?>(null) }
+    var reporting by remember { mutableStateOf(false) }
     Column(modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text(article?.name.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -248,6 +274,11 @@ fun ArticleDetailContent(
                 }
             },
             actions = {
+                if (article != null && gates.reportProblem) {
+                    IconButton(onClick = { reporting = true }) {
+                        Icon(painterResource(Res.drawable.ic_flag), contentDescription = stringResource(Res.string.article_report_problem))
+                    }
+                }
                 if (article != null && gates.edit) {
                     IconButton(onClick = onEdit) {
                         Icon(painterResource(Res.drawable.ic_edit), contentDescription = stringResource(Res.string.article_edit))
@@ -273,9 +304,11 @@ fun ArticleDetailContent(
                 item(key = "image") { ReadOnlyImage(article.imagePath) }
             }
             item(key = "header") { Header(article, state.categoryName) }
-            if (gates.infoFlags) {
-                items(state.infoFlags, key = { "info-flag-${it.lineId}" }) { flag ->
-                    InfoFlagCard(flag, onFixed = if (gates.markInfoFixed) ({ confirmFixed = flag.lineId }) else null)
+            // Review flags and manual flags, each source behind its own gate
+            items(flagCards(state.infoFlags, state.problems, gates), key = { it.key }) { card ->
+                when (card) {
+                    is FlagCard.Review -> InfoFlagCard(card.row, onFixed = if (gates.markInfoFixed) ({ confirmFixed = card.row.lineId }) else null)
+                    is FlagCard.Manual -> ProblemCard(card.row, onFixed = if (gates.markProblemFixed) ({ confirmProblemFixed = card.row.id }) else null)
                 }
             }
             if (state.properties.isNotEmpty()) {
@@ -358,6 +391,8 @@ fun ArticleDetailContent(
                             is HistoryRow.Movement -> MovementItem(row.movement, article.unit)
                             is HistoryRow.InfoFlagged -> InfoHistoryItem(row.at, row.flag, fixed = false)
                             is HistoryRow.InfoFixed -> InfoHistoryItem(row.at, row.flag, fixed = true)
+                            is HistoryRow.ProblemReported -> ProblemHistoryItem(row.at, row.flag, fixed = false)
+                            is HistoryRow.ProblemFixed -> ProblemHistoryItem(row.at, row.flag, fixed = true)
                         }
                         HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     }
@@ -371,6 +406,33 @@ fun ArticleDetailContent(
                 }
             }
         }
+    }
+
+    if (reporting && gates.reportProblem) {
+        ReportProblemDialog(
+            onDismiss = { reporting = false },
+            onReport = { note ->
+                reporting = false
+                onReportProblem(note)
+            },
+        )
+    }
+
+    confirmProblemFixed?.takeIf { gates.markProblemFixed }?.let { flagId ->
+        AlertDialog(
+            onDismissRequest = { confirmProblemFixed = null },
+            title = { Text(stringResource(Res.string.article_info_fixed_confirm_title)) },
+            text = { Text(stringResource(Res.string.article_info_fixed_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmProblemFixed = null
+                    onMarkProblemFixed(flagId)
+                }) { Text(stringResource(Res.string.article_info_fixed_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmProblemFixed = null }) { Text(stringResource(Res.string.article_info_fixed_cancel)) }
+            },
+        )
     }
 
     confirmFixed?.let { lineId ->
@@ -443,6 +505,92 @@ private fun InfoFlagCard(flag: InfoFlagRow, onFixed: (() -> Unit)?) {
             if (onFixed != null) TextButton(onClick = onFixed) { Text(stringResource(Res.string.article_info_fixed_action)) }
         }
     }
+}
+
+/**
+ * An open manual flag: the note, when it was reported and by whom (no author in standalone mode),
+ * and a "fixed" button (none when [onFixed] is null: the role cannot edit).
+ */
+@Composable
+private fun ProblemCard(flag: ManualFlagRow, onFixed: (() -> Unit)?) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp)) {
+            Icon(painterResource(Res.drawable.ic_flag), contentDescription = null)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(Res.string.article_problem_title), style = MaterialTheme.typography.labelLarge)
+                Text(flag.note, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    flag.author?.let { stringResource(Res.string.article_problem_source_author, flag.createdAt, it) }
+                        ?: stringResource(Res.string.article_problem_source, flag.createdAt),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (onFixed != null) TextButton(onClick = onFixed) { Text(stringResource(Res.string.article_info_fixed_action)) }
+        }
+    }
+}
+
+/** Asks for the note of a new manual flag: required, 1 to [MAX_FLAG_NOTE_LENGTH] characters once trimmed. */
+@Composable
+private fun ReportProblemDialog(onDismiss: () -> Unit, onReport: (String) -> Unit) {
+    var note by remember { mutableStateOf("") }
+    val error = flagNoteError(note)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.article_report_problem)) },
+        text = {
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it },
+                label = { Text(stringResource(Res.string.article_problem_note_label)) },
+                isError = error == FlagNoteError.TOO_LONG,
+                supportingText = {
+                    Text(
+                        if (error == FlagNoteError.TOO_LONG) {
+                            stringResource(Res.string.article_problem_note_too_long, MAX_FLAG_NOTE_LENGTH)
+                        } else {
+                            "${note.trim().length} / $MAX_FLAG_NOTE_LENGTH"
+                        },
+                    )
+                },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onReport(note) }, enabled = error == null) {
+                Text(stringResource(Res.string.article_problem_report_confirm))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.article_info_fixed_cancel)) } },
+    )
+}
+
+/** History entry of a manual flag: reported (with its note and author) or fixed. */
+@Composable
+private fun ProblemHistoryItem(at: String, flag: ManualFlagRow, fixed: Boolean) {
+    ListItem(
+        overlineContent = { Text(at) },
+        headlineContent = {
+            Text(stringResource(if (fixed) Res.string.article_history_problem_fixed else Res.string.article_history_problem_reported))
+        },
+        supportingContent = {
+            Column {
+                Text(flag.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                flag.author?.let { Text(stringResource(Res.string.article_history_author, it)) }
+            }
+        },
+        leadingContent = {
+            Icon(painterResource(Res.drawable.ic_flag), contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
 }
 
 /** History entry of an "info to fix" flag: raised (with its note) or fixed. */

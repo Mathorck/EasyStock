@@ -34,7 +34,7 @@ class AppPermissionsTest {
     @Test
     fun standaloneShowsEverything() {
         val p = AppPermissions.Standalone
-        assertEquals(ArticleDetailGates(edit = true, stockActions = true, linkTag = true, history = true, infoFlags = true, markInfoFixed = true), ArticleDetailGates.of(p))
+        assertEquals(ArticleDetailGates(edit = true, stockActions = true, linkTag = true, history = true, infoFlags = true, markInfoFixed = true, reportProblem = true, problems = true, markProblemFixed = true), ArticleDetailGates.of(p))
         assertEquals(UnknownTagGates(link = true, create = true), UnknownTagGates.of(p))
         assertEquals(ReviewGates(view = true, run = true), ReviewGates.of(p))
         assertEquals(StockListGates(createArticle = true, stockActions = true), StockListGates.of(p))
@@ -44,14 +44,14 @@ class AppPermissionsTest {
 
     @Test
     fun articleDetailPerRole() {
-        val all = ArticleDetailGates(edit = true, stockActions = true, linkTag = true, history = true, infoFlags = true, markInfoFixed = true)
+        val all = ArticleDetailGates(edit = true, stockActions = true, linkTag = true, history = true, infoFlags = true, markInfoFixed = true, reportProblem = true, problems = true, markProblemFixed = true)
         assertEquals(all, ArticleDetailGates.of(admin))
         assertEquals(all, ArticleDetailGates.of(editor))
         assertEquals(
-            ArticleDetailGates(edit = false, stockActions = false, linkTag = false, history = true, infoFlags = true, markInfoFixed = false),
+            ArticleDetailGates(edit = false, stockActions = false, linkTag = false, history = true, infoFlags = true, markInfoFixed = false, reportProblem = true, problems = true, markProblemFixed = false),
             ArticleDetailGates.of(viewer),
         )
-        val none = ArticleDetailGates(edit = false, stockActions = false, linkTag = false, history = false, infoFlags = false, markInfoFixed = false)
+        val none = ArticleDetailGates(edit = false, stockActions = false, linkTag = false, history = false, infoFlags = false, markInfoFixed = false, reportProblem = false, problems = false, markProblemFixed = false)
         assertEquals(none, ArticleDetailGates.of(guest))
         assertEquals(none, ArticleDetailGates.of(unknown))
     }

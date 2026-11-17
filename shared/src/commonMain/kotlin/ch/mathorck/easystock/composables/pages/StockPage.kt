@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -120,6 +121,8 @@ import easystock.shared.generated.resources.stock_filter_clear_location
 import easystock.shared.generated.resources.stock_filter_location
 import easystock.shared.generated.resources.stock_filter_low_stock
 import easystock.shared.generated.resources.stock_filter_no_results
+import easystock.shared.generated.resources.ic_flag
+import easystock.shared.generated.resources.stock_flagged
 import easystock.shared.generated.resources.stock_low
 import easystock.shared.generated.resources.stock_no_results
 import easystock.shared.generated.resources.stock_search_hint
@@ -135,7 +138,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun StockPage() {
     val db = rememberAppDatabase()
-    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao(), db.attributeDao()) }
+    val viewModel = viewModel { StockViewModel(db.articleDao(), db.stockDao(), db.categoryDao(), db.attributeDao(), db.articleFlagDao()) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
     val images = rememberArticleImageStore()
@@ -310,7 +313,7 @@ fun StockContent(
             }
             else -> LazyColumn(state = listState, contentPadding = contentPadding) {
                 items(state.items, key = { it.article.id }) { item ->
-                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item, state.attributeLines[item.article.id]) }
+                    Box(Modifier.clickable { onArticleClick(item.article.id) }) { StockRow(item, state.attributeLines[item.article.id], flagged = item.article.id in state.flaggedIds) }
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                 }
             }
@@ -581,7 +584,7 @@ private fun PickerSheet(
 }
 
 @Composable
-private fun StockRow(item: ArticleStock, attributeLine: String?) {
+private fun StockRow(item: ArticleStock, attributeLine: String?, flagged: Boolean = false) {
     ListItem(
         leadingContent = { ArticleThumbnail(item.article.imagePath) },
         headlineContent = { Text(item.article.name) },
@@ -601,10 +604,28 @@ private fun StockRow(item: ArticleStock, attributeLine: String?) {
                     color = if (item.isLowStock) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 )
                 if (item.isLowStock) LowStockBadge()
+                if (flagged) FlagBadge()
             }
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
     )
+}
+
+/** Badge of an article with an open flag (a reported problem or an "info to fix" from a review). */
+@Composable
+internal fun FlagBadge() {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.padding(top = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) {
+            Icon(painterResource(Res.drawable.ic_flag), contentDescription = null, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(stringResource(Res.string.stock_flagged), style = MaterialTheme.typography.labelSmall)
+        }
+    }
 }
 
 @Composable

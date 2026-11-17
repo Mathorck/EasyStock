@@ -8,6 +8,7 @@ import ch.mathorck.easystock.composables.attributes.formatAttributeValue
 import ch.mathorck.easystock.composables.attributes.matches
 import ch.mathorck.easystock.composables.attributes.summaryLine
 import ch.mathorck.easystock.data.db.ArticleDao
+import ch.mathorck.easystock.data.db.ArticleFlagDao
 import ch.mathorck.easystock.data.db.AttributeDao
 import ch.mathorck.easystock.data.db.CategoryDao
 import ch.mathorck.easystock.data.db.StockDao
@@ -118,6 +119,8 @@ data class StockUiState(
     val filters: StockFilters = StockFilters(),
     /** Attribute summary line per article id ("static · 10.5 mm"). Articles without values are absent. */
     val attributeLines: Map<String, String> = emptyMap(),
+    /** Ids of the articles with an open flag (manual or from a review): they get a flag badge. */
+    val flaggedIds: Set<String> = emptySet(),
 ) {
     val selectedLocation: Location? get() = locations.firstOrNull { it.location.id == filters.locationId }?.location
     val selectedCategory: Category? get() = categories.firstOrNull { it.id == filters.categoryId }
@@ -191,6 +194,7 @@ private data class StockLookups(
     val locations: List<StockLocationNode>,
     val categories: List<Category>,
     val definitions: List<AttributeDefinition>,
+    val flagged: Set<String>,
 )
 
 /**
@@ -213,6 +217,7 @@ class StockViewModel(
     stockDao: StockDao,
     categoryDao: CategoryDao,
     attributeDao: AttributeDao,
+    flagDao: ArticleFlagDao,
     computeDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
@@ -257,8 +262,8 @@ class StockViewModel(
         source,
         _query,
         effectiveFilters,
-        combine(locations, categories, definitions, ::StockLookups),
-    ) { total, stock, q, filters, (locs, cats, defs) ->
+        combine(locations, categories, definitions, flagDao.observeFlaggedArticleIds().map { it.toSet() }, ::StockLookups),
+    ) { total, stock, q, filters, (locs, cats, defs, flagged) ->
         // Right after a location change, the list can still be the previous location's: never show it.
         val upToDate = stock.locationId == filters.locationId
         val attributes = { item: ArticleStock -> stock.attributes[item.article.id].orEmpty() }
@@ -275,6 +280,7 @@ class StockViewModel(
             attributeDefinitions = defs,
             filters = filters,
             attributeLines = if (upToDate) stock.attributeLines else emptyMap(),
+            flaggedIds = flagged,
         )
     }.flowOn(computeDispatcher)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StockUiState())

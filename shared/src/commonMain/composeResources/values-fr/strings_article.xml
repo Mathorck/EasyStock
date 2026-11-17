@@ -58,4 +58,13 @@
     <string name="article_order">Commander</string>
     <string name="article_order_host">Ouvre %1$s</string>
     <string name="article_order_open_failed">Impossible d’ouvrir le lien. Aucune application ne peut l’ouvrir.</string>
+    <string name="article_report_problem">Signaler un problème</string>
+    <string name="article_problem_title">Problème signalé</string>
+    <string name="article_problem_source">Signalé le %1$s</string>
+    <string name="article_problem_source_author">Signalé le %1$s par %2$s</string>
+    <string name="article_problem_note_label">Quel est le problème ?</string>
+    <string name="article_problem_note_too_long">%1$d caractères au maximum</string>
+    <string name="article_problem_report_confirm">Signaler</string>
+    <string name="article_history_problem_reported">Problème signalé</string>
+    <string name="article_history_problem_fixed">Problème corrigé</string>
 </resources>

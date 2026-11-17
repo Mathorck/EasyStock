@@ -58,4 +58,13 @@
     <string name="article_order">Order</string>
     <string name="article_order_host">Opens %1$s</string>
     <string name="article_order_open_failed">Could not open the link. No app can open it.</string>
+    <string name="article_report_problem">Report a problem</string>
+    <string name="article_problem_title">Problem reported</string>
+    <string name="article_problem_source">Reported %1$s</string>
+    <string name="article_problem_source_author">Reported %1$s by %2$s</string>
+    <string name="article_problem_note_label">What is the problem?</string>
+    <string name="article_problem_note_too_long">At most %1$d characters</string>
+    <string name="article_problem_report_confirm">Report</string>
+    <string name="article_history_problem_reported">Problem reported</string>
+    <string name="article_history_problem_fixed">Problem fixed</string>
 </resources>

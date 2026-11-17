@@ -58,4 +58,13 @@
     <string name="article_order">Bestellen</string>
     <string name="article_order_host">Öffnet %1$s</string>
     <string name="article_order_open_failed">Der Link konnte nicht geöffnet werden. Keine App kann ihn öffnen.</string>
+    <string name="article_report_problem">Problem melden</string>
+    <string name="article_problem_title">Problem gemeldet</string>
+    <string name="article_problem_source">Gemeldet am %1$s</string>
+    <string name="article_problem_source_author">Gemeldet am %1$s von %2$s</string>
+    <string name="article_problem_note_label">Was ist das Problem?</string>
+    <string name="article_problem_note_too_long">Höchstens %1$d Zeichen</string>
+    <string name="article_problem_report_confirm">Melden</string>
+    <string name="article_history_problem_reported">Problem gemeldet</string>
+    <string name="article_history_problem_fixed">Problem behoben</string>
 </resources>
