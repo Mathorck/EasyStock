@@ -11,6 +11,7 @@ import ch.mathorck.easystock.backup.parentsFirst
 import ch.mathorck.easystock.backup.planMerge
 import ch.mathorck.easystock.backup.withItemLocations
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -32,6 +33,7 @@ abstract class BackupDao {
     @Query("SELECT * FROM category_attribute ORDER BY id") protected abstract suspend fun categoryAttributes(): List<CategoryAttribute>
     @Query("SELECT * FROM location ORDER BY id") protected abstract suspend fun locations(): List<Location>
     @Query("SELECT * FROM article ORDER BY id") protected abstract suspend fun articles(): List<Article>
+    @Query("SELECT * FROM article_flag ORDER BY id") protected abstract suspend fun articleFlags(): List<ArticleFlag>
     @Query("SELECT * FROM item ORDER BY id") protected abstract suspend fun items(): List<Item>
     @Query("SELECT * FROM stock_movement ORDER BY created_at, id") protected abstract suspend fun movements(): List<StockMovement>
     @Query("SELECT * FROM stock_review ORDER BY id") protected abstract suspend fun reviews(): List<StockReview>
@@ -42,6 +44,7 @@ abstract class BackupDao {
     @Insert protected abstract suspend fun insertCategoryAttributes(rows: List<CategoryAttribute>)
     @Insert protected abstract suspend fun insertLocations(rows: List<Location>)
     @Insert protected abstract suspend fun insertArticles(rows: List<Article>)
+    @Insert protected abstract suspend fun insertArticleFlags(rows: List<ArticleFlag>)
     @Insert protected abstract suspend fun insertItems(rows: List<Item>)
     @Insert protected abstract suspend fun insertMovements(rows: List<StockMovement>)
     @Insert protected abstract suspend fun insertReviews(rows: List<StockReview>)
@@ -52,6 +55,7 @@ abstract class BackupDao {
     @Update protected abstract suspend fun updateCategoryAttributes(rows: List<CategoryAttribute>)
     @Update protected abstract suspend fun updateLocations(rows: List<Location>)
     @Update protected abstract suspend fun updateArticles(rows: List<Article>)
+    @Update protected abstract suspend fun updateArticleFlags(rows: List<ArticleFlag>)
     @Update protected abstract suspend fun updateItems(rows: List<Item>)
     @Update protected abstract suspend fun updateReviews(rows: List<StockReview>)
     @Update protected abstract suspend fun updateReviewLines(rows: List<StockReviewLine>)
@@ -61,6 +65,7 @@ abstract class BackupDao {
     @Query("DELETE FROM stock_review_line") protected abstract suspend fun deleteReviewLines()
     @Query("DELETE FROM stock_review") protected abstract suspend fun deleteReviews()
     @Query("DELETE FROM stock_movement") protected abstract suspend fun deleteMovements()
+    @Query("DELETE FROM article_flag") protected abstract suspend fun deleteArticleFlags()
     @Query("DELETE FROM item") protected abstract suspend fun deleteItems()
     @Query("DELETE FROM article") protected abstract suspend fun deleteArticles()
     @Query("DELETE FROM category_attribute") protected abstract suspend fun deleteCategoryAttributes()
@@ -77,6 +82,7 @@ abstract class BackupDao {
     @Query("DELETE FROM image_hash") protected abstract suspend fun deleteImageHashes()
     @Query("DELETE FROM pending_push") protected abstract suspend fun deletePendingPush()
     @Query("DELETE FROM server_seq") protected abstract suspend fun deleteServerSeqs()
+    @Query("DELETE FROM date_alert_notice") protected abstract suspend fun deleteDateAlertNotices()
     @Query("UPDATE sync_state SET applying = :applying") protected abstract suspend fun setApplying(applying: Boolean)
     @Query("SELECT EXISTS(SELECT 1 FROM sync_state)") abstract suspend fun isConnected(): Boolean
 
@@ -97,6 +103,7 @@ abstract class BackupDao {
         categoryAttributes = categoryAttributes(),
         locations = locations(),
         articles = articles(),
+        articleFlags = articleFlags(),
         items = items(),
         movements = movements(),
         reviews = reviews(),
@@ -115,6 +122,7 @@ abstract class BackupDao {
         deleteReviews()
         deleteMovements()
         deleteItems()
+        deleteArticleFlags()
         deleteArticles()
         deleteCategoryAttributes()
         deleteAttributeDefinitions()
@@ -124,7 +132,7 @@ abstract class BackupDao {
 
     /**
      * [wipeAll] plus the server mode tables (`sync_state`, `outbox`, `server_user`, `low_stock_alert`,
-     * `rejected_change`, `image_hash`, `pending_push`, `server_seq`): the phone is as after a fresh install. For the reset of all data.
+     * `rejected_change`, `image_hash`, `pending_push`, `server_seq`, `date_alert_notice`): the phone is as after a fresh install. For the reset of all data.
      */
     @Transaction
     open suspend fun wipeEverything() {
@@ -137,6 +145,7 @@ abstract class BackupDao {
         deleteImageHashes()
         deletePendingPush()
         deleteServerSeqs()
+        deleteDateAlertNotices()
         wipeAll()
     }
 
@@ -183,6 +192,7 @@ abstract class BackupDao {
         insertCategoryAttributes(rows.categoryAttributes)
         insertLocations(parentsFirst(rows.locations))
         insertArticles(rows.articles)
+        insertArticleFlags(rows.articleFlags)
         insertItems(rows.items)
         insertMovements(rows.movements)
         insertReviews(rows.reviews)
@@ -215,6 +225,8 @@ abstract class BackupDao {
         updateLocations(updates.locations)
         insertArticles(plan.inserts.articles)
         updateArticles(updates.articles)
+        insertArticleFlags(plan.inserts.articleFlags)
+        updateArticleFlags(updates.articleFlags)
         insertItems(plan.inserts.items)
         updateItems(updates.items)
         // Append-only

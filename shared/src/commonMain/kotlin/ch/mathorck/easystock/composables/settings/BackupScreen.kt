@@ -150,6 +150,7 @@ import easystock.shared.generated.resources.backup_send_title
 import easystock.shared.generated.resources.backup_share
 import easystock.shared.generated.resources.backup_share_summary
 import easystock.shared.generated.resources.backup_table_article
+import easystock.shared.generated.resources.backup_table_article_flag
 import easystock.shared.generated.resources.backup_table_attribute_definition
 import easystock.shared.generated.resources.backup_table_category
 import easystock.shared.generated.resources.backup_table_category_attribute
@@ -706,6 +707,7 @@ private fun BackupTable.label(): StringResource = when (this) {
     BackupTable.CATEGORY_ATTRIBUTE -> Res.string.backup_table_category_attribute
     BackupTable.LOCATION -> Res.string.backup_table_location
     BackupTable.ARTICLE -> Res.string.backup_table_article
+    BackupTable.ARTICLE_FLAG -> Res.string.backup_table_article_flag
     BackupTable.ITEM -> Res.string.backup_table_item
     BackupTable.STOCK_MOVEMENT -> Res.string.backup_table_stock_movement
     BackupTable.STOCK_REVIEW -> Res.string.backup_table_stock_review

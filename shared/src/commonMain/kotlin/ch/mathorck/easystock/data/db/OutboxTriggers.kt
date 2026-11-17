@@ -21,6 +21,7 @@ object OutboxTriggers {
         "category_attribute",
         "location",
         "article",
+        "article_flag",
         "item",
         "stock_movement",
         "stock_review",
@@ -37,7 +38,12 @@ object OutboxTriggers {
     fun triggerName(table: String, insert: Boolean): String = "$NAME_PREFIX${table}_${if (insert) "insert" else "update"}"
 
     /** One CREATE TRIGGER IF NOT EXISTS statement per synced table and event. */
-    val statements: List<String> = SYNCED_TABLES.flatMap { table ->
+    val statements: List<String> = statementsFor(SYNCED_TABLES)
+
+    /** The synced tables of version 9, when the triggers were added: `article_flag` came with version 13. */
+    val TABLES_OF_VERSION_9: List<String> = SYNCED_TABLES - "article_flag"
+
+    private fun statementsFor(tables: List<String>): List<String> = tables.flatMap { table ->
         listOf(true, false).map { insert ->
             "CREATE TRIGGER IF NOT EXISTS `${triggerName(table, insert)}` AFTER ${if (insert) "INSERT" else "UPDATE"} ON `$table` " +
                 "WHEN EXISTS (SELECT 1 FROM `sync_state` WHERE `applying` = 0) BEGIN " +
@@ -46,7 +52,8 @@ object OutboxTriggers {
         }
     }
 
-    fun create(connection: SQLiteConnection) {
-        statements.forEach { connection.execSQL(it) }
+    /** [tables] defaults to all: a migration passes the tables that exist at its version. */
+    fun create(connection: SQLiteConnection, tables: List<String>? = null) {
+        (if (tables == null) statements else statementsFor(tables)).forEach { connection.execSQL(it) }
     }
 }

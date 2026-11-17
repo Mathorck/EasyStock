@@ -54,6 +54,10 @@ data class AttributeDefinition(
     val unit: String? = null,
     /** Allowed values when [dataType] is [AttributeDataType.ENUM]. */
     val options: List<String>? = null,
+    /** Date attributes only: an article or unit whose date is in the past is flagged. */
+    @SerialName("flag_when_past") @ColumnInfo(name = "flag_when_past", defaultValue = "0") val flagWhenPast: Boolean = false,
+    /** Date attributes only: a notification is sent when the date is reached. */
+    @SerialName("notify_when_past") @ColumnInfo(name = "notify_when_past", defaultValue = "0") val notifyWhenPast: Boolean = false,
     @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
     @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
@@ -118,6 +122,8 @@ data class Article(
     @SerialName("image_path") @ColumnInfo(name = "image_path") val imagePath: String? = null,
     /** Values keyed by [AttributeDefinition.key]. */
     val attributes: JsonObject? = null,
+    /** Where to reorder the article (web address), null = none. */
+    @SerialName("order_url") @ColumnInfo(name = "order_url") val orderUrl: String? = null,
     /** No longer used, kept for history. */
     @ColumnInfo(defaultValue = "0") val archived: Boolean = false,
     @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
@@ -127,3 +133,32 @@ data class Article(
     /** Soft delete. Clears [barcode] so the NFC tag can be reused on another article. */
     fun softDeleted(now: Long): Article = copy(barcode = null, deletedAt = now, updatedAt = now)
 }
+
+/**
+ * A note raised on an article ("something is wrong"). Open while [resolvedAt] and [deletedAt] are null.
+ * [createdBy] is set by the server (never sent by the phone, never changed by a local edit): it is stored
+ * from the pulled row. Null in standalone mode.
+ */
+@Entity(
+    tableName = "article_flag",
+    foreignKeys = [
+        ForeignKey(entity = Article::class, parentColumns = ["id"], childColumns = ["article_id"]),
+    ],
+    indices = [
+        Index(value = ["article_id"]),
+        Index(value = ["updated_at"]),
+    ],
+)
+@Serializable
+data class ArticleFlag(
+    @PrimaryKey val id: String,
+    @SerialName("article_id") @ColumnInfo(name = "article_id") val articleId: String,
+    val note: String,
+    @SerialName("created_at") @ColumnInfo(name = "created_at") val createdAt: Long,
+    /** Server mode: the user who raised it, set by the server. Null in standalone mode. */
+    @SerialName("created_by") @ColumnInfo(name = "created_by") val createdBy: String? = null,
+    /** Null = open. */
+    @SerialName("resolved_at") @ColumnInfo(name = "resolved_at") val resolvedAt: Long? = null,
+    @SerialName("updated_at") @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    @SerialName("deleted_at") @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
+)

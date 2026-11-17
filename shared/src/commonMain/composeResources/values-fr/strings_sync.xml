@@ -27,6 +27,7 @@
     <string name="rejected_table_category_attribute">Attribut d’une catégorie</string>
     <string name="rejected_table_location">Emplacement</string>
     <string name="rejected_table_article">Article</string>
+    <string name="rejected_table_article_flag">Signalement d’article</string>
     <string name="rejected_table_item">Unité</string>
     <string name="rejected_table_stock_movement">Mouvement</string>
     <string name="rejected_table_stock_review">Inventaire</string>

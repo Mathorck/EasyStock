@@ -2,6 +2,7 @@ package ch.mathorck.easystock.backup
 
 import ch.mathorck.easystock.data.db.MAX_SERIAL_LENGTH
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
@@ -219,6 +220,7 @@ private class Merger(private val local: BackupData, private val incoming: Backup
         val categoryAttributes = mergeCategoryAttributes(attributeIds)
         val locations = mergeLocations()
         val articles = mergeArticles()
+        val articleFlags = mergeArticleFlags()
         val items = mergeItems()
         val movements = mergeMovements()
         val reviews = mergeRows(local.reviews, incoming.reviews, StockReview::id, StockReview::updatedAt)
@@ -246,6 +248,7 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             categoryAttributes = categoryAttributes.final.values.toList(),
             locations = locations.final.values.toList(),
             articles = articles.final.values.toList(),
+            articleFlags = articleFlags.final.values.toList(),
             items = items.final.values.toList(),
             movements = movements.final.values.toList(),
             reviews = reviews.final.values.toList(),
@@ -265,6 +268,7 @@ private class Merger(private val local: BackupData, private val incoming: Backup
                 categoryAttributes = categoryAttributes.inserted.values.toList(),
                 locations = parentsFirst(locations.inserted.values.toList()),
                 articles = articles.inserted.values.toList(),
+                articleFlags = articleFlags.inserted.values.toList(),
                 items = items.inserted.values.toList(),
                 movements = movements.inserted.values.toList(),
                 reviews = reviews.inserted.values.toList(),
@@ -276,6 +280,7 @@ private class Merger(private val local: BackupData, private val incoming: Backup
                 categoryAttributes = categoryAttributes.updated.values.toList(),
                 locations = locations.updated.values.toList(),
                 articles = articles.updated.values.toList(),
+                articleFlags = articleFlags.updated.values.toList(),
                 items = items.updated.values.toList(),
                 reviews = reviews.updated.values.toList(),
                 reviewLines = reviewLines.updated.values.toList(),
@@ -448,6 +453,20 @@ private class Merger(private val local: BackupData, private val incoming: Backup
             }
             skus.replace(previous, candidate)
             if (previous == null) table.insert(candidate) else table.update(candidate)
+        }
+        return table
+    }
+
+    /**
+     * Flags merge like the other rows (newer wins). `created_by` is the server's: a newer incoming row
+     * that has none keeps the local author, and a new row from a backup has none (the server sets it).
+     */
+    private fun mergeArticleFlags(): Table<ArticleFlag> {
+        val table = Table(local.articleFlags) { it.id }
+        for (row in incoming.articleFlags.sortedBy { it.id }) {
+            val previous = table.final[row.id]
+            if (!newer(row, previous, ArticleFlag::updatedAt)) continue
+            if (previous == null) table.insert(row) else table.update(row.copy(createdBy = row.createdBy ?: previous.createdBy))
         }
         return table
     }

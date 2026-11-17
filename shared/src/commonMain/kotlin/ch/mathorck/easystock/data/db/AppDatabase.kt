@@ -8,6 +8,8 @@ import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
+import ch.mathorck.easystock.data.model.DateAlertNotice
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -30,17 +32,17 @@ import kotlinx.coroutines.IO
 const val DATABASE_NAME = "easystock.db"
 
 /** Current schema version (Room). Backups and the server get [DATA_SCHEMA_VERSION] instead. */
-const val DB_VERSION = 12
+const val DB_VERSION = 13
 
 /**
- * Version of the shared data: the latest [DB_VERSION] whose synced tables (columns of the 9 tables in a
+ * Version of the shared data: the latest [DB_VERSION] whose synced tables (columns of the 10 tables in a
  * backup and in the sync) are the same as now. Sent to the server in `X-EasyStock-Schema-Version` (the
  * server answers 426 to a version it does not list) and written in backups (the server and older apps
  * refuse a newer one). A version that changes only indices or app-only tables keeps it, so it still
  * syncs with the servers of the previous version. Set it to [DB_VERSION] when a synced table changes
  * (the server must then list the new version).
  */
-const val DATA_SCHEMA_VERSION = 11
+const val DATA_SCHEMA_VERSION = 13
 
 @Database(
     entities = [
@@ -48,6 +50,7 @@ const val DATA_SCHEMA_VERSION = 11
         AttributeDefinition::class,
         CategoryAttribute::class,
         Article::class,
+        ArticleFlag::class,
         Location::class,
         Item::class,
         StockMovement::class,
@@ -62,6 +65,8 @@ const val DATA_SCHEMA_VERSION = 11
         ImageHash::class,
         PendingPush::class,
         ServerSeq::class,
+        // v13, app only
+        DateAlertNotice::class,
     ],
     version = DB_VERSION,
     autoMigrations = [
@@ -85,6 +90,8 @@ const val DATA_SCHEMA_VERSION = 11
         // 10 to 11 (server_seq, then a full re-pull): manual, see MIGRATION_10_11
         // stock_movement indices (covering stock sums, movement history)
         AutoMigration(from = 11, to = 12),
+        // article.order_url, attribute_definition.flag_when_past / notify_when_past, article_flag, date_alert_notice
+        AutoMigration(from = 12, to = 13),
     ],
     exportSchema = true,
 )
@@ -108,6 +115,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncDao(): SyncDao
 
     abstract fun alertDao(): AlertDao
+
+    abstract fun articleFlagDao(): ArticleFlagDao
+
+    abstract fun dateAlertNoticeDao(): DateAlertNoticeDao
 }
 
 // Implemented by the Room compiler on each platform

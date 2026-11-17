@@ -31,7 +31,8 @@ interface SyncStore {
     suspend fun clearPendingPush()
 
     /** Up to [limit] waiting changes, oldest first. */
-    suspend fun outbox(limit: Int): List<OutboxEntry>
+    /** [table]: only the entries of that table (the limit applies after the filter). */
+    suspend fun outbox(limit: Int, table: String? = null): List<OutboxEntry>
 
     /**
      * The current content of a row as a wire row, null when it doesn't exist. An article's photo is

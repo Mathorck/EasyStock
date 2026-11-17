@@ -181,7 +181,7 @@ class MigrationTest {
             V8_ROWS.forEach { v8.execSQL(it) }
         }
         helper.runMigrationsAndValidate(9, MANUAL_MIGRATIONS.toList()).use { db ->
-            assertEquals(OutboxTriggers.statements.size, db.outboxTriggerCount())
+            // The 9 synced tables of version 9; article_flag and its triggers come with version 13
             assertEquals(18, db.outboxTriggerCount())
             db.prepare("SELECT quantity, created_by, device_id FROM stock_movement WHERE id = 'm1'").use {
                 assertTrue(it.step())
@@ -214,6 +214,71 @@ class MigrationTest {
     }
 
     @Test
+    fun version12To13KeepsTheDataWithDefaults() {
+        deleteHelperFiles()
+        helper.createDatabase(12).use { v12 ->
+            v12.execSQL(V8_ROWS.first())
+            v12.execSQL("INSERT INTO attribute_definition (id, `key`, label, data_type, created_at, updated_at) VALUES ('d1', 'expiry', 'Expiry', 'date', 1, 1)")
+        }
+        helper.runMigrationsAndValidate(13, MANUAL_MIGRATIONS.toList()).use { db ->
+            db.prepare("SELECT name, order_url FROM article WHERE id = 'a1'").use {
+                assertTrue(it.step())
+                assertEquals("Rope", it.getText(0))
+                assertTrue(it.isNull(1), "order_url must start null")
+            }
+            db.prepare("SELECT flag_when_past, notify_when_past FROM attribute_definition WHERE id = 'd1'").use {
+                assertTrue(it.step())
+                assertEquals(0, it.getLong(0))
+                assertEquals(0, it.getLong(1))
+            }
+            assertEquals(0, db.count("article_flag"))
+            assertEquals(0, db.count("date_alert_notice"))
+
+        }
+    }
+
+    /** A chain migration ends with every trigger after the first open, article_flag included. */
+    @Test
+    fun chainMigrationsToTheLatestHaveTheArticleFlagTriggersAfterOpen() = runBlocking<Unit> {
+        listOf(8, 12).forEach { from ->
+            deleteHelperFiles()
+            helper.createDatabase(from).close()
+            helper.runMigrationsAndValidate(13, MANUAL_MIGRATIONS.toList()).close()
+            // Room's own opening: the callback adds the triggers of the tables created later
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val db = Room.databaseBuilder<AppDatabase>(context, helperFile.path).withAppSchema().setDriver(BundledSQLiteDriver()).build()
+            try {
+                db.categoryDao().observeAll().first()
+            } finally {
+                db.close()
+            }
+            BundledSQLiteDriver().open(helperFile.path).use { connection ->
+                assertEquals(20, connection.outboxTriggerCount(), "from $from")
+                listOf(true, false).forEach { insert ->
+                    val name = OutboxTriggers.triggerName("article_flag", insert)
+                    val found = connection.prepare("SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name = '$name'")
+                        .use { it.step(); it.getLong(0).toInt() }
+                    assertEquals(1, found, "$name from $from")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun articleFlagFillsTheOutboxOnlyWhenConnected() = runBlocking<Unit> {
+        open().also { it.categoryDao().observeAll().first() }.close()
+        BundledSQLiteDriver().open(file.path).use { db ->
+            db.execSQL(V8_ROWS.first())
+            db.execSQL("INSERT INTO article_flag (id, article_id, note, created_at, updated_at) VALUES ('f0', 'a1', 'standalone', 1, 1)")
+            assertEquals(0, db.count("outbox"), "Standalone writes must not fill the outbox")
+            db.execSQL("INSERT INTO sync_state (id, server_url, user_id, role) VALUES (1, 'https://example.test', 'u1', 'viewer')")
+            db.execSQL("INSERT INTO article_flag (id, article_id, note, created_at, updated_at) VALUES ('f1', 'a1', 'broken', 1, 1)")
+            db.execSQL("UPDATE article_flag SET resolved_at = 2, updated_at = 2 WHERE id = 'f1'")
+            assertEquals(listOf("article_flag/f1"), db.outboxRows())
+        }
+    }
+
+    @Test
     fun freshDatabaseHasTheOutboxTriggers() = runBlocking<Unit> {
         val db = open()
         try {
@@ -229,7 +294,7 @@ class MigrationTest {
             again.close()
         }
         BundledSQLiteDriver().open(file.path).use { connection ->
-            assertEquals(18, connection.outboxTriggerCount())
+            assertEquals(20, connection.outboxTriggerCount())
             connection.execSQL(V8_ROWS.first())
             assertOutboxOnlyWhenConnected(connection)
         }

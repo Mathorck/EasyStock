@@ -20,8 +20,15 @@ class PermissionsTest {
             Action.MANAGE_SETTINGS,
             Action.PUSH_CHANGES,
             Action.RECEIVE_ALERTS,
+            Action.FLAG_ARTICLE,
         ),
-        Role.VIEWER to setOf(Action.VIEW_STOCK, Action.VIEW_HISTORY, Action.VIEW_REVIEWS, Action.RECEIVE_ALERTS),
+        Role.VIEWER to setOf(
+            Action.VIEW_STOCK,
+            Action.VIEW_HISTORY,
+            Action.VIEW_REVIEWS,
+            Action.RECEIVE_ALERTS,
+            Action.FLAG_ARTICLE,
+        ),
         Role.GUEST to setOf(Action.VIEW_STOCK),
     )
 
@@ -44,6 +51,15 @@ class PermissionsTest {
             }
             assertEquals(expected.getValue(role), Permissions.allowed(role), "$role")
         }
+    }
+
+    @Test
+    fun flagsCanBeRaisedByEveryoneButTheGuest() {
+        Role.entries.forEach { role ->
+            assertEquals(role != Role.GUEST, Permissions.can(Action.FLAG_ARTICLE, connected = true, role = role), "$role")
+        }
+        // Resolve, edit and delete a flag need EDIT: a Viewer can't
+        assertEquals(false, Permissions.can(Action.EDIT, connected = true, role = Role.VIEWER))
     }
 
     @Test

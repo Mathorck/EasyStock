@@ -83,6 +83,7 @@
     <string name="backup_table_category_attribute">Attributs des catégories</string>
     <string name="backup_table_location">Emplacements</string>
     <string name="backup_table_article">Articles</string>
+    <string name="backup_table_article_flag">Signalements d’articles</string>
     <string name="backup_table_item">Unités</string>
     <string name="backup_table_stock_movement">Mouvements</string>
     <string name="backup_table_stock_review">Révisions de stock</string>

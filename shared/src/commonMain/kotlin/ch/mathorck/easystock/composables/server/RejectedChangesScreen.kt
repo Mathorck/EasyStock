@@ -41,6 +41,7 @@ import easystock.shared.generated.resources.rejected_empty
 import easystock.shared.generated.resources.rejected_hint
 import easystock.shared.generated.resources.rejected_reason_unknown
 import easystock.shared.generated.resources.rejected_table_article
+import easystock.shared.generated.resources.rejected_table_article_flag
 import easystock.shared.generated.resources.rejected_table_attribute_definition
 import easystock.shared.generated.resources.rejected_table_category
 import easystock.shared.generated.resources.rejected_table_category_attribute
@@ -137,6 +138,7 @@ internal fun tableLabel(table: String): StringResource? = when (table) {
     "category_attribute" -> Res.string.rejected_table_category_attribute
     "location" -> Res.string.rejected_table_location
     "article" -> Res.string.rejected_table_article
+    "article_flag" -> Res.string.rejected_table_article_flag
     "item" -> Res.string.rejected_table_item
     "stock_movement" -> Res.string.rejected_table_stock_movement
     "stock_review" -> Res.string.rejected_table_stock_review

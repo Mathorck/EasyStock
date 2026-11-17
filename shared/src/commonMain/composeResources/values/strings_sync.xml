@@ -27,6 +27,7 @@
     <string name="rejected_table_category_attribute">Attribute of a category</string>
     <string name="rejected_table_location">Location</string>
     <string name="rejected_table_article">Article</string>
+    <string name="rejected_table_article_flag">Article flag</string>
     <string name="rejected_table_item">Unit</string>
     <string name="rejected_table_stock_movement">Movement</string>
     <string name="rejected_table_stock_review">Stock review</string>

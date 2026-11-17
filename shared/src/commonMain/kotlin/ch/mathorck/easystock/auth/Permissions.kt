@@ -61,6 +61,9 @@ enum class Action {
 
     /** Users, invites, printed QR code, server backup, server settings. */
     ADMINISTER,
+
+    /** Raise a flag (a problem note) on an article: Admin, Member and Viewer. Resolve, edit and delete need EDIT. */
+    FLAG_ARTICLE,
 }
 
 /**
@@ -81,10 +84,12 @@ object Permissions {
         Action.PUSH_CHANGES,
     )
 
+    private val FLAG = setOf(Action.FLAG_ARTICLE)
+
     private val byRole: Map<Role, Set<Action>> = mapOf(
         Role.ADMIN to Action.entries.toSet(),
-        Role.EDITOR to READ + WRITE,
-        Role.VIEWER to READ,
+        Role.EDITOR to READ + FLAG + WRITE,
+        Role.VIEWER to READ + FLAG,
         Role.GUEST to setOf(Action.VIEW_STOCK),
     )
 

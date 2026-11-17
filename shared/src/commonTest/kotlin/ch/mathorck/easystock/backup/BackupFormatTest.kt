@@ -2,12 +2,14 @@ package ch.mathorck.easystock.backup
 
 import ch.mathorck.easystock.backup.BackupFixtures.article
 import ch.mathorck.easystock.backup.BackupFixtures.category
+import ch.mathorck.easystock.backup.BackupFixtures.flag
 import ch.mathorck.easystock.backup.BackupFixtures.full
 import ch.mathorck.easystock.backup.BackupFixtures.item
 import ch.mathorck.easystock.backup.BackupFixtures.location
 import ch.mathorck.easystock.backup.BackupFixtures.movement
 import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
 import ch.mathorck.easystock.data.db.DB_VERSION
+import ch.mathorck.easystock.data.db.MAX_FLAG_NOTE_LENGTH
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -54,6 +56,64 @@ class BackupFormatTest {
         assertEquals(data, imported)
         // Nothing to drop: the same instance
         assertTrue(data.withoutServerAuthors() === data)
+    }
+
+    /** Schema 13: flags, the order link and the date alert switches are written; a v12 backup reads them as empty / off. */
+    @Test
+    fun schema13ColumnsAreWrittenAndOlderBackupsHaveNone() {
+        val data = full()
+        val flags = BackupCodec.encodeTable(data, BackupTable.ARTICLE_FLAG).decodeToString()
+        assertTrue("\"article_id\":\"art1\"" in flags, flags)
+        assertTrue("\"created_by\":null" in flags, flags)
+        val articles = BackupCodec.encodeTable(data, BackupTable.ARTICLE).decodeToString()
+        assertTrue("\"order_url\":\"https://shop.example/drill?a=1&b=2\"" in articles, articles)
+        val attributes = BackupCodec.encodeTable(data, BackupTable.ATTRIBUTE_DEFINITION).decodeToString()
+        assertTrue("\"flag_when_past\":true" in attributes, attributes)
+
+        // A v12 backup: no article_flag file, no new columns
+        val v12Article = """[{"id":"a1","name":"Old","tracking":"quantity","unit":"pce","archived":false,"created_at":1,"updated_at":1}]"""
+        val v12Attribute = """[{"id":"d1","key":"expiry","label":"Expiry","data_type":"date","created_at":1,"updated_at":1}]"""
+        val decoded = BackupCodec.decodeTables {
+            when (it) {
+                BackupTable.ARTICLE -> v12Article.encodeToByteArray()
+                BackupTable.ATTRIBUTE_DEFINITION -> v12Attribute.encodeToByteArray()
+                else -> null
+            }
+        }
+        assertNull(decoded.articles.single().orderUrl)
+        assertEquals(false, decoded.attributeDefinitions.single().flagWhenPast)
+        assertEquals(false, decoded.attributeDefinitions.single().notifyWhenPast)
+        assertTrue(decoded.articleFlags.isEmpty())
+    }
+
+    @Test
+    fun standaloneImportDropsTheFlagAuthors() {
+        val data = full()
+        val authored = data.copy(articleFlags = data.articleFlags.map { it.copy(createdBy = "u1") })
+
+        assertEquals(data, authored.withoutServerAuthors())
+        assertTrue(data.withoutServerAuthors() === data)
+    }
+
+    @Test
+    fun flagOfUnknownArticleIsDamaged() {
+        val data = full().let { it.copy(articleFlags = it.articleFlags + flag("fl3", "nowhere")) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
+    }
+
+    @Test
+    fun flagNoteOfTheMaximumLengthIsValidAndALongerOneIsDamaged() {
+        val note = "x".repeat(MAX_FLAG_NOTE_LENGTH)
+        val ok = full().let { it.copy(articleFlags = it.articleFlags + flag("fl3", "art1").copy(note = note)) }
+        validateBackup(ok)
+        val tooLong = full().let { it.copy(articleFlags = it.articleFlags + flag("fl3", "art1").copy(note = note + "x")) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(tooLong) }.error)
+    }
+
+    @Test
+    fun duplicateFlagIdIsDamaged() {
+        val data = full().let { it.copy(articleFlags = it.articleFlags + flag("fl1", "art1")) }
+        assertEquals(BackupError.DAMAGED, assertFailsWith<BackupException> { validateBackup(data) }.error)
     }
 
     @Test
@@ -282,8 +342,8 @@ class BackupFormatTest {
         BackupCodec.checkManifest(manifest)
         // v12 changes only indices: backups keep schema 11, so the server ([10, 11]) and v11 apps import them
         assertEquals(DATA_SCHEMA_VERSION, manifest.schemaVersion)
-        assertEquals(11, DATA_SCHEMA_VERSION)
-        assertEquals(12, DB_VERSION)
+        assertEquals(13, DATA_SCHEMA_VERSION)
+        assertEquals(13, DB_VERSION)
         assertEquals(BACKUP_FORMAT_VERSION, manifest.formatVersion)
     }
 
@@ -296,6 +356,7 @@ class BackupFormatTest {
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 9))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 10))
         BackupCodec.checkManifest(manifest.copy(schemaVersion = 11))
+        BackupCodec.checkManifest(manifest.copy(schemaVersion = 12))
     }
 
     @Test

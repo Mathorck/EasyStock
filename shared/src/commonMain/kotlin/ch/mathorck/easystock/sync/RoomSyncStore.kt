@@ -41,7 +41,8 @@ class RoomSyncStore(private val db: AppDatabase, private val files: SyncImageFil
 
     override suspend fun clearPendingPush() = dao.clearPendingPush()
 
-    override suspend fun outbox(limit: Int): List<OutboxEntry> = dao.outbox(limit)
+    override suspend fun outbox(limit: Int, table: String?): List<OutboxEntry> =
+        if (table == null) dao.outbox(limit) else dao.outboxOfTable(table, limit)
 
     override suspend fun wireRow(table: SyncTable, id: String, hashNewImages: Boolean): JsonObject? {
         if (hashNewImages && table == SyncTable.ARTICLE) {

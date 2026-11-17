@@ -59,6 +59,28 @@ class SyncDaoTest {
     }
 
     @Test
+    fun aPulledFlagKeepsItsStoredAuthorWhenTheWireRowHasNone() = runBlocking<Unit> {
+        fun flagWire(note: String, vararg extra: Pair<String, String>) = buildJsonObject {
+            put("id", "f1"); put("articleId", "a1"); put("note", note)
+            put("createdAt", 1); put("resolvedAt", null as String?); put("updatedAt", 2); put("deletedAt", null as String?)
+            extra.forEach { (k, v) -> put(k, v) }
+        }
+        val first = pull(
+            SyncTable.ARTICLE to toWire(SyncTable.ARTICLE, article("a1")),
+            SyncTable.ARTICLE_FLAG to flagWire("Cracked", "createdBy" to "u2"),
+        )
+        assertTrue(dao.applyPull(first, next = 42, fullPull = true, now = 99))
+        assertEquals("u2", db.backupDao().snapshot().articleFlags.single().createdBy)
+
+        // Later page without the createdBy key: the stored author stays, the note is updated
+        assertTrue(dao.applyPull(pull(SyncTable.ARTICLE_FLAG to flagWire("Cracked badly")), next = 43, fullPull = false, now = 100))
+        val stored = db.backupDao().snapshot().articleFlags.single()
+        assertEquals("u2", stored.createdBy)
+        assertEquals("Cracked badly", stored.note)
+        assertTrue(dao.outbox(100).isEmpty())
+    }
+
+    @Test
     fun aLocalChangeIsQueuedOnce() = runBlocking {
         db.articleDao().insert(article("a1"))
         db.articleDao().insert(article("a2"))

@@ -30,7 +30,7 @@ abstract class SessionDao {
     @Query(
         """SELECT (SELECT COUNT(*) FROM category) + (SELECT COUNT(*) FROM attribute_definition)
         + (SELECT COUNT(*) FROM category_attribute) + (SELECT COUNT(*) FROM location)
-        + (SELECT COUNT(*) FROM article) + (SELECT COUNT(*) FROM item)
+        + (SELECT COUNT(*) FROM article) + (SELECT COUNT(*) FROM article_flag) + (SELECT COUNT(*) FROM item)
         + (SELECT COUNT(*) FROM stock_movement) + (SELECT COUNT(*) FROM stock_review)
         + (SELECT COUNT(*) FROM stock_review_line)""",
     )

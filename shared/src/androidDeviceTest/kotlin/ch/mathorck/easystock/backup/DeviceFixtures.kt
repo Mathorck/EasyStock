@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.backup
 
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDataType
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
@@ -65,6 +66,10 @@ object DeviceFixtures {
             article("bolt", sku = "B-1"),
             article("gone", at = 30, deletedAt = 30),
         ),
+        articleFlags = listOf(
+            ArticleFlag(id = "f1", articleId = "drill", note = "Chuck is loose", createdAt = 4, updatedAt = 4),
+            ArticleFlag(id = "f2", articleId = "bolt", note = "Rusty", createdAt = 5, resolvedAt = 9, updatedAt = 9),
+        ),
         items = listOf(item("i1", "drill", serial = "SN1")),
         movements = listOf(
             movement("m1", "drill", "shelf", 1000, item = "i1", at = 5),
@@ -95,6 +100,7 @@ object DeviceFixtures {
         categoryAttributes = categoryAttributes.sortedBy { it.id },
         locations = locations.sortedBy { it.id },
         articles = articles.sortedBy { it.id },
+        articleFlags = articleFlags.sortedBy { it.id },
         items = items.sortedBy { it.id },
         movements = movements.sortedBy { it.id },
         reviews = reviews.sortedBy { it.id },

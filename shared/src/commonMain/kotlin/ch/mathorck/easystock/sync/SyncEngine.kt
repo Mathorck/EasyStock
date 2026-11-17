@@ -213,6 +213,9 @@ class SyncEngine(
                     if (store.pendingPush() != null) store.clearPendingPush()
                     // The outbox can't be pushed any more: the server's rows are written over the waiting ones
                     pull(remote.sync, state.since, if (state.since > 0) epochs.load() else null, localWins = false)
+                    // A Viewer raises flags: only those are sent (the server refuses any other row of that role),
+                    // after the pull so a reset or a new epoch is seen first
+                    if (Permissions.can(Action.FLAG_ARTICLE, connected = true, role = role)) push(remote.sync, epochs.load(), flagsOnly = true)
                 } else if (state.since == 0L) {
                     // No data set yet (joined, promoted): the full pull comes first and saves its epoch, so
                     // the push carries it and a reset of the server in between is seen (409), never pushed into
@@ -331,11 +334,11 @@ class SyncEngine(
         pull(api, 0, null)
     }
 
-    private suspend fun push(api: SyncApi, epoch: String?) {
+    private suspend fun push(api: SyncApi, epoch: String?, flagsOnly: Boolean = false) {
         // Photos refused before: their rows are on the server already
         if (refusedImages.isNotEmpty()) uploadImages(api, refusedImages.keys.toList())
         repeat(MAX_BATCHES_PER_CYCLE) {
-            val pending = store.pendingPush() ?: buildBatch(api) ?: return
+            val pending = store.pendingPush() ?: buildBatch(api, flagsOnly) ?: return
             val answer = try {
                 api.push(pending.body, epoch)
             } catch (e: ApiException) {
@@ -354,8 +357,9 @@ class SyncEngine(
     }
 
     /** Reads the outbox, uploads the new photos, and saves the batch before it is sent. Null when nothing waits. */
-    private suspend fun buildBatch(api: SyncApi): PendingPush? {
-        val entries = store.outbox(PUSH_LIMIT)
+    private suspend fun buildBatch(api: SyncApi, flagsOnly: Boolean): PendingPush? {
+        // The table filter comes before the limit: a backlog of other rows can't hide the flags
+        val entries = store.outbox(PUSH_LIMIT, if (flagsOnly) SyncTable.ARTICLE_FLAG.tableName else null)
         if (entries.isEmpty()) return null
         val byTable = entries.groupBy { it.tableName }
         val rows = LinkedHashMap<String, List<JsonObject>>()

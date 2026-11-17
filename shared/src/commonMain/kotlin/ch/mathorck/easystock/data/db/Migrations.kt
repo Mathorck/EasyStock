@@ -25,7 +25,8 @@ val MIGRATION_8_9: Migration = object : Migration(8, 9) {
             "CREATE TABLE IF NOT EXISTS `rejected_change` (`id` TEXT NOT NULL, `table_name` TEXT NOT NULL, `row_id` TEXT NOT NULL, `reason` TEXT NOT NULL, `rejected_at` INTEGER NOT NULL, `seen_at` INTEGER, PRIMARY KEY(`id`))",
         ).forEach { connection.execSQL(it) }
         // After the tables: the triggers read sync_state and write outbox
-        OutboxTriggers.create(connection)
+        // Only the tables of version 9: article_flag doesn't exist yet (the triggers of the others are created on open)
+        OutboxTriggers.create(connection, OutboxTriggers.TABLES_OF_VERSION_9)
     }
 }
 

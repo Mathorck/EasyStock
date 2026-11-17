@@ -44,7 +44,7 @@ class DataSchemaVersionTest {
     fun serverHeaderAndBackupsUseTheDataVersion() {
         assertEquals(DATA_SCHEMA_VERSION, ClientVersions(appVersion = "1.0.0").schemaVersion)
         assertEquals(DATA_SCHEMA_VERSION, BackupManifest(appVersion = "1.0.0", createdAt = "2026-01-01T00:00:00Z").schemaVersion)
-        // v12 adds indices only: servers of schema [10, 11] keep syncing
-        assertEquals(11, DATA_SCHEMA_VERSION)
+        // v13 adds article_flag and synced columns: the server must list schema 13
+        assertEquals(13, DATA_SCHEMA_VERSION)
     }
 }

@@ -3,6 +3,7 @@ package ch.mathorck.easystock.backup
 import ch.mathorck.easystock.backup.BackupFixtures.article
 import ch.mathorck.easystock.backup.BackupFixtures.attribute
 import ch.mathorck.easystock.backup.BackupFixtures.category
+import ch.mathorck.easystock.backup.BackupFixtures.flag
 import ch.mathorck.easystock.backup.BackupFixtures.item
 import ch.mathorck.easystock.backup.BackupFixtures.link
 import ch.mathorck.easystock.backup.BackupFixtures.location
@@ -60,6 +61,27 @@ class BackupMergeTest {
         assertTrue(plan.isEmpty)
         assertEquals(1, plan.result.reviews.size)
         assertEquals(1, plan.result.reviewLines.size)
+    }
+
+    @Test
+    fun flagsMergeByIdNewerWinsAndKeepTheLocalAuthor() {
+        val base = BackupData(articles = listOf(article("a")))
+        val local = base.copy(articleFlags = listOf(flag("f1", "a", at = 10, createdBy = "u1"), flag("f3", "a", at = 10)))
+        val incoming = base.copy(
+            articleFlags = listOf(flag("f1", "a", at = 20, resolvedAt = 20), flag("f2", "a"), flag("f3", "a", at = 5, resolvedAt = 5)),
+        )
+
+        val plan = planMerge(local, incoming)
+
+        assertEquals(listOf("f2"), plan.inserts.articleFlags.map { it.id })
+        val updated = plan.updates.articleFlags.single()
+        assertEquals("f1", updated.id)
+        assertEquals(20L, updated.resolvedAt)
+        // The incoming row has no author: the local one stays
+        assertEquals("u1", updated.createdBy)
+        assertEquals(setOf("f1", "f2", "f3"), plan.result.articleFlags.map { it.id }.toSet())
+        // f3: the local row is newer, kept
+        assertNull(plan.result.articleFlags.single { it.id == "f3" }.resolvedAt)
     }
 
     @Test

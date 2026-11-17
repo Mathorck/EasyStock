@@ -39,6 +39,15 @@ class SyncPlanTest {
     }
 
     @Test
+    fun anAcceptedFlagWritesTheServerRowToKeepItsAuthor() {
+        val local = row("f1", "note" to "Cracked")
+        val stored = row("f1", "createdBy" to "u1")
+        val answer = PushResult("article_flag", "f1", PushStatus.ACCEPTED, row = stored)
+        assertEquals(PushDecision.Write(local.overlay(stored)), decidePush(answer, local, local))
+        assertEquals(PushDecision.Done, decidePush(answer.copy(row = null), local, local))
+    }
+
+    @Test
     fun anAcceptedMovementWithItsStoredRowSetsTheAuthor() {
         val movement = row("m1", "createdBy" to "u1", "deviceId" to "d1")
         val local = row("m1")

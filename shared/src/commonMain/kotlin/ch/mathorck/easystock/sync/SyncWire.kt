@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.sync
 
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -60,7 +61,7 @@ fun camelToSnake(name: String): String = buildString {
 
 private fun JsonObject.renameKeys(rename: (String) -> String): JsonObject = JsonObject(entries.associate { (k, v) -> rename(k) to v })
 
-/** The 9 synced tables, in dependency order (parents first), with their entity and references. */
+/** The 10 synced tables, in dependency order (parents first), with their entity and references. */
 enum class SyncTable(val tableName: String, internal val serializer: KSerializer<*>, val references: Map<String, String> = emptyMap()) {
     CATEGORY("category", Category.serializer()),
     ATTRIBUTE_DEFINITION("attribute_definition", AttributeDefinition.serializer()),
@@ -71,6 +72,7 @@ enum class SyncTable(val tableName: String, internal val serializer: KSerializer
     ),
     LOCATION("location", Location.serializer(), mapOf("parent_id" to "location")),
     ARTICLE("article", Article.serializer(), mapOf("category_id" to "category")),
+    ARTICLE_FLAG("article_flag", ArticleFlag.serializer(), mapOf("article_id" to "article")),
     ITEM("item", Item.serializer(), mapOf("article_id" to "article", "location_id" to "location")),
     STOCK_MOVEMENT(
         "stock_movement",
@@ -115,7 +117,7 @@ object WireFields {
 
 /**
  * An entity as a wire row. An article carries [imageSha256] instead of its local `image_path`;
- * a movement carries no author nor device (the server sets them from the token).
+ * a movement carries no author nor device and a flag no author (the server sets them from the token).
  */
 @Suppress("UNCHECKED_CAST")
 fun <T> toWire(table: SyncTable, row: T, imageSha256: String? = null): JsonObject {
@@ -123,6 +125,7 @@ fun <T> toWire(table: SyncTable, row: T, imageSha256: String? = null): JsonObjec
     val local = when (table) {
         SyncTable.ARTICLE -> JsonObject(json - WireFields.IMAGE_PATH)
         SyncTable.STOCK_MOVEMENT -> JsonObject(json - WireFields.CREATED_BY - WireFields.DEVICE_ID)
+        SyncTable.ARTICLE_FLAG -> JsonObject(json - WireFields.CREATED_BY)
         else -> json
     }
     val wire = local.renameKeys(::snakeToCamel)

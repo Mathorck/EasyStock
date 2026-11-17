@@ -63,7 +63,13 @@ fun decidePush(result: PushResult, sentWithSeq: JsonObject?, current: JsonObject
     if (sent == null || current != sent) return PushDecision.Keep
     val row = result.row
     return when (result.status) {
-        PushStatus.ACCEPTED -> if (!row.isNullOrEmpty() && result.table == SyncTable.STOCK_MOVEMENT.tableName) PushDecision.MovementAuthor(row) else PushDecision.Done
+        PushStatus.ACCEPTED -> when {
+            row.isNullOrEmpty() -> PushDecision.Done
+            result.table == SyncTable.STOCK_MOVEMENT.tableName -> PushDecision.MovementAuthor(row)
+            // The server set `created_by` of a new flag: store its row
+            result.table == SyncTable.ARTICLE_FLAG.tableName -> PushDecision.Write(sent.overlay(row))
+            else -> PushDecision.Done
+        }
         PushStatus.CHANGED -> when {
             result.conflict == ConflictCodes.CATEGORY_ATTRIBUTE_SKIPPED -> PushDecision.DropLocal
             result.conflict == ConflictCodes.ATTRIBUTE_MERGED && row?.rowId != null && row.rowId != result.id ->

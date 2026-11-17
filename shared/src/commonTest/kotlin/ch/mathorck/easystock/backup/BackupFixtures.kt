@@ -2,6 +2,7 @@ package ch.mathorck.easystock.backup
 
 import ch.mathorck.easystock.data.model.Article
 import ch.mathorck.easystock.data.model.AttributeDataType
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -47,6 +48,9 @@ object BackupFixtures {
         tracking = tracking, createdAt = 1, updatedAt = at, deletedAt = deletedAt,
     )
 
+    fun flag(id: String, article: String, at: Long = 10, createdBy: String? = null, resolvedAt: Long? = null) =
+        ArticleFlag(id = id, articleId = article, note = "Note $id", createdAt = 1, createdBy = createdBy, resolvedAt = resolvedAt, updatedAt = at)
+
     fun item(id: String, article: String, serial: String? = null, location: String? = null, at: Long = 10) =
         Item(id = id, articleId = article, serialNumber = serial, locationId = location, createdAt = 1, updatedAt = at)
 
@@ -71,7 +75,7 @@ object BackupFixtures {
         attributeDefinitions = listOf(
             AttributeDefinition(
                 id = "a1", key = "color", label = "Color", dataType = AttributeDataType.ENUM, unit = "mm",
-                options = listOf("red", "blue"), createdAt = 1, updatedAt = 2,
+                options = listOf("red", "blue"), flagWhenPast = true, notifyWhenPast = true, createdAt = 1, updatedAt = 2,
             ),
         ),
         categoryAttributes = listOf(CategoryAttribute(id = "ca1", categoryId = "c1", attributeId = "a1", required = true, sortOrder = 3, createdAt = 1, updatedAt = 2)),
@@ -82,9 +86,13 @@ object BackupFixtures {
                 tracking = Tracking.SERIAL, unit = "pce", barcode = "04:A2:3B", thresholdMilli = 1500,
                 imagePath = "images/0f8fad5b-d9cb-469f-a165-70867728950e.jpg",
                 attributes = buildJsonObject { put("color", JsonPrimitive("red")); put("length", JsonPrimitive(20)) },
-                archived = true, createdAt = 1, updatedAt = 2,
+                archived = true, orderUrl = "https://shop.example/drill?a=1&b=2", createdAt = 1, updatedAt = 2,
             ),
             article("art2", deletedAt = 30, at = 30),
+        ),
+        articleFlags = listOf(
+            flag("fl1", "art1", at = 2),
+            flag("fl2", "art1", at = 30, resolvedAt = 30),
         ),
         items = listOf(
             Item(

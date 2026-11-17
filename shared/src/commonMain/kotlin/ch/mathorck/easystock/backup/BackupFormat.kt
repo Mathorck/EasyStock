@@ -2,7 +2,9 @@ package ch.mathorck.easystock.backup
 
 import ch.mathorck.easystock.data.db.DATA_SCHEMA_VERSION
 import ch.mathorck.easystock.data.db.DB_VERSION
+import ch.mathorck.easystock.data.db.MAX_FLAG_NOTE_LENGTH
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -53,6 +55,7 @@ enum class BackupTable(val tableName: String) {
     CATEGORY_ATTRIBUTE("category_attribute"),
     LOCATION("location"),
     ARTICLE("article"),
+    ARTICLE_FLAG("article_flag"),
     ITEM("item"),
     STOCK_MOVEMENT("stock_movement"),
     STOCK_REVIEW("stock_review"),
@@ -87,6 +90,8 @@ data class BackupData(
     @SerialName("category_attribute") val categoryAttributes: List<CategoryAttribute> = emptyList(),
     @SerialName("location") val locations: List<Location> = emptyList(),
     @SerialName("article") val articles: List<Article> = emptyList(),
+    /** Schema 13+. Older backups have none. */
+    @SerialName("article_flag") val articleFlags: List<ArticleFlag> = emptyList(),
     @SerialName("item") val items: List<Item> = emptyList(),
     @SerialName("stock_movement") val movements: List<StockMovement> = emptyList(),
     /** Schema 5+. Older backups have none. */
@@ -99,6 +104,7 @@ data class BackupData(
         BackupTable.CATEGORY_ATTRIBUTE.tableName to categoryAttributes.size,
         BackupTable.LOCATION.tableName to locations.size,
         BackupTable.ARTICLE.tableName to articles.size,
+        BackupTable.ARTICLE_FLAG.tableName to articleFlags.size,
         BackupTable.ITEM.tableName to items.size,
         BackupTable.STOCK_MOVEMENT.tableName to movements.size,
         BackupTable.STOCK_REVIEW.tableName to reviews.size,
@@ -201,6 +207,7 @@ object BackupCodec {
         BackupTable.CATEGORY_ATTRIBUTE -> encode(CategoryAttribute.serializer(), data.categoryAttributes)
         BackupTable.LOCATION -> encode(Location.serializer(), data.locations)
         BackupTable.ARTICLE -> encode(Article.serializer(), data.articles)
+        BackupTable.ARTICLE_FLAG -> encode(ArticleFlag.serializer(), data.articleFlags)
         BackupTable.ITEM -> encode(Item.serializer(), data.items)
         BackupTable.STOCK_MOVEMENT -> encode(StockMovement.serializer(), data.movements)
         BackupTable.STOCK_REVIEW -> encode(StockReview.serializer(), data.reviews)
@@ -217,6 +224,7 @@ object BackupCodec {
             categoryAttributes = table(BackupTable.CATEGORY_ATTRIBUTE, CategoryAttribute.serializer()),
             locations = table(BackupTable.LOCATION, Location.serializer()),
             articles = table(BackupTable.ARTICLE, Article.serializer()),
+            articleFlags = table(BackupTable.ARTICLE_FLAG, ArticleFlag.serializer()),
             items = table(BackupTable.ITEM, Item.serializer()),
             movements = table(BackupTable.STOCK_MOVEMENT, StockMovement.serializer()),
             reviews = table(BackupTable.STOCK_REVIEW, StockReview.serializer()),
@@ -260,6 +268,7 @@ fun validateBackup(data: BackupData) {
     ids(data.categoryAttributes, { it.id }, "category_attribute")
     val locations = ids(data.locations, { it.id }, "location")
     val articles = ids(data.articles, { it.id }, "article")
+    ids(data.articleFlags, { it.id }, "article_flag")
     val items = ids(data.items, { it.id }, "item")
     ids(data.movements, { it.id }, "stock_movement")
     val reviews = ids(data.reviews, { it.id }, "stock_review")
@@ -282,6 +291,10 @@ fun validateBackup(data: BackupData) {
     data.articles.forEach {
         if (it.categoryId != null && it.categoryId !in categories) damaged("Unknown category")
         if (it.imagePath != null && !isValidImagePath(it.imagePath)) damaged("Invalid image path")
+    }
+    data.articleFlags.forEach {
+        if (it.articleId !in articles) damaged("Unknown flag article")
+        if (it.note.length > MAX_FLAG_NOTE_LENGTH) damaged("Flag note too long")
     }
     data.items.forEach {
         if (it.articleId !in articles) damaged("Unknown item article")
@@ -347,17 +360,20 @@ fun itemLocations(items: Collection<Item>, movements: Collection<StockMovement>)
 }
 
 /**
- * [data] as imported into a standalone phone: `stock_movement.created_by` and `device_id` (server
+ * [data] as imported into a standalone phone: `stock_movement.created_by` and `device_id`, `article_flag.created_by` (server
  * mode, schema 9+) are exported but cleared here. They name users and devices of a server this phone
  * is not connected to: personal data kept to a minimum (nFADP, GDPR), and a merge compares the
  * movements without them.
  */
-fun BackupData.withoutServerAuthors(): BackupData =
-    if (movements.none { it.createdBy != null || it.deviceId != null }) {
-        this
-    } else {
-        copy(movements = movements.map { if (it.createdBy == null && it.deviceId == null) it else it.copy(createdBy = null, deviceId = null) })
-    }
+fun BackupData.withoutServerAuthors(): BackupData {
+    val movementsKnowAuthors = movements.any { it.createdBy != null || it.deviceId != null }
+    val flagsKnowAuthors = articleFlags.any { it.createdBy != null }
+    if (!movementsKnowAuthors && !flagsKnowAuthors) return this
+    return copy(
+        movements = if (movementsKnowAuthors) movements.map { if (it.createdBy == null && it.deviceId == null) it else it.copy(createdBy = null, deviceId = null) } else movements,
+        articleFlags = if (flagsKnowAuthors) articleFlags.map { if (it.createdBy == null) it else it.copy(createdBy = null) } else articleFlags,
+    )
+}
 
 /** [data] with every `item.location_id` recomputed from the movements. */
 fun BackupData.withItemLocations(): BackupData {

@@ -80,8 +80,8 @@ private class FakeSyncStore(var state: SyncState?) : SyncStore {
     override suspend fun clearPendingPush() {
         pending = null
     }
-    override suspend fun outbox(limit: Int): List<OutboxEntry> =
-        outbox.sortedBy { e -> SyncTable.of(e.tableName)!!.ordinal }.take(limit)
+    override suspend fun outbox(limit: Int, table: String?): List<OutboxEntry> =
+        outbox.filter { table == null || it.tableName == table }.sortedBy { e -> SyncTable.of(e.tableName)!!.ordinal }.take(limit)
     override suspend fun wireRow(table: SyncTable, id: String, hashNewImages: Boolean) = rows.getValue(table)[id]
     override suspend fun imageBytes(sha256: String) = images[sha256]
     override suspend fun serverSeq(table: SyncTable, id: String) = if (table.hasServerSeq) seqs[table to id] else null
@@ -436,7 +436,69 @@ class SyncEngineTest {
     }
 
     @Test
-    fun aViewerNeverPushes() = runTest {
+    fun aViewerPushesSoItsFlagsReachTheServer() = runTest {
+        val store = FakeSyncStore(state(role = "viewer"))
+        store.put(SyncTable.ARTICLE_FLAG, row("f1", "articleId" to "a1", "note" to "Cracked"))
+        val engine = engine(store) { request ->
+            if (request.path == "me") ok(me("viewer")) else defaults(request, """{"results":[{"table":"article_flag","id":"f1","status":"accepted"}]}""")
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        // Pull first: a reset or an epoch change is seen before anything is pushed
+        assertEquals(listOf("me", "sync/pull", "sync/push"), seen.map { it.path })
+        assertEquals(listOf("article_flag"), decodePush(seen[2].body).rows.keys.toList())
+        assertTrue(store.outbox.isEmpty())
+    }
+
+    @Test
+    fun aViewerWithALongBacklogStillPushesItsFlag() = runTest {
+        val store = FakeSyncStore(state(role = "viewer"))
+        // More waiting rows of other tables than one batch holds, all before the flag in the table order
+        repeat(SyncEngine.PUSH_LIMIT + 1) { store.put(SyncTable.CATEGORY, row("c$it", "name" to "Bolts $it")) }
+        store.put(SyncTable.ARTICLE_FLAG, row("f1", "articleId" to "a1", "note" to "Cracked"))
+        val engine = engine(store) { request ->
+            if (request.path == "me") ok(me("viewer")) else defaults(request, """{"results":[{"table":"article_flag","id":"f1","status":"accepted"}]}""")
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        assertEquals(listOf("article_flag"), decodePush(seen.single { it.path == "sync/push" }.body).rows.keys.toList())
+        assertTrue(store.outbox.none { it.tableName == "article_flag" })
+    }
+
+    @Test
+    fun aViewerSeesAServerResetBeforePushingItsFlag() = runTest {
+        val store = FakeSyncStore(state(role = "viewer"))
+        store.put(SyncTable.ARTICLE_FLAG, row("f1", "articleId" to "a1", "note" to "Cracked"))
+        var pulls = 0
+        val engine = engine(store) { request ->
+            when (request.path) {
+                "me" -> ok(me("viewer"))
+                "sync/pull" -> if (pulls++ == 0) datasetReset() else defaults(request)
+                else -> defaults(request)
+            }
+        }
+        engine.sync()
+        // The pull is first: the flag was never sent into the reset server
+        assertTrue(seen.none { it.path == "sync/push" })
+    }
+
+    @Test
+    fun aFlagPulledBeforeItsArticleWaitsForIt() = runTest {
+        val store = FakeSyncStore(state(since = 0))
+        val pages = mapOf(
+            "0" to """{"rows":{"article_flag":[{"id":"f1","articleId":"a1","note":"Cracked","createdBy":"u2"}]},"next":4,"hasMore":true}""",
+            "4" to """{"rows":{"article":[{"id":"a1"}]},"next":9,"hasMore":false}""",
+        )
+        val engine = engine(store) { request ->
+            if (request.path == "sync/pull") ok(pages.getValue(request.query.substringAfter("since=").substringBefore("&"))) else defaults(request)
+        }
+        assertEquals(SyncResult.DONE, engine.sync())
+        // One write after the second page, the article first: the flag never hits a missing parent
+        assertEquals(1, store.pullApplies)
+        assertEquals(setOf("a1"), store.rows.getValue(SyncTable.ARTICLE).keys)
+        assertEquals(JsonPrimitive("u2"), store.rows.getValue(SyncTable.ARTICLE_FLAG).getValue("f1")["createdBy"])
+    }
+
+    @Test
+    fun aViewerSendsNothingButItsFlags() = runTest {
         val store = FakeSyncStore(state(role = "viewer"))
         store.put(SyncTable.CATEGORY, row("c1", "name" to "Bolts"))
         val engine = engine(store) { request -> if (request.path == "me") ok(me("viewer")) else defaults(request) }

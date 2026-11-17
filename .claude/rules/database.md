@@ -11,3 +11,5 @@ Do all of this for every `AppDatabase.version` change, in this order:
 7. `MigrationTest` reads the schemas folder: check that the new version passes (step and chain to the latest). Add a data test when a migration moves or rewrites data.
 8. The backup/transfer format must accept the new version and still import older backups.
 9. Data migrations keep the CLAUDE.md rules: never hard-delete rows (soft delete), never update or delete `stock_movement` rows.
+
+10. A manual migration that creates outbox triggers uses only the synced tables that exist at its version (`OutboxTriggers.TABLES_OF_VERSION_9` in `MIGRATION_8_9`). A table added later (`article_flag`, v13) gets its triggers on open.

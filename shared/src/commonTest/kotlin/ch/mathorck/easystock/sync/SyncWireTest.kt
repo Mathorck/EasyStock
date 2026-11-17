@@ -1,6 +1,7 @@
 package ch.mathorck.easystock.sync
 
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.MovementReason
 import ch.mathorck.easystock.data.model.StockMovement
 import kotlinx.serialization.json.JsonNull
@@ -69,6 +70,33 @@ class SyncWireTest {
     }
 
     @Test
+    fun anArticleCarriesItsOrderLink() {
+        val wire = toWire(SyncTable.ARTICLE, article.copy(orderUrl = "https://shop.example/x"), imageSha256 = null)
+        assertEquals(JsonPrimitive("https://shop.example/x"), wire["orderUrl"])
+        assertFalse("order_url" in wire)
+        assertEquals(JsonNull, toWire(SyncTable.ARTICLE, article, imageSha256 = null)["orderUrl"])
+    }
+
+    @Test
+    fun aFlagCarriesNoAuthorAndReadsTheOneTheServerSets() {
+        val flag = ArticleFlag(
+            id = "f1", articleId = "a1", note = "Cracked", createdAt = 5, createdBy = "u1", resolvedAt = null, updatedAt = 6,
+        )
+        val wire = toWire(SyncTable.ARTICLE_FLAG, flag)
+        assertFalse("createdBy" in wire)
+        assertEquals(JsonPrimitive("a1"), wire["articleId"])
+        assertEquals(JsonPrimitive("Cracked"), wire["note"])
+        assertEquals(JsonNull, wire["resolvedAt"])
+        assertEquals(JsonNull, wire["deletedAt"])
+        assertEquals("a1", wire.column("article_id"))
+
+        val pulled: ArticleFlag = fromWire(SyncTable.ARTICLE_FLAG, JsonObject(wire + ("createdBy" to JsonPrimitive("u2")) + ("serverSeq" to JsonPrimitive(3))))
+        assertEquals("u2", pulled.createdBy)
+        // Pushed without author, read back without one
+        assertNull(fromWire<ArticleFlag>(SyncTable.ARTICLE_FLAG, wire).createdBy)
+    }
+
+    @Test
     fun aMovementCarriesNoAuthorNorDevice() {
         val movement = StockMovement(
             id = "m1", articleId = "a1", locationId = "l1", quantityMilli = -2000,
@@ -101,7 +129,7 @@ class SyncWireTest {
     fun tablesAreInDependencyOrder() {
         assertEquals(
             listOf(
-                "category", "attribute_definition", "category_attribute", "location", "article", "item",
+                "category", "attribute_definition", "category_attribute", "location", "article", "article_flag", "item",
                 "stock_movement", "stock_review", "stock_review_line",
             ),
             SyncTable.entries.map { it.tableName },

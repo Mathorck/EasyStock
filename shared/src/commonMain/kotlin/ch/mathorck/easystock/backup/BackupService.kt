@@ -30,6 +30,7 @@ fun BackupData.rowCount(table: BackupTable): Int = when (table) {
     BackupTable.CATEGORY_ATTRIBUTE -> categoryAttributes.size
     BackupTable.LOCATION -> locations.size
     BackupTable.ARTICLE -> articles.size
+    BackupTable.ARTICLE_FLAG -> articleFlags.size
     BackupTable.ITEM -> items.size
     BackupTable.STOCK_MOVEMENT -> movements.size
     BackupTable.STOCK_REVIEW -> reviews.size

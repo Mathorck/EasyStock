@@ -38,6 +38,8 @@ Table attribute_definition [headercolor: #175e7a] {
   data_type varchar(20) [not null, note: 'text | number | bool | date | enum | measure. measure: number with a unit chosen per value, value stored as {"value": 50, "unit": "m"}. A plain number is read in the default unit. Only number -> measure can change after creation']
   unit varchar(20) [note: 'e.g. mm, V, kg. For measure: the default unit, also defines the family (length, mass, volume, force). Locked once the attribute is a measure']
   options json [note: 'Allowed values when data_type = enum, e.g. ["red","blue"]']
+  flag_when_past boolean [not null, default: false, note: 'v13. Only for data_type = date: an article or unit whose date is in the past is flagged']
+  notify_when_past boolean [not null, default: false, note: 'v13. Only for data_type = date: a notification is sent when the date is reached (see date_alert_notice)']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
@@ -77,6 +79,7 @@ Table article [headercolor: #175e7a] {
   threshold decimal(12,3) [note: 'Reorder alert level']
   image_path text [note: 'Photo file relative to the app files dir: images/<uuid>.jpg (JPEG, max 1600px). A new file on every change; the replaced file is deleted on save. Kept on soft delete']
   attributes json [note: 'Values keyed by attribute_definition.key, e.g. {"color":"red","length":20}']
+  order_url varchar(2048) [note: 'v13. Where to reorder the article (web address). Null = none']
   archived boolean [not null, default: false, note: 'No longer used, kept for history']
   created_at timestamp [not null]
   updated_at timestamp [not null]
@@ -84,6 +87,22 @@ Table article [headercolor: #175e7a] {
 
   indexes {
     category_id
+    updated_at
+  }
+}
+
+Table article_flag [headercolor: #175e7a, note: 'v13. A note raised on an article ("something is wrong"). Open while resolved_at and deleted_at are null'] {
+  id uuid [pk]
+  article_id uuid [not null, ref: > article.id]
+  note text [not null]
+  created_at timestamp [not null]
+  created_by uuid [note: 'Set by the server in server mode: the user who raised it, never sent by the phone and never changed by a local edit. Null in standalone mode']
+  resolved_at timestamp [note: 'Set when resolved. Null = open']
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    article_id
     updated_at
   }
 }
@@ -210,7 +229,7 @@ Table sync_state [headercolor: #455a64, note: 'App only. One row (id = 1) while 
   applying boolean [not null, default: false, note: 'Set while the sync engine writes pulled rows: the outbox triggers do nothing']
 }
 
-Table outbox [headercolor: #455a64, note: 'App only. One row per local change waiting to be pushed, filled by AFTER INSERT / AFTER UPDATE triggers on the 9 synced tables (only when sync_state exists and applying is false). A row already waiting is not added again'] {
+Table outbox [headercolor: #455a64, note: 'App only. One row per local change waiting to be pushed, filled by AFTER INSERT / AFTER UPDATE triggers on the 10 synced tables (only when sync_state exists and applying is false). A row already waiting is not added again'] {
   table_name varchar(40) [not null]
   row_id uuid [not null]
   changed_at timestamp [not null, note: 'First change since the last push']
@@ -271,5 +290,16 @@ Table server_seq [headercolor: #455a64, note: 'App only (v11). The server_seq of
 
   indexes {
     (table_name, row_id) [pk]
+  }
+}
+
+Table date_alert_notice [headercolor: #455a64, note: 'App only (v13). A date-expiry notification already shown, so it is shown once per date. Never synced, never in a backup'] {
+  target_id text [not null, note: 'Id of the article or the item holding the date']
+  attribute_key text [not null, note: 'attribute_definition.key of the date']
+  date_value text [not null, note: 'The date notified, "YYYY-MM-DD". A changed date notifies again']
+  notified_at timestamp [not null]
+
+  indexes {
+    (target_id, attribute_key, date_value) [pk]
   }
 }

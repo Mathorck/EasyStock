@@ -11,6 +11,7 @@ import ch.mathorck.easystock.backup.MAX_CATEGORY_NAME_LENGTH
 import ch.mathorck.easystock.backup.MAX_SKU_LENGTH
 import ch.mathorck.easystock.backup.parentsFirst
 import ch.mathorck.easystock.data.model.Article
+import ch.mathorck.easystock.data.model.ArticleFlag
 import ch.mathorck.easystock.data.model.AttributeDefinition
 import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.CategoryAttribute
@@ -40,6 +41,8 @@ import ch.mathorck.easystock.sync.PushStatus
 import ch.mathorck.easystock.sync.RowConflict
 import ch.mathorck.easystock.sync.RowKeepMineBlock
 import ch.mathorck.easystock.sync.SyncTable
+import ch.mathorck.easystock.sync.WireFields
+import ch.mathorck.easystock.sync.snakeToCamel
 import ch.mathorck.easystock.sync.decidePush
 import ch.mathorck.easystock.sync.column
 import ch.mathorck.easystock.sync.fromWire
@@ -115,6 +118,10 @@ abstract class SyncDao {
     @Query("SELECT * FROM outbox ORDER BY changed_at, table_name, row_id LIMIT :limit")
     abstract suspend fun outbox(limit: Int): List<OutboxEntry>
 
+    /** Oldest first, only [table]: for a role that pushes one table (a Viewer's flags). */
+    @Query("SELECT * FROM outbox WHERE table_name = :table ORDER BY changed_at, row_id LIMIT :limit")
+    abstract suspend fun outboxOfTable(table: String, limit: Int): List<OutboxEntry>
+
     /** Emits at each outbox change: the debounced sync trigger. */
     @Query("SELECT COUNT(*) FROM outbox")
     abstract fun observeOutboxCount(): Flow<Int>
@@ -169,6 +176,7 @@ abstract class SyncDao {
                 WHERE ca.id = r.row_id)
             WHEN 'location' THEN (SELECT name FROM location WHERE id = r.row_id)
             WHEN 'article' THEN (SELECT name FROM article WHERE id = r.row_id)
+            WHEN 'article_flag' THEN (SELECT a.name FROM article_flag f JOIN article a ON a.id = f.article_id WHERE f.id = r.row_id)
             WHEN 'item' THEN (SELECT a.name FROM item i JOIN article a ON a.id = i.article_id WHERE i.id = r.row_id)
             WHEN 'stock_movement' THEN (SELECT a.name FROM stock_movement m JOIN article a ON a.id = m.article_id
                 WHERE m.id = r.row_id)
@@ -232,6 +240,7 @@ abstract class SyncDao {
     @Query("SELECT * FROM category_attribute WHERE id = :id") protected abstract suspend fun categoryAttribute(id: String): CategoryAttribute?
     @Query("SELECT * FROM location WHERE id = :id") protected abstract suspend fun location(id: String): Location?
     @Query("SELECT * FROM article WHERE id = :id") abstract suspend fun article(id: String): Article?
+    @Query("SELECT * FROM article_flag WHERE id = :id") protected abstract suspend fun articleFlag(id: String): ArticleFlag?
     @Query("SELECT * FROM item WHERE id = :id") protected abstract suspend fun item(id: String): Item?
     @Query("SELECT * FROM stock_movement WHERE id = :id") protected abstract suspend fun movement(id: String): StockMovement?
     @Query("SELECT * FROM stock_review WHERE id = :id") protected abstract suspend fun review(id: String): StockReview?
@@ -242,6 +251,7 @@ abstract class SyncDao {
     @Query("SELECT id FROM category_attribute WHERE id IN (:ids)") protected abstract suspend fun categoryAttributeIds(ids: List<String>): List<String>
     @Query("SELECT id FROM location WHERE id IN (:ids)") protected abstract suspend fun locationIds(ids: List<String>): List<String>
     @Query("SELECT id FROM article WHERE id IN (:ids)") protected abstract suspend fun articleIds(ids: List<String>): List<String>
+    @Query("SELECT id FROM article_flag WHERE id IN (:ids)") protected abstract suspend fun articleFlagIds(ids: List<String>): List<String>
     @Query("SELECT id FROM item WHERE id IN (:ids)") protected abstract suspend fun itemIds(ids: List<String>): List<String>
     @Query("SELECT id FROM stock_movement WHERE id IN (:ids)") protected abstract suspend fun movementIds(ids: List<String>): List<String>
     @Query("SELECT id FROM stock_review WHERE id IN (:ids)") protected abstract suspend fun reviewIds(ids: List<String>): List<String>
@@ -256,6 +266,7 @@ abstract class SyncDao {
                 SyncTable.CATEGORY_ATTRIBUTE -> categoryAttributeIds(chunk)
                 SyncTable.LOCATION -> locationIds(chunk)
                 SyncTable.ARTICLE -> articleIds(chunk)
+                SyncTable.ARTICLE_FLAG -> articleFlagIds(chunk)
                 SyncTable.ITEM -> itemIds(chunk)
                 SyncTable.STOCK_MOVEMENT -> movementIds(chunk)
                 SyncTable.STOCK_REVIEW -> reviewIds(chunk)
@@ -270,6 +281,7 @@ abstract class SyncDao {
         SyncTable.CATEGORY_ATTRIBUTE -> categoryAttribute(id)?.let { toWire(table, it) }
         SyncTable.LOCATION -> location(id)?.let { toWire(table, it) }
         SyncTable.ARTICLE -> article(id)?.let { toWire(table, it, it.imagePath?.let { path -> hashOf(path) }) }
+        SyncTable.ARTICLE_FLAG -> articleFlag(id)?.let { toWire(table, it) }
         SyncTable.ITEM -> item(id)?.let { toWire(table, it) }
         SyncTable.STOCK_MOVEMENT -> movement(id)?.let { toWire(table, it) }
         SyncTable.STOCK_REVIEW -> review(id)?.let { toWire(table, it) }
@@ -283,6 +295,7 @@ abstract class SyncDao {
     @Upsert protected abstract suspend fun upsertCategoryAttribute(row: CategoryAttribute)
     @Upsert protected abstract suspend fun upsertLocation(row: Location)
     @Upsert protected abstract suspend fun upsertArticle(row: Article)
+    @Upsert protected abstract suspend fun upsertArticleFlag(row: ArticleFlag)
     @Upsert protected abstract suspend fun upsertItem(row: Item)
     @Upsert protected abstract suspend fun upsertReview(row: StockReview)
     @Upsert protected abstract suspend fun upsertReviewLine(row: StockReviewLine)
@@ -534,6 +547,12 @@ abstract class SyncDao {
                 }
                 row.barcode?.let { tag -> articleWithTag(tag, row.id)?.let { local { clearArticleTag(it, now) } } }
                 upsertArticle(row)
+            }
+            SyncTable.ARTICLE_FLAG -> {
+                val row = fromWire<ArticleFlag>(table, wire)
+                // The server is the authority on `created_by`: a row without it (a partial answer) keeps the stored one
+                val author = if (snakeToCamel(WireFields.CREATED_BY) in wire) row.createdBy else articleFlag(row.id)?.createdBy
+                upsertArticleFlag(row.copy(createdBy = author))
             }
             SyncTable.ITEM -> {
                 val row = fromWire<Item>(table, wire)

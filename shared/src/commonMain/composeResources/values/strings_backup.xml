@@ -83,6 +83,7 @@
     <string name="backup_table_category_attribute">Category attributes</string>
     <string name="backup_table_location">Locations</string>
     <string name="backup_table_article">Articles</string>
+    <string name="backup_table_article_flag">Article flags</string>
     <string name="backup_table_item">Units</string>
     <string name="backup_table_stock_movement">Movements</string>
     <string name="backup_table_stock_review">Stock reviews</string>
