@@ -52,4 +52,10 @@
     <string name="article_history_info_flagged_note">Info to fix flagged: %1$s</string>
     <string name="article_history_info_fixed">Info fixed</string>
     <string name="article_history_author">By %1$s</string>
+    <string name="article_order_url">Order link</string>
+    <string name="article_order_url_hint">Optional. Web address (http or https) where the article is ordered.</string>
+    <string name="article_error_url">Enter a web address starting with http:// or https://</string>
+    <string name="article_order">Order</string>
+    <string name="article_order_host">Opens %1$s</string>
+    <string name="article_order_open_failed">Could not open the link. No app can open it.</string>
 </resources>

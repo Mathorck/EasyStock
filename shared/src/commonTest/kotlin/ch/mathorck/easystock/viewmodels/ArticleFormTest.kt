@@ -58,6 +58,36 @@ class ArticleFormTest {
     }
 
     @Test
+    fun orderLinkIsOptionalAndOnlyWebUrls() {
+        assertNull(form.errors().orderUrl)
+        assertNull(form.copy(orderUrl = "   ").errors().orderUrl)
+        assertNull(form.copy(orderUrl = " https://shop.example/p?id=1 ").errors().orderUrl)
+        assertEquals(FieldError.INVALID_URL, form.copy(orderUrl = "javascript:alert(1)").errors().orderUrl)
+        assertEquals(FieldError.INVALID_URL, form.copy(orderUrl = "shop.example").errors().orderUrl)
+        assertEquals(FieldError.TOO_LONG, form.copy(orderUrl = "https://a.ch/" + "x".repeat(2048)).errors().orderUrl)
+        assertFalse(form.copy(orderUrl = "file:///x").errors().isValid)
+    }
+
+    @Test
+    fun orderLinkIsPrefilledAndSavedTrimmedOrNull() {
+        val linked = article.copy(orderUrl = "https://shop.example/bolt").toForm()
+        assertEquals("https://shop.example/bolt", linked.orderUrl)
+        assertEquals("", form.orderUrl)
+
+        assertEquals("https://shop.example/bolt", linked.toUpdate(categories, now = 5, newId = { "x" }).changes.orderUrl)
+        assertEquals("https://x.ch", form.copy(orderUrl = " https://x.ch ").toUpdate(categories, now = 5, newId = { "x" }).changes.orderUrl)
+        assertNull(form.copy(orderUrl = "  ").toUpdate(categories, now = 5, newId = { "x" }).changes.orderUrl)
+        assertNull(form.toUpdate(categories, now = 5, newId = { "x" }).changes.orderUrl)
+    }
+
+    @Test
+    fun newArticleKeepsTheOrderLink() {
+        val new = ArticleForm(name = "Nail", orderUrl = " https://shop.example/nail ").toNewArticle(categories, now = 7, newId = ids("a-new"))
+        assertEquals("https://shop.example/nail", new.article.orderUrl)
+        assertNull(ArticleForm(name = "Nail", orderUrl = " ").toNewArticle(categories, now = 7, newId = ids("a-new")).article.orderUrl)
+    }
+
+    @Test
     fun nameAndUnitAreRequiredAndLimited() {
         val errors = form.copy(name = "  ", unit = "").errors()
         assertEquals(FieldError.REQUIRED, errors.name)

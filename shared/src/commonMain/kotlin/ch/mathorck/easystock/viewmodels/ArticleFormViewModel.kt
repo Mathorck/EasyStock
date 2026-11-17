@@ -18,7 +18,10 @@ import ch.mathorck.easystock.data.model.Category
 import ch.mathorck.easystock.data.model.Tracking
 import ch.mathorck.easystock.images.ArticleImageStore
 import ch.mathorck.easystock.images.StagedImages
+import ch.mathorck.easystock.util.OrderUrlCheck
+import ch.mathorck.easystock.util.checkOrderUrl
 import ch.mathorck.easystock.util.formatQuantity
+import ch.mathorck.easystock.util.orderUrlOrNull
 import ch.mathorck.easystock.util.parseQuantity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,7 +54,7 @@ const val DEFAULT_UNIT = "pce"
 
 enum class CategoryMode { NONE, EXISTING, NEW }
 
-enum class FieldError { REQUIRED, TOO_LONG, DUPLICATE, DELETED_NAME, INVALID_QUANTITY, NOT_POSITIVE }
+enum class FieldError { REQUIRED, TOO_LONG, DUPLICATE, DELETED_NAME, INVALID_QUANTITY, NOT_POSITIVE, INVALID_URL }
 
 /**
  * Create: minimal form (type, name, category, unit). Edit: every field, the type is read-only.
@@ -70,6 +73,8 @@ data class ArticleForm(
     val categoryId: String? = null,
     val categoryName: String = "",
     val threshold: String = "",
+    /** Optional web link where the article is ordered, see [checkOrderUrl]. */
+    val orderUrl: String = "",
     /** Photo path (see [ch.mathorck.easystock.images.newImagePath]), null without photo. */
     val imagePath: String? = null,
     /** Custom attribute values, keyed by attribute key (see [ch.mathorck.easystock.composables.attributes.AttributeFields]). */
@@ -94,6 +99,7 @@ fun Article.toForm(): ArticleForm = ArticleForm(
     categoryMode = if (categoryId == null) CategoryMode.NONE else CategoryMode.EXISTING,
     categoryId = categoryId,
     threshold = thresholdMilli?.let { formatQuantity(it) }.orEmpty(),
+    orderUrl = orderUrl.orEmpty(),
     imagePath = imagePath,
     attributes = attributes,
     nameAuto = nameAuto,
@@ -125,8 +131,9 @@ data class ArticleFormErrors(
     val category: FieldError? = null,
     val categoryName: FieldError? = null,
     val threshold: FieldError? = null,
+    val orderUrl: FieldError? = null,
 ) {
-    val isValid: Boolean get() = listOf(name, sku, unit, category, categoryName, threshold).all { it == null }
+    val isValid: Boolean get() = listOf(name, sku, unit, category, categoryName, threshold, orderUrl).all { it == null }
 }
 
 /**
@@ -185,6 +192,11 @@ fun ArticleForm.validate(
             else -> null
         },
         threshold = if (tracking != Tracking.SERIAL && threshold.isNotBlank() && parseQuantity(threshold) == null) FieldError.INVALID_QUANTITY else null,
+        orderUrl = when (checkOrderUrl(orderUrl)) {
+            OrderUrlCheck.TooLong -> FieldError.TOO_LONG
+            OrderUrlCheck.Invalid -> FieldError.INVALID_URL
+            else -> null
+        },
     )
 }
 
@@ -231,7 +243,7 @@ private fun ArticleForm.thresholdMilli(): Long? =
 data class ArticleUpdate(val changes: ArticleChanges, val newCategory: Category?)
 
 /**
- * Builds the update. Call only on a valid form (with [withTemplateName] applied). A blank SKU or description
+ * Builds the update. Call only on a valid form (with [withTemplateName] applied). A blank SKU, description or order link
  * becomes null. [followsTemplate]: the category has a template and the name follows it.
  */
 fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> String, followsTemplate: Boolean = false): ArticleUpdate {
@@ -246,6 +258,7 @@ fun ArticleForm.toUpdate(categories: List<Category>, now: Long, newId: () -> Str
         thresholdMilli = thresholdMilli(),
         imagePath = imagePath,
         attributes = attributes,
+        orderUrl = orderUrlOrNull(orderUrl),
     )
     return ArticleUpdate(changes, category.newCategory)
 }
@@ -274,6 +287,7 @@ fun ArticleForm.toNewArticle(
         thresholdMilli = thresholdMilli(),
         imagePath = imagePath,
         attributes = attributes,
+        orderUrl = orderUrlOrNull(orderUrl),
         barcode = tagId,
         createdAt = now,
         updatedAt = now,

@@ -2,6 +2,7 @@
 
 package ch.mathorck.easystock.composables.article
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -70,6 +72,8 @@ import ch.mathorck.easystock.data.model.Tracking
 import ch.mathorck.easystock.images.rememberArticleImageStore
 import ch.mathorck.easystock.theme.EasyStockTheme
 import ch.mathorck.easystock.util.formatQuantity
+import ch.mathorck.easystock.util.isOpenableOrderUrl
+import ch.mathorck.easystock.util.orderUrlHost
 import ch.mathorck.easystock.viewmodels.ArticleDetailUiState
 import ch.mathorck.easystock.viewmodels.ArticleDetailViewModel
 import ch.mathorck.easystock.viewmodels.HistoryRow
@@ -112,12 +116,16 @@ import easystock.shared.generated.resources.history_show_more
 import easystock.shared.generated.resources.article_section_locations
 import easystock.shared.generated.resources.article_section_properties
 import easystock.shared.generated.resources.article_sku_label
+import easystock.shared.generated.resources.article_order
+import easystock.shared.generated.resources.article_order_host
+import easystock.shared.generated.resources.article_order_open_failed
 import easystock.shared.generated.resources.article_threshold_value
 import easystock.shared.generated.resources.article_total_stock
 import easystock.shared.generated.resources.article_unit_label
 import easystock.shared.generated.resources.ic_arrow_back
 import easystock.shared.generated.resources.ic_edit
 import easystock.shared.generated.resources.ic_flag
+import easystock.shared.generated.resources.ic_shopping_cart
 import easystock.shared.generated.resources.stock_action_add_to_location
 import easystock.shared.generated.resources.stock_action_add_unit
 import easystock.shared.generated.resources.stock_action_section_units
@@ -274,6 +282,10 @@ fun ArticleDetailContent(
                 item(key = "properties") { PropertiesSection(state.properties) }
             }
             item(key = "total") { TotalStock(state, article.unit) }
+            // Checked again here: the link may come from a backup or a sync, not from the form
+            article.orderUrl?.takeIf { isOpenableOrderUrl(it) }?.let { url ->
+                item(key = "order") { OrderRow(url) }
+            }
             // Without the right to link, the tag is shown only when there is one
             if (gates.linkTag || article.barcode != null) {
                 item(key = "tag") {
@@ -534,6 +546,29 @@ private fun TotalStock(state: ArticleDetailUiState, unit: String) {
             if (state.isLowStock) LowStockBadge()
         }
     }
+}
+
+/** Opens the order link of the article in the browser. Shows a message when no app can open it. */
+@Composable
+private fun OrderRow(url: String) {
+    val uriHandler = LocalUriHandler.current
+    var failed by remember(url) { mutableStateOf(false) }
+    ListItem(
+        headlineContent = { Text(stringResource(Res.string.article_order)) },
+        supportingContent = {
+            if (failed) {
+                Text(stringResource(Res.string.article_order_open_failed), color = MaterialTheme.colorScheme.error)
+            } else {
+                orderUrlHost(url)?.let { Text(stringResource(Res.string.article_order_host, it)) }
+            }
+        },
+        leadingContent = { Icon(painterResource(Res.drawable.ic_shopping_cart), contentDescription = null) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable {
+            // Defence in depth: never hand another scheme to the system
+            failed = !isOpenableOrderUrl(url) || runCatching { uriHandler.openUri(url) }.isFailure
+        },
+    )
 }
 
 @Composable

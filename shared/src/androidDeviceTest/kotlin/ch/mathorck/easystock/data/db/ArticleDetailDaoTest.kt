@@ -90,9 +90,10 @@ class ArticleDetailDaoTest {
         imagePath: String? = null,
         nameAuto: Boolean = false,
         attributes: JsonObject? = null,
+        orderUrl: String? = null,
     ) = ArticleChanges(
         name = name, nameAuto = nameAuto, sku = sku, description = "Desc", categoryId = categoryId, unit = "kg",
-        thresholdMilli = thresholdMilli, imagePath = imagePath, attributes = attributes,
+        thresholdMilli = thresholdMilli, imagePath = imagePath, attributes = attributes, orderUrl = orderUrl,
     )
 
     // ---------- Reads ----------
@@ -194,6 +195,24 @@ class ArticleDetailDaoTest {
         assertEquals(10L, updated.createdAt)
         assertEquals("tag-a1", updated.barcode)
         assertEquals(4_000L, articles.observeStock().first().single().stockMilli)
+    }
+
+    @Test
+    fun editKeepsTheOrderLinkWhenAnotherFieldChanges() = runBlocking<Unit> {
+        article("a1")
+        val url = "https://shop.example/bolt?a=1&b=2"
+        detail.updateArticle("a1", changes(orderUrl = url), newCategory = null, now = 50)
+        assertEquals(url, assertNotNull(articles.getById("a1")).orderUrl)
+
+        // The form sends the stored link back with the other edits
+        val stored = assertNotNull(articles.getById("a1"))
+        detail.updateArticle("a1", changes(name = "Other", orderUrl = stored.orderUrl), newCategory = null, now = 51)
+        val edited = assertNotNull(articles.getById("a1"))
+        assertEquals("Other", edited.name)
+        assertEquals(url, edited.orderUrl)
+
+        detail.updateArticle("a1", changes(orderUrl = null), newCategory = null, now = 52)
+        assertNull(assertNotNull(articles.getById("a1")).orderUrl)
     }
 
     @Test

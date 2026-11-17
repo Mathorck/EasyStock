@@ -75,6 +75,8 @@ data class ArticleChanges(
     val imagePath: String?,
     /** Custom attribute values, keyed by attribute key. Replaces the stored object. */
     val attributes: JsonObject?,
+    /** Web link where the article is ordered, null for none. */
+    val orderUrl: String?,
 )
 
 /** The article was deleted (or never existed) when saving. */
@@ -263,6 +265,7 @@ abstract class ArticleDetailDao {
                 thresholdMilli = changes.thresholdMilli,
                 imagePath = changes.imagePath,
                 attributes = changes.attributes,
+                orderUrl = changes.orderUrl,
                 updatedAt = now,
             ),
         )

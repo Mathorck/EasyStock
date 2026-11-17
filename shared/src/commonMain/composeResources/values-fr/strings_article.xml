@@ -52,4 +52,10 @@
     <string name="article_history_info_flagged_note">Info à corriger signalée : %1$s</string>
     <string name="article_history_info_fixed">Info corrigée</string>
     <string name="article_history_author">Par %1$s</string>
+    <string name="article_order_url">Lien de commande</string>
+    <string name="article_order_url_hint">Facultatif. Adresse web (http ou https) où l’article se commande.</string>
+    <string name="article_error_url">Entrez une adresse web commençant par http:// ou https://</string>
+    <string name="article_order">Commander</string>
+    <string name="article_order_host">Ouvre %1$s</string>
+    <string name="article_order_open_failed">Impossible d’ouvrir le lien. Aucune application ne peut l’ouvrir.</string>
 </resources>

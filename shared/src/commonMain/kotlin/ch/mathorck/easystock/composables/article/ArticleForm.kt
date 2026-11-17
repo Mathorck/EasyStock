@@ -66,6 +66,9 @@ import easystock.shared.generated.resources.article_category_name
 import easystock.shared.generated.resources.article_category_new
 import easystock.shared.generated.resources.article_category_none
 import easystock.shared.generated.resources.article_description
+import easystock.shared.generated.resources.article_error_url
+import easystock.shared.generated.resources.article_order_url
+import easystock.shared.generated.resources.article_order_url_hint
 import easystock.shared.generated.resources.article_edit_title
 import easystock.shared.generated.resources.article_error_category_deleted
 import easystock.shared.generated.resources.article_error_quantity
@@ -225,6 +228,14 @@ fun ArticleFormContent(
                     error = null,
                     singleLine = false,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                )
+                FormField(
+                    value = form.orderUrl,
+                    onValueChange = { v -> onFormChange { it.copy(orderUrl = v) } },
+                    label = stringResource(Res.string.article_order_url),
+                    error = errors.orderUrl,
+                    supporting = stringResource(Res.string.article_order_url_hint),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
             }
             CategoryField(state, onFormChange)
@@ -444,6 +455,7 @@ private fun FieldError.message(): String? = when (this) {
     FieldError.DUPLICATE -> stringResource(Res.string.article_error_sku_taken)
     FieldError.DELETED_NAME -> stringResource(Res.string.article_error_category_deleted)
     FieldError.INVALID_QUANTITY -> stringResource(Res.string.article_error_quantity)
+    FieldError.INVALID_URL -> stringResource(Res.string.article_error_url)
     // Required: Save stays disabled. Not positive: not used here (0 is a valid threshold).
     FieldError.REQUIRED, FieldError.NOT_POSITIVE -> null
 }

@@ -52,4 +52,10 @@
     <string name="article_history_info_flagged_note">Angaben zu korrigieren gemeldet: %1$s</string>
     <string name="article_history_info_fixed">Angaben korrigiert</string>
     <string name="article_history_author">Von %1$s</string>
+    <string name="article_order_url">Bestelllink</string>
+    <string name="article_order_url_hint">Optional. Webadresse (http oder https), unter der der Artikel bestellt wird.</string>
+    <string name="article_error_url">Geben Sie eine Webadresse ein, die mit http:// oder https:// beginnt</string>
+    <string name="article_order">Bestellen</string>
+    <string name="article_order_host">Öffnet %1$s</string>
+    <string name="article_order_open_failed">Der Link konnte nicht geöffnet werden. Keine App kann ihn öffnen.</string>
 </resources>
