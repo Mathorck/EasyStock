@@ -17,9 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
 
-/** Preferences file of [AndroidDatasetEpochStore]. */
-const val DATASET_EPOCH_FILE = "sync_dataset"
-
 @Volatile
 private var engine: SyncEngine? = null
 

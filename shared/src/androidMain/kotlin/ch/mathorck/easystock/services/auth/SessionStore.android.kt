@@ -7,15 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-
-/** File of the session, in `filesDir/datastore`. Holds the encrypted refresh token only. */
-const val SESSION_FILE = "session.preferences_pb"
 
 /**
  * AES-256-GCM with a key that never leaves the Android Keystore. The output is the 12-byte IV
@@ -71,7 +69,7 @@ fun sessionStore(context: Context): SessionStore =
     instance ?: synchronized(SessionStore::class) {
         instance ?: EncryptedSessionStore(
             PreferenceDataStoreFactory.create {
-                File(context.applicationContext.filesDir, "datastore/$SESSION_FILE")
+                File(context.applicationContext.filesDir, "datastore/${activeProfilePaths.sessionFile}")
             },
             KeystoreTokenCipher(),
         ).also { instance = it }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.data.db.appDatabase
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import ch.mathorck.easystock.services.server.ServerConnection
 import ch.mathorck.easystock.services.server.serverClientFor
 import java.io.File
@@ -18,7 +19,7 @@ fun pushRegistrar(context: Context): PushRegistrar = registrar ?: synchronized(P
     registrar ?: run {
         val app = context.applicationContext
         PushRegistrar(
-            store = FilePushStore(File(app.noBackupFilesDir, PUSH_FILE)),
+            store = FilePushStore(File(app.noBackupFilesDir, activeProfilePaths.pushFile)),
             connector = AndroidPushConnector(app),
             target = {
                 appDatabase(app).sessionDao().syncState()?.let { state ->
@@ -34,7 +35,5 @@ fun pushRegistrar(context: Context): PushRegistrar = registrar ?: synchronized(P
 
 @Composable
 actual fun rememberPushRegistrar(): PushRegistrar? = pushRegistrar(LocalContext.current)
-
-private const val PUSH_FILE = "unifiedpush.json"
 
 internal const val TAG = "EasyStockPush"

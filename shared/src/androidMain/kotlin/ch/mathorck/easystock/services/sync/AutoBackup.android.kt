@@ -8,16 +8,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import easystock.shared.generated.resources.Res
 import easystock.shared.generated.resources.backup_share_title
 import java.io.File
 import org.jetbrains.compose.resources.stringResource
 
 /** Folder of the automatic backups (`filesDir/auto-backups`): kept, unlike the temporary backup folder in the cache. */
-internal fun autoBackupDir(context: Context): File = File(context.applicationContext.filesDir, "auto-backups")
-
-/** Preferences file of [AndroidResetNoticeStore]. */
-const val RESET_NOTICE_FILE = "sync_reset_notice"
+internal fun autoBackupDir(context: Context): File = File(context.applicationContext.filesDir, activeProfilePaths.autoBackupDir)
 
 @Composable
 actual fun rememberAutoBackupSharer(): (String) -> Unit {

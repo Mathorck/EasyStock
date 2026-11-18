@@ -16,12 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 
 /** `Manifest.permission.ACCESS_LOCAL_NETWORK` (Android 17, API 37). */
 private const val PERMISSION = "android.permission.ACCESS_LOCAL_NETWORK"
 private const val API_LOCAL_NETWORK = 37
 
-private const val PREFS_FILE = "local_network"
 
 /** Denied for good ([deniedForGood]): the system won't show its dialog any more, only the settings can allow it. */
 private const val KEY_DENIED = "denied_for_good"
@@ -44,7 +44,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 actual fun rememberLocalNetworkAccess(onResult: (granted: Boolean) -> Unit): LocalNetworkAccess {
     val context = LocalContext.current
     val app = context.applicationContext
-    val prefs = remember(app) { app.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE) }
+    val prefs = remember(app) { app.getSharedPreferences(activeProfilePaths.localNetworkPrefsName, Context.MODE_PRIVATE) }
     val currentOnResult by rememberUpdatedState(onResult)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val rationaleNow = context.findActivity()?.shouldShowRequestPermissionRationale(PERMISSION) ?: false

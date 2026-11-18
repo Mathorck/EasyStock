@@ -10,8 +10,8 @@ import android.os.StatFs
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import ch.mathorck.easystock.data.db.DATABASE_NAME
 import ch.mathorck.easystock.enums.nfc.NfcAvailability
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,7 +21,7 @@ private class AndroidAppInfoPlatform(context: Context) : AppInfoPlatform {
 
     override suspend fun read(): PlatformInfo = withContext(Dispatchers.IO) {
         val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
-        val dbFile = context.getDatabasePath(DATABASE_NAME)
+        val dbFile = context.getDatabasePath(activeProfilePaths.databaseName)
         // The WAL and shared-memory files belong to the database
         val dbBytes = listOf("", "-wal", "-shm").sumOf { File(dbFile.path + it).takeIf(File::isFile)?.length() ?: 0L }
         val photos = File(context.filesDir, "images").walkTopDown().filter { it.isFile && !it.name.endsWith(".tmp") }.toList()

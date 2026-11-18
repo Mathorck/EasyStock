@@ -46,8 +46,6 @@ import ch.mathorck.easystock.data.model.sync.SyncState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-const val DATABASE_NAME = "easystock.db"
-
 /** Current schema version (Room). Backups and the server get [DATA_SCHEMA_VERSION] instead. */
 const val DB_VERSION = 13
 

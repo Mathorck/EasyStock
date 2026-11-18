@@ -12,12 +12,13 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import ch.mathorck.easystock.services.sync.BackgroundSyncScheduler
 import ch.mathorck.easystock.services.sync.WorkManagerBackgroundSync
 import ch.mathorck.easystock.sync.BackgroundSyncWorker
 import java.util.concurrent.TimeUnit
 
-internal const val BACKGROUND_SYNC_WORK = "easystock-background-sync"
+internal val BACKGROUND_SYNC_WORK get() = activeProfilePaths.backgroundSyncWork
 
 /** The request of the job: every 15 minutes (the WorkManager minimum), only with a network. */
 internal fun backgroundSyncRequest() = PeriodicWorkRequestBuilder<BackgroundSyncWorker>(15, TimeUnit.MINUTES)
@@ -26,7 +27,7 @@ internal fun backgroundSyncRequest() = PeriodicWorkRequestBuilder<BackgroundSync
     .build()
 
 /** Unique name of the one-off sync a push message starts. */
-internal const val PUSH_SYNC_WORK = "easystock-push-sync"
+internal val PUSH_SYNC_WORK get() = activeProfilePaths.pushSyncWork
 
 internal const val PUSH_CHANNEL_ID = "push_sync"
 

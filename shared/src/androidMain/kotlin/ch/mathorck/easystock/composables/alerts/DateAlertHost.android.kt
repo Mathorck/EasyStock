@@ -7,9 +7,10 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import ch.mathorck.easystock.alerts.DateAlertWorker
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import java.util.concurrent.TimeUnit
 
-internal const val DATE_ALERT_WORK = "easystock-date-alerts"
+internal val DATE_ALERT_WORK get() = activeProfilePaths.dateAlertWork
 
 /** Hours between two checks: once a day is enough, a date is past from the day after. */
 private const val DATE_ALERT_PERIOD_HOURS = 24L

@@ -8,6 +8,7 @@ import ch.mathorck.easystock.services.auth.sessionStore
 import ch.mathorck.easystock.services.backup.PHOTO_STAGING_DIR
 import ch.mathorck.easystock.services.backup.backupService
 import ch.mathorck.easystock.services.images.IMAGE_DIR
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import ch.mathorck.easystock.services.push.pushRegistrar
 import ch.mathorck.easystock.services.server.releaseServerClient
 import ch.mathorck.easystock.services.sync.AndroidAutoBackups
@@ -40,7 +41,7 @@ suspend fun wipeAppFiles(filesDir: File, cacheDir: File, keepAutoBackups: Boolea
         // Admin screens: a downloaded server backup, a picked import, the Guest invite PDF (live token)
         File(cacheDir, "server"),
         // Automatic backups written before a server reset: they hold the data being erased
-        File(filesDir, "auto-backups").takeUnless { keepAutoBackups },
+        File(filesDir, activeProfilePaths.autoBackupDir).takeUnless { keepAutoBackups },
     ).forEach { it.deleteRecursively() }
 }
 

@@ -2,13 +2,14 @@ package ch.mathorck.easystock.data.db
 
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
 fun databaseBuilder(): RoomDatabase.Builder<AppDatabase> =
-    Room.databaseBuilder<AppDatabase>(name = "${documentDirectory()}/$DATABASE_NAME")
+    Room.databaseBuilder<AppDatabase>(name = "${documentDirectory()}/${activeProfilePaths.databaseName}")
 
 @OptIn(ExperimentalForeignApi::class)
 private fun documentDirectory(): String {
