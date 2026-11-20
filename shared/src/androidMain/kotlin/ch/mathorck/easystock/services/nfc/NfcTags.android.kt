@@ -76,7 +76,6 @@ actual fun NfcReaderHost(tags: NfcTags) {
     val activity = remember(context) { context.findActivity() }
     val adapter = remember(context) { NfcAdapter.getDefaultAdapter(context.applicationContext) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val listening by tags.listening.collectAsState()
     val availability by tags.availability.collectAsState()
     var resumed by remember { mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
 
@@ -116,8 +115,10 @@ actual fun NfcReaderHost(tags: NfcTags) {
         }
     }
 
-    // Reader mode only while someone listens and the activity is resumed (the system requires it)
-    val active = listening && resumed && availability == NfcAvailability.Enabled
+    // Reader mode whenever the activity is resumed (the system requires it), even when no screen
+    // waits for a tag: without it Android hands the tag to other apps (a URL on the tag opens the
+    // browser, a blank tag the system "New tag" screen). A tag nobody waits for is dropped
+    val active = resumed && availability == NfcAvailability.Enabled
     DisposableEffect(active, activity, adapter) {
         if (!active || activity == null || adapter == null) return@DisposableEffect onDispose { }
         val main = Handler(Looper.getMainLooper())

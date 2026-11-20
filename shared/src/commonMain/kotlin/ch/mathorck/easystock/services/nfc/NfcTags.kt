@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Routes the tags read by the platform reader to one listener (see [TagPriority]).
- * The platform reader runs only while [listening] is true and the app is in the foreground,
- * see [NfcReaderHost]. Main thread only.
+ * The platform reader runs whenever the app is in the foreground (see [NfcReaderHost]); a tag
+ * read while no screen waits for one is dropped. Main thread only.
  */
 class NfcTags(
     private val timeSource: TimeSource = TimeSource.Monotonic,
@@ -30,7 +30,7 @@ class NfcTags(
     private val _availability = MutableStateFlow(NfcAvailability.Unknown)
     private var lastRead: Pair<String, TimeMark>? = null
 
-    /** At least one screen waits for a tag: the reader should run. */
+    /** At least one screen waits for a tag. */
     val listening: StateFlow<Boolean> = _listening.asStateFlow()
 
     /** Set by the platform reader, rechecked when the app comes back to the foreground. */
@@ -53,6 +53,8 @@ class NfcTags(
 
     /** Gives [event] to the current listener. Returns false when nobody took it (no listener, or a repeat). */
     fun dispatch(event: TagEvent): Boolean {
+        // Dropped without being remembered: a screen opened just after still reads the same tag
+        if (listeners.isEmpty()) return false
         if (event is TagEvent.Read) {
             val last = lastRead
             if (last != null && last.first == event.tagId && last.second.elapsedNow() < repeatDelay) return false
@@ -70,7 +72,6 @@ val appNfcTags = NfcTags()
 
 /**
  * Receives the tags read while this is in the composition and [enabled].
- * The reader runs as long as one listener is registered.
  */
 @Composable
 fun NfcTagListener(
@@ -87,8 +88,8 @@ fun NfcTagListener(
 }
 
 /**
- * Runs the platform NFC reader while [tags] has listeners and the app is in the foreground,
- * and keeps [NfcTags.availability] up to date. Put it once at the root of the UI.
+ * Runs the platform NFC reader while the app is in the foreground, and keeps
+ * [NfcTags.availability] up to date. Put it once at the root of the UI.
  */
 @Composable
 expect fun NfcReaderHost(tags: NfcTags = appNfcTags)

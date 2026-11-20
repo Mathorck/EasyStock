@@ -80,4 +80,14 @@ class NfcTagsTest {
         tags.setAvailability(NfcAvailability.Disabled)
         assertEquals(NfcAvailability.Disabled, tags.availability.value)
     }
+
+    @Test
+    fun aTagReadWithoutListenerIsNotRemembered() {
+        assertFalse(tags.dispatch(TagEvent.Read("AA")))
+        val read = mutableListOf<TagEvent>()
+        tags.register(TagPriority.entries.first()) { read += it }
+        // The screen that opens right after still gets the tag held against the phone
+        assertTrue(tags.dispatch(TagEvent.Read("AA")))
+        assertEquals(listOf<TagEvent>(TagEvent.Read("AA")), read)
+    }
 }
