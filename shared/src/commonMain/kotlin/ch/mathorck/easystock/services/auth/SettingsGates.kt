@@ -5,7 +5,7 @@ import ch.mathorck.easystock.enums.auth.Role
 import ch.mathorck.easystock.enums.settings.SettingsSubpageId
 
 /**
- * What the settings list shows. Language and app info are always there; the catalogue screens,
+ * What the settings list shows. Language, profiles and app info are always there; the catalogue screens,
  * the backup (export and import) and the reset of all data change data, so they need [Action.MANAGE_SETTINGS].
  */
 data class SettingsGates(
@@ -37,6 +37,9 @@ data class SettingsGates(
                     SettingsSubpageId.Reviews -> permissions.can(Action.VIEW_REVIEWS)
                     // Connect (standalone) or the own account (connected): every role
                     SettingsSubpageId.AppInfo, SettingsSubpageId.Server -> true
+                    // The profiles belong to the phone, not to a server role: always reachable, so a
+                    // restricted account can still go back to another stock
+                    SettingsSubpageId.Profiles -> true
                     // Server administration: only an Admin of a server. Never in standalone, where
                     // Action.ADMINISTER is allowed but there is no server to administer
                     SettingsSubpageId.Administration -> permissions.connected && permissions.role == Role.ADMIN

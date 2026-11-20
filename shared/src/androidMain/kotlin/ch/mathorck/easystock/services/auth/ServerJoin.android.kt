@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.services.images.IMAGE_DIR
+import ch.mathorck.easystock.services.profiles.profileFilesDir
 import ch.mathorck.easystock.services.server.ClientVersions
 import ch.mathorck.easystock.services.server.KtorJoinApi
 import ch.mathorck.easystock.services.server.appVersionName
@@ -34,7 +35,7 @@ fun joinPlatform(context: Context): JoinPlatform {
     val dao = appDatabase(app).sessionDao()
     val versions = ClientVersions(appVersion = appVersionName(app))
     return JoinPlatform(
-        emptyCheck = EmptyPhoneCheck(dao) { hasPhotoFiles(app.filesDir) },
+        emptyCheck = EmptyPhoneCheck(dao) { hasPhotoFiles(profileFilesDir(app)) },
         join = ServerJoin(dao, sessionStore(app)),
         joinApi = { connection ->
             KtorJoinApi(createPublicClient(connection, serverHttpEngine(connection.fingerprint), versions))

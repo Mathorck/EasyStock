@@ -8,6 +8,7 @@ import ch.mathorck.easystock.data.db.appDatabase
 import ch.mathorck.easystock.services.alerts.AlertNotifier
 import ch.mathorck.easystock.services.alerts.alertNotifications
 import ch.mathorck.easystock.services.backup.backupService
+import ch.mathorck.easystock.services.profiles.profileFilesDir
 import ch.mathorck.easystock.services.server.KtorAccountApi
 import ch.mathorck.easystock.services.server.ServerConnection
 import ch.mathorck.easystock.services.server.isLocalNetworkAccessMissing
@@ -25,7 +26,7 @@ fun syncEngine(context: Context): SyncEngine = engine ?: synchronized(SyncEngine
     engine ?: run {
         val app = context.applicationContext
         SyncEngine(
-            store = RoomSyncStore(appDatabase(app), AndroidSyncImageFiles(app.filesDir)),
+            store = RoomSyncStore(appDatabase(app), AndroidSyncImageFiles(profileFilesDir(app))),
             // The shared client of the connection (token refreshes never race), built on the main thread
             remote = { state ->
                 val client = withContext(Dispatchers.Main) { serverClientFor(app, ServerConnection.of(state)) }

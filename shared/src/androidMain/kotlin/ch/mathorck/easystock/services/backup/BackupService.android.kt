@@ -19,6 +19,7 @@ import ch.mathorck.easystock.enums.backup.ImportMode
 import ch.mathorck.easystock.exceptions.backup.BackupException
 import ch.mathorck.easystock.services.images.IMAGE_DIR
 import ch.mathorck.easystock.services.images.isValidImagePath
+import ch.mathorck.easystock.services.profiles.profileFilesDir
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -42,7 +43,7 @@ const val MAX_BACKUP_FILE_BYTES = 2L * 1024 * 1024 * 1024
 class AndroidBackupService(
     context: Context,
     private val dao: BackupDao,
-    private val filesDir: File = context.applicationContext.filesDir,
+    private val filesDir: File = profileFilesDir(context),
     private val workDir: File = File(context.applicationContext.cacheDir, "backup"),
     private val clock: Clock = Clock.System,
 ) : BackupService {

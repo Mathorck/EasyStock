@@ -41,7 +41,7 @@ class DataResetTest {
         root.mkdirs()
         db = Room.databaseBuilder<AppDatabase>(context, File(root, "reset.db").path)
             .withAppSchema().setDriver(BundledSQLiteDriver()).build()
-        reset = DataReset(db, clearSession = { session.clear() }, wipeFiles = { keep -> wipeAppFiles(filesDir, cacheDir, keep) })
+        reset = DataReset(db, clearSession = { session.clear() }, wipeFiles = { keep -> wipeAppFiles(filesDir, cacheDir, java.io.File(filesDir, "auto-backups"), keep) })
         // Every table, soft-deleted rows included
         db.backupDao().replaceAll(sample())
     }

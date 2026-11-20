@@ -93,11 +93,11 @@ class AppPermissionsTest {
         assertEquals(SettingsGates(allSubpages, resetData = true), SettingsGates.of(admin))
         assertEquals(SettingsGates(standaloneSubpages, resetData = true), SettingsGates.of(editor))
         assertEquals(
-            SettingsGates(setOf(SettingsSubpageId.Reviews, SettingsSubpageId.AppInfo, SettingsSubpageId.Server), resetData = false),
+            SettingsGates(setOf(SettingsSubpageId.Reviews, SettingsSubpageId.AppInfo, SettingsSubpageId.Server, SettingsSubpageId.Profiles), resetData = false),
             SettingsGates.of(viewer),
         )
-        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo, SettingsSubpageId.Server), resetData = false), SettingsGates.of(guest))
-        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo, SettingsSubpageId.Server), resetData = false), SettingsGates.of(unknown))
+        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo, SettingsSubpageId.Server, SettingsSubpageId.Profiles), resetData = false), SettingsGates.of(guest))
+        assertEquals(SettingsGates(setOf(SettingsSubpageId.AppInfo, SettingsSubpageId.Server, SettingsSubpageId.Profiles), resetData = false), SettingsGates.of(unknown))
     }
 
     @Test

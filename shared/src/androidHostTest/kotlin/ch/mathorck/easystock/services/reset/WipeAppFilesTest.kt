@@ -38,7 +38,7 @@ class WipeAppFilesTest {
             file(cacheDir, "server/share/easystock-qr.pdf"),
         )
 
-        wipeAppFiles(filesDir, cacheDir)
+        wipeAppFiles(filesDir, cacheDir, File(filesDir, "auto-backups"))
 
         data.forEach { assertFalse(it.exists(), it.path) }
         assertFalse(File(cacheDir, "server").exists())
@@ -49,9 +49,20 @@ class WipeAppFilesTest {
         val backup = file(filesDir, "auto-backups/auto-1.easystock")
         val photo = file(filesDir, "images/a.jpg")
 
-        wipeAppFiles(filesDir, cacheDir, keepAutoBackups = true)
+        wipeAppFiles(filesDir, cacheDir, File(filesDir, "auto-backups"), keepAutoBackups = true)
 
         assertTrue(backup.exists())
         assertFalse(photo.exists())
+    }
+
+    @Test
+    fun theLegacyWipeKeepsTheOtherProfiles() = runBlocking {
+        val other = file(filesDir, "profiles/0b6f3c3e-2d1a-4c8e-9f5b-7a2e4d6c8b10/images/a.jpg")
+        val otherBackup = file(filesDir, "profiles/0b6f3c3e-2d1a-4c8e-9f5b-7a2e4d6c8b10/auto-backups/auto-1.easystock")
+
+        wipeAppFiles(filesDir, cacheDir, File(filesDir, "auto-backups"))
+
+        assertTrue(other.exists())
+        assertTrue(otherBackup.exists())
     }
 }

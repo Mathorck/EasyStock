@@ -48,7 +48,13 @@ import ch.mathorck.easystock.composables.theme.EasyStockTheme
 import ch.mathorck.easystock.composables.theme.isDynamicColorSupported
 import ch.mathorck.easystock.data.db.rememberAppDatabase
 import ch.mathorck.easystock.enums.AppLanguage
+import ch.mathorck.easystock.composables.settings.ProfilesScreen
+import ch.mathorck.easystock.composables.settings.profileName
+import ch.mathorck.easystock.data.model.profiles.Profile
 import ch.mathorck.easystock.enums.settings.SettingsSubpageId
+import ch.mathorck.easystock.services.profiles.rememberProfileService
+import easystock.shared.generated.resources.ic_switch_account
+import easystock.shared.generated.resources.profiles_title
 import ch.mathorck.easystock.services.auth.AppPermissions
 import ch.mathorck.easystock.services.auth.LocalPermissions
 import ch.mathorck.easystock.services.auth.SettingsGates
@@ -136,6 +142,7 @@ fun SettingsPage(
     val preferences = LocalAppPreferences.current
     val dynamicColor by preferences.dynamicColor.collectAsState()
     var subpage by rememberSaveable { mutableStateOf<SettingsSubpageId?>(null) }
+    val profiles by rememberProfileService().registry.collectAsState()
     // Same view model as the backup screen: a Wi-Fi share goes on when that screen is closed
     val backup = viewModel(key = "settings-backup") { BackupViewModel(service) }
     val backupState by backup.state.collectAsStateWithLifecycle()
@@ -229,6 +236,7 @@ fun SettingsPage(
                 },
             )
         }
+        SettingsSubpageId.Profiles -> ProfilesScreen(onBack = { subpage = null })
         SettingsSubpageId.AppInfo -> AppInfoScreen(
             onBack = { subpage = null },
             onOpenBackup = { subpage = SettingsSubpageId.Backup },
@@ -256,6 +264,7 @@ fun SettingsPage(
             onDynamicColorChange = preferences::setDynamicColor,
             wifiShareDeadline = share,
             onStopWifiShare = backup::reset,
+            profile = profiles.active,
         )
     }
 }
@@ -276,6 +285,8 @@ fun SettingsContent(
     onStopWifiShare: () -> Unit = {},
     /** The joined server, null in standalone mode. */
     serverAddress: String? = null,
+    /** The profile in use. */
+    profile: Profile = Profile.LEGACY_DEFAULT,
 ) {
     // Not saveable: the activity recreates on a language change, the dialog must not reopen
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -296,6 +307,14 @@ fun SettingsContent(
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
             modifier = Modifier.clickable { showLanguageDialog = true },
         )
+        if (SettingsSubpageId.Profiles in gates.subpages) {
+            SubpageItem(
+                title = stringResource(Res.string.profiles_title),
+                summary = profileName(profile),
+                icon = Res.drawable.ic_switch_account,
+                onClick = { onOpen(SettingsSubpageId.Profiles) },
+            )
+        }
         if (dynamicColor != null) {
             ListItem(
                 headlineContent = { Text(stringResource(Res.string.settings_dynamic_color)) },

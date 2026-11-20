@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import ch.mathorck.easystock.services.profiles.profileFilesDir
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -24,10 +25,10 @@ import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Photos in `filesDir/images`, decoded images kept in a small memory cache. */
+/** Photos in `images` of the profile folder (`profileFilesDir`), decoded images kept in a small memory cache. */
 class AndroidArticleImageStore(context: Context) : ArticleImageStore {
     private val appContext = context.applicationContext
-    private val filesDir: File = appContext.filesDir
+    private val filesDir: File = profileFilesDir(appContext)
 
     // Keyed by path and size. A path never changes content (see newImagePath), so no invalidation needed.
     private val memory = object : LruCache<String, ImageBitmap>(cacheSizeKb()) {

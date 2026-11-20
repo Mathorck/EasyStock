@@ -11,7 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import ch.mathorck.easystock.enums.nfc.NfcAvailability
+import ch.mathorck.easystock.services.images.IMAGE_DIR
 import ch.mathorck.easystock.services.profiles.activeProfilePaths
+import ch.mathorck.easystock.services.profiles.profileFilesDir
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,7 +26,7 @@ private class AndroidAppInfoPlatform(context: Context) : AppInfoPlatform {
         val dbFile = context.getDatabasePath(activeProfilePaths.databaseName)
         // The WAL and shared-memory files belong to the database
         val dbBytes = listOf("", "-wal", "-shm").sumOf { File(dbFile.path + it).takeIf(File::isFile)?.length() ?: 0L }
-        val photos = File(context.filesDir, "images").walkTopDown().filter { it.isFile && !it.name.endsWith(".tmp") }.toList()
+        val photos = File(profileFilesDir(context), IMAGE_DIR).walkTopDown().filter { it.isFile && !it.name.endsWith(".tmp") }.toList()
         val nfc = when (val adapter = NfcAdapter.getDefaultAdapter(context)) {
             null -> NfcAvailability.Unavailable
             else -> if (adapter.isEnabled) NfcAvailability.Enabled else NfcAvailability.Disabled

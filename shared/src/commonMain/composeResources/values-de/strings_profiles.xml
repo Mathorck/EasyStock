@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profiles_title">Profile</string>
+    <string name="profiles_summary">Getrennte Lager auf diesem Telefon, jedes eigenständig oder auf eigenem Server</string>
+    <string name="profiles_default_name">Standard</string>
+    <string name="profiles_active">In Gebrauch</string>
+    <string name="profiles_add">Neues Profil</string>
+    <string name="profiles_new_title">Neues Profil</string>
+    <string name="profiles_rename">Umbenennen</string>
+    <string name="profiles_rename_title">Profil umbenennen</string>
+    <string name="profiles_name">Name</string>
+    <string name="profiles_name_invalid">Geben Sie einen Namen mit höchstens 40 Zeichen ein</string>
+    <string name="profiles_new_hint">Ein neues Profil startet leer und eigenständig. Um es mit einem Server zu nutzen, öffnen Sie es und verbinden Sie sich unter Einstellungen › Server.</string>
+    <string name="profiles_switch_title">%1$s öffnen?</string>
+    <string name="profiles_switch_message">Die App startet neu, um dieses Profil zu öffnen. Hintergrund-Sync und Warnungen laufen nur für das Profil in Gebrauch.</string>
+    <string name="profiles_switch_confirm">Öffnen</string>
+    <string name="profiles_delete_title">%1$s löschen?</string>
+    <string name="profiles_delete_message">Alle Artikel, Fotos und Sicherungen dieses Profils werden von diesem Telefon gelöscht, samt den noch nicht an einen Server gesendeten Änderungen. Ein Server behält dieses Telefon in seinen Geräten, bis ein Admin es entfernt.</string>
+    <string name="profiles_delete_failed">Das Profil konnte nicht vollständig gelöscht werden</string>
+</resources>

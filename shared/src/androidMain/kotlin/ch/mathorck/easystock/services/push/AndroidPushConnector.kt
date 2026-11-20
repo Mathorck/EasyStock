@@ -2,9 +2,13 @@ package ch.mathorck.easystock.services.push
 
 import android.content.Context
 import android.content.pm.PackageManager
+import ch.mathorck.easystock.services.profiles.activeProfilePaths
 import org.unifiedpush.android.connector.UnifiedPush
 
-/** The UnifiedPush connector library. No VAPID key: the server sends a plain "sync" body. */
+/**
+ * The UnifiedPush connector library. No VAPID key: the server sends a plain "sync" body.
+ * One instance per profile: each profile has its own push address.
+ */
 internal class AndroidPushConnector(private val context: Context) : PushConnector {
     override fun distributors(): List<PushDistributor> = UnifiedPush.getDistributors(context)
         .filter { it != context.packageName }
@@ -19,15 +23,15 @@ internal class AndroidPushConnector(private val context: Context) : PushConnecto
 
     override fun use(distributor: String) {
         UnifiedPush.saveDistributor(context, distributor)
-        UnifiedPush.register(context)
+        UnifiedPush.register(context, activeProfilePaths.pushInstance)
     }
 
     override fun register() {
         // Null when the distributor was uninstalled: the library then calls onUnregistered
-        if (UnifiedPush.getSavedDistributor(context) != null) UnifiedPush.register(context)
+        if (UnifiedPush.getSavedDistributor(context) != null) UnifiedPush.register(context, activeProfilePaths.pushInstance)
     }
 
     override fun unregister() {
-        UnifiedPush.unregister(context)
+        UnifiedPush.unregister(context, activeProfilePaths.pushInstance)
     }
 }

@@ -1,4 +1,13 @@
 package ch.mathorck.easystock.enums.profiles
 
-/** Where a profile keeps its data. Only [LEGACY] exists for now: the names of an install made before profiles. */
-enum class ProfileLayout { LEGACY }
+import kotlinx.serialization.Serializable
+
+/** Where a profile keeps its data. */
+@Serializable
+enum class ProfileLayout {
+    /** The names of an install made before profiles (the "Default" profile). */
+    LEGACY,
+
+    /** Names of its own, made from the profile id (see `ProfilePaths.forProfile`). */
+    ISOLATED,
+}
